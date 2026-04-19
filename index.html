@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja"> <head>
+    <meta charset="UTF-8"> <title>三角関数</title> <script src="https://unpkg.com/blockly/blockly.min.js"></script> <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script> <style>
+        /* CSS設計：IDではなくクラス（.a, .bなど）を多用し、再利用性と可読性を高める（※面接用にあえて短縮名にしているが、意図は説明可能に） */
+        html, body { height: 100%; margin: 0; padding: 0; background-color: #f9f9f9; font-family: sans-serif; }
+        .a { display: none; height: 100%; flex-direction: column; } /* 画面要素。通常は非表示とし、active時にのみ表示するSPA的な設計 */
+        .b { display: flex; } /* 表示状態。Flexboxを用いることで要素の整列を容易にする */
+        #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow-y: auto;} /* スタート画面の背景とレイアウト */
+        .d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 600px; width: 100%; margin-bottom: 30px;} /* ステージ選択ボタンを5列のグリッドで等間隔に配置 */
+        .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;} /* ステージボタンの装飾 */
+        .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; } /* クリアマーク（🎉）。初期は非表示 */
+        .g .f { display: block; } /* クリア済みクラス(.g)が付与された時のみ🎉を表示する */
+        #h { background-color: #1976d2; color: white; padding: 10px; display: flex; justify-content: space-between; } /* ゲーム画面ヘッダー */
+        #i { background-color: #e3f2fd; padding: 15px; margin: 10px; text-align: center; } /* 問題文（数式）の表示エリア */
+        #j { margin: 10px; text-align: center; } /* 操作ボタン（判定・リセット等）のコンテナ */
+        .k { border: none; padding: 10px; border-radius: 5px; cursor: pointer; color: white; margin: 2px;} /* ボタン共通スタイル。一貫性のあるデザインを保持 */
+        #l { flex-grow: 1; width: 100%; } /* Blocklyが表示されるメインエリア。残りの高さをすべて占有する(flex-grow: 1) */
+        #m { height: 15vh; background-color: #333; color: #fff; padding: 10px; overflow-y: auto; } /* デバッグ用ログ出力。AIの判定プロセスを可視化 */
+    </style>
+</head>
+<body>
+    <div id="c" class="a b">
+        <h1>問題選択</h1>
+        <div id="n" style="width: 100%; max-width: 600px;"></div> <button onclick="o()" style="margin-top:20px;">リセット</button> </div>
+
+    <div id="p" class="a">
+        <div id="h">
+            <button id="q">戻る</button> <div id="r"></div> </div>
+        <div id="i"><span id="s"></span></div> <div id="j">
+            <button id="t" class="k" style="background:#ff9800;">判定</button> <button id="u" class="k" style="background:#4caf50;">ヒント</button> <button id="v" class="k" style="background:#f44336;">答え</button> <button id="w" class="k" style="background:#9e9e9e;">やり直す</button> <button id="x" class="k" style="background:#e91e63;display:none;"></button> </div>
+        <div id="y" style="text-align:center;margin:5px;"></div> <div id="l"></div> <div id="m"></div> </div>
+    <script src="main.js"></script>
+</body>
+</html>
