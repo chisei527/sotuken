@@ -1,0 +1,121 @@
+{
+  "_system_directive": {
+    "role": "Lead Programmer (Implementation Expert)",
+    "rules": [
+      "Wait for the user to specify a Task ID (e.g., T-01). Do not execute multiple tasks at once.",
+      "Read the 'architectural_intent' and 'future_considerations' carefully before writing code. Design your functions to support these future needs.",
+      "You are responsible for writing elegant, idiomatic JavaScript. You decide the syntax, but you must satisfy all 'logic_requirements'.",
+      "Ensure robust error handling based on the provided 'edge_cases'."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Web-based MVP using Blockly and math.js.",
+    "future_state": "A comprehensive app exportable to Unity (C#) with advanced gamification, real-time error highlighting, and cross-platform cloud saves."
+  },
+  "tasks": {
+    "T-01": {
+      "name": "AST_Parser_Implementation",
+      "target_file": "main.js",
+      "architectural_intent": "Decouple the visual blocks (DOM) from the logical math evaluation. We need a pure data structure representing the proof steps.",
+      "future_considerations": "This AST will eventually be serialized to JSON and sent to Unity via WebGL messaging. It must contain pure strings and step indices, NO circular references or DOM elements.",
+      "logic_requirements": [
+        "Create `parseBlocksToAST(workspace)`.",
+        "Traverse `proof_step` -> `OPERATIONS`.",
+        "Extract step data using `mathGenerator`. Structure: `{ step: Number, type: String, before: String, formula: String|null, after: String|null }`.",
+        "Log the output in the `btn-submit` listener for the user to verify."
+      ],
+      "edge_cases": [
+        "Handle cases where a block is attached but its internal inputs (VALUE/REPLACEMENT) are empty (return empty strings or null safely).",
+        "Handle cases where no `proof_step` exists on the workspace."
+      ]
+    },
+    "T-02": {
+      "name": "Validator_Decoupling",
+      "target_file": "main.js",
+      "architectural_intent": "Move all math validation out of UI event listeners into a pure, testable function.",
+      "future_considerations": "In the future, this validator will not just return true/false, but will identify *which specific step* failed, enabling a 'Red Highlight' feature for incorrect blocks.",
+      "logic_requirements": [
+        "Create `validateProof(astArray)` returning `{ isValid: boolean, errorStepIndex: Number | null, message: String }`.",
+        "Iterate the AST. Use `math.evaluate` with test points (e.g., x = 0.5, 1.2, 2.3) to verify `before` equals `after`.",
+        "Verify the final step is a conclusion.",
+        "Refactor `btn-submit` to rely entirely on this function."
+      ],
+      "edge_cases": [
+        "User divides by zero in their math logic (catch evaluation errors and return a clean failure message).",
+        "Math.js rounding errors (use an epsilon/tolerance like 0.0001 for floating-point comparisons)."
+      ]
+    },
+    "T-03": {
+      "name": "Streak_System",
+      "target_file": ["main.js", "index.html"],
+      "architectural_intent": "Introduce basic session-based gamification to increase retention.",
+      "future_considerations": "This `currentStreak` variable will later be tied to an XP multiplier and a global user level system stored in Firebase.",
+      "logic_requirements": [
+        "Add global state `currentStreak = 0`.",
+        "Increment on correct proof, reset to 0 on incorrect proof or 'Reset' button click.",
+        "Add UI in the header (`#streak-counter`) to display '🔥 [streak_count]'.",
+        "Trigger a brief CSS animation (e.g., a scale bounce) when the streak increases."
+      ],
+      "edge_cases": [
+        "Ensure the streak does not increment if the user spam-clicks the submit button on an already solved puzzle."
+      ]
+    },
+    "T-04": {
+      "name": "Step_Up_Skip_Challenge",
+      "target_file": ["main.js", "index.html"],
+      "architectural_intent": "Reward high-performing users by letting them bypass tedious basic questions.",
+      "future_considerations": "Needs to gracefully update the `clearedStages` array so the future UI 'Stage Map' displays the skipped levels as completed.",
+      "logic_requirements": [
+        "If `isValid` is true AND `currentStreak === 5`, intercept the normal 'Next' flow.",
+        "Show a custom HTML modal offering a 'Skip Challenge'.",
+        "If accepted, load `currentStageNumber + 3`. If solved, mark all bypassed stages as cleared in `localStorage`."
+      ],
+      "edge_cases": [
+        "Prevent skipping past the maximum available stage (e.g., if max is 33 and current is 31, do not jump to 34)."
+      ]
+    },
+    "T-05": {
+      "name": "Radian_and_Special_Angles",
+      "target_file": "main.js",
+      "architectural_intent": "Expand the problem domain from generic 'θ' to specific, calculable radian angles.",
+      "future_considerations": "Future exact-match validation will require treating 'π' as a symbol in math.js, not just a floating-point number. Generator output must reflect this.",
+      "logic_requirements": [
+        "Define new Blockly terms: `term_pi`, `term_pi_half`, `term_sqrt3_half`.",
+        "Add them to `toolboxConfig`.",
+        "Map `mathGenerator` to output math.js strings: 'pi', '(pi/2)', '(sqrt(3)/2)'."
+      ],
+      "edge_cases": [
+        "Ensure the visual rendering in the block (MathJax or Unicode) correctly displays 'π' and fractions without breaking the block height."
+      ]
+    },
+    "T-06": {
+      "name": "Interactive_Unit_Circle",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "Provide a visual mental model tool for users struggling with abstract math.",
+      "future_considerations": "This function must be modular. In the future, tapping a specific `term_pi` block might automatically open this visualizer preset to that angle.",
+      "logic_requirements": [
+        "Create a modal with a `<canvas id='unit-circle'>` and `<input type='range'>` (0-360 deg).",
+        "Implement `drawUnitCircle(angle)`. Draw the circle, radius, sin (vertical), cos (horizontal), and tan.",
+        "Bind the range input to update the canvas in real-time."
+      ],
+      "edge_cases": [
+        "Handle the visual representation when angle is exactly 90 or 270 degrees (tangent approaches infinity, prevent drawing lines off-screen)."
+      ]
+    },
+    "T-07": {
+      "name": "Firebase_Persistence",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "Move data from local storage to the cloud, preparing for cross-device play and native app release.",
+      "future_considerations": "The data schema should be extensible. Currently it's just `clearedStages`, but prepare it to eventually store `totalXP` and `userSettings`.",
+      "logic_requirements": [
+        "Import Firebase v9 SDK via CDN.",
+        "Implement Anonymous Auth. On auth success, load data from Firestore `users/{uid}`.",
+        "Create `syncProgressToCloud()` to write the `clearedStages` array.",
+        "Refactor the app boot sequence to wait for Firebase init before rendering stages."
+      ],
+      "edge_cases": [
+        "User opens the app without internet connection: Fallback gracefully to read/write `localStorage` and sync later."
+      ]
+    }
+  }
+}

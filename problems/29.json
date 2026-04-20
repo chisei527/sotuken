@@ -1,53 +1,165 @@
-{
-  "id": 29,
-  "mathText": "\\[ \\frac{\\sin^2\\theta + \\cos^2\\theta}{\\sin^2\\theta \\times \\cos^2\\theta} = (1 + \\tan^2\\theta) \\times \\left(1 + \\frac{1}{\\tan^2\\theta}\\right) \\]",
-  "requiredBlocks": [
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"conclusion_operation\""
-  ],
-  "hints": [
-    "左辺の分子に公式①を適用する。",
-    "右辺を展開・通分し、左辺と一致させる。"
-  ],
-  "initialState": {
-    "blocks": {
-      "languageVersion": 0,
-      "blocks": [
-        { "type": "math_fraction", "x": 50, "y": 50, "inputs": { "NUMERATOR": { "block": { "type": "math_add", "inputs": { "A": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_sin" } } } } }, "B": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_cos" } } } } } } } }, "DENOMINATOR": { "block": { "type": "math_multiply", "inputs": { "A": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_sin" } } } } }, "B": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_cos" } } } } } } } } } },
-        { "type": "proof_step", "x": 50, "y": 150 }
-      ]
-    }
-  },
-  "answerState": {
-    "blocks": {
-      "languageVersion": 0,
-      "blocks": [
-        {
-          "type": "proof_step",
-          "x": 50,
-          "y": 150,
-          "inputs": {
-            "OPERATIONS": {
-              "block": {
-                "type": "replace_operation",
-                "inputs": {
-                  "VALUE": { "block": { "type": "math_add", "inputs": { "A": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_sin" } } } } }, "B": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_cos" } } } } } } } },
-                  "FORMULA": { "block": { "type": "formula_1" } },
-                  "REPLACEMENT": { "block": { "type": "custom_number", "fields": { "NUM": 1 } } }
-                },
-                "next": {
-                  "block": {
-                    "type": "conclusion_operation",
-                    "inputs": {
-                      "VALUE": { "block": { "type": "math_fraction", "inputs": { "NUMERATOR": { "block": { "type": "custom_number", "fields": { "NUM": 1 } } }, "DENOMINATOR": { "block": { "type": "math_multiply", "inputs": { "A": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_sin" } } } } }, "B": { "block": { "type": "math_square", "inputs": { "A": { "block": { "type": "term_cos" } } } } } } } } } } }
+﻿{
+    "id":  29,
+    "mathText":  "\\[ \\sin(\\frac{\\pi}{4})\\cos(\\frac{\\pi}{4}) = \\frac{1}{2} \\]",
+    "requiredBlocks":  [
+                           "\"type\":\"common_denominator_operation\"",
+                           "\"type\":\"conclusion_operation\""
+                       ],
+    "hints":  [
+                  "有名角の積を計算する。",
+                  "必要なら倍角公式からも確認できる。"
+              ],
+    "initialState":  {
+                         "blocks":  {
+                                        "languageVersion":  0,
+                                        "blocks":  [
+                                                       {
+                                                           "y":  50,
+                                                           "inputs":  {
+                                                                          "A":  {
+                                                                                    "block":  {
+                                                                                                  "inputs":  {
+                                                                                                                 "ANGLE":  {
+                                                                                                                               "block":  {
+                                                                                                                                             "type":  "term_pi_quarter"
+                                                                                                                                         }
+                                                                                                                           }
+                                                                                                             },
+                                                                                                  "type":  "term_sin_of"
+                                                                                              }
+                                                                                },
+                                                                          "B":  {
+                                                                                    "block":  {
+                                                                                                  "inputs":  {
+                                                                                                                 "ANGLE":  {
+                                                                                                                               "block":  {
+                                                                                                                                             "type":  "term_pi_quarter"
+                                                                                                                                         }
+                                                                                                                           }
+                                                                                                             },
+                                                                                                  "type":  "term_cos_of"
+                                                                                              }
+                                                                                }
+                                                                      },
+                                                           "type":  "math_multiply",
+                                                           "x":  50
+                                                       },
+                                                       {
+                                                           "y":  50,
+                                                           "type":  "term_half_value",
+                                                           "x":  600
+                                                       },
+                                                       {
+                                                           "y":  150,
+                                                           "type":  "proof_step",
+                                                           "x":  50
+                                                       }
+                                                   ]
+                                    }
+                     },
+    "answerState":  {
+                        "blocks":  {
+                                       "languageVersion":  0,
+                                       "blocks":  [
+                                                      {
+                                                          "y":  50,
+                                                          "inputs":  {
+                                                                         "A":  {
+                                                                                   "block":  {
+                                                                                                 "inputs":  {
+                                                                                                                "ANGLE":  {
+                                                                                                                              "block":  {
+                                                                                                                                            "type":  "term_pi_quarter"
+                                                                                                                                        }
+                                                                                                                          }
+                                                                                                            },
+                                                                                                 "type":  "term_sin_of"
+                                                                                             }
+                                                                               },
+                                                                         "B":  {
+                                                                                   "block":  {
+                                                                                                 "inputs":  {
+                                                                                                                "ANGLE":  {
+                                                                                                                              "block":  {
+                                                                                                                                            "type":  "term_pi_quarter"
+                                                                                                                                        }
+                                                                                                                          }
+                                                                                                            },
+                                                                                                 "type":  "term_cos_of"
+                                                                                             }
+                                                                               }
+                                                                     },
+                                                          "type":  "math_multiply",
+                                                          "x":  50
+                                                      },
+                                                      {
+                                                          "y":  50,
+                                                          "type":  "term_half_value",
+                                                          "x":  600
+                                                      },
+                                                      {
+                                                          "y":  150,
+                                                          "inputs":  {
+                                                                         "OPERATIONS":  {
+                                                                                            "block":  {
+                                                                                                          "inputs":  {
+                                                                                                                         "VALUE":  {
+                                                                                                                                       "block":  {
+                                                                                                                                                     "inputs":  {
+                                                                                                                                                                    "A":  {
+                                                                                                                                                                              "block":  {
+                                                                                                                                                                                            "inputs":  {
+                                                                                                                                                                                                           "ANGLE":  {
+                                                                                                                                                                                                                         "block":  {
+                                                                                                                                                                                                                                       "type":  "term_pi_quarter"
+                                                                                                                                                                                                                                   }
+                                                                                                                                                                                                                     }
+                                                                                                                                                                                                       },
+                                                                                                                                                                                            "type":  "term_sin_of"
+                                                                                                                                                                                        }
+                                                                                                                                                                          },
+                                                                                                                                                                    "B":  {
+                                                                                                                                                                              "block":  {
+                                                                                                                                                                                            "inputs":  {
+                                                                                                                                                                                                           "ANGLE":  {
+                                                                                                                                                                                                                         "block":  {
+                                                                                                                                                                                                                                       "type":  "term_pi_quarter"
+                                                                                                                                                                                                                                   }
+                                                                                                                                                                                                                     }
+                                                                                                                                                                                                       },
+                                                                                                                                                                                            "type":  "term_cos_of"
+                                                                                                                                                                                        }
+                                                                                                                                                                          }
+                                                                                                                                                                },
+                                                                                                                                                     "type":  "math_multiply"
+                                                                                                                                                 }
+                                                                                                                                   },
+                                                                                                                         "REPLACEMENT":  {
+                                                                                                                                             "block":  {
+                                                                                                                                                           "type":  "term_half_value"
+                                                                                                                                                       }
+                                                                                                                                         }
+                                                                                                                     },
+                                                                                                          "next":  {
+                                                                                                                       "block":  {
+                                                                                                                                     "inputs":  {
+                                                                                                                                                    "VALUE":  {
+                                                                                                                                                                  "block":  {
+                                                                                                                                                                                "type":  "term_half_value"
+                                                                                                                                                                            }
+                                                                                                                                                              }
+                                                                                                                                                },
+                                                                                                                                     "type":  "conclusion_operation"
+                                                                                                                                 }
+                                                                                                                   },
+                                                                                                          "type":  "common_denominator_operation"
+                                                                                                      }
+                                                                                        }
+                                                                     },
+                                                          "type":  "proof_step",
+                                                          "x":  50
+                                                      }
+                                                  ]
+                                   }
                     }
-                  }
-                }
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
 }

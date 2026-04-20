@@ -1,34 +1,155 @@
 <!DOCTYPE html>
-<html lang="ja"> <head>
-    <meta charset="UTF-8"> <title>三角関数</title> <script src="https://unpkg.com/blockly/blockly.min.js"></script> <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script> <style>
-        /* CSS設計：IDではなくクラス（.a, .bなど）を多用し、再利用性と可読性を高める（※面接用にあえて短縮名にしているが、意図は説明可能に） */
-        html, body { height: 100%; margin: 0; padding: 0; background-color: #f9f9f9; font-family: sans-serif; }
-        .a { display: none; height: 100%; flex-direction: column; } /* 画面要素。通常は非表示とし、active時にのみ表示するSPA的な設計 */
-        .b { display: flex; } /* 表示状態。Flexboxを用いることで要素の整列を容易にする */
-        #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow-y: auto;} /* スタート画面の背景とレイアウト */
-        .d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 600px; width: 100%; margin-bottom: 30px;} /* ステージ選択ボタンを5列のグリッドで等間隔に配置 */
-        .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;} /* ステージボタンの装飾 */
-        .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; } /* クリアマーク（🎉）。初期は非表示 */
-        .g .f { display: block; } /* クリア済みクラス(.g)が付与された時のみ🎉を表示する */
-        #h { background-color: #1976d2; color: white; padding: 10px; display: flex; justify-content: space-between; } /* ゲーム画面ヘッダー */
-        #i { background-color: #e3f2fd; padding: 15px; margin: 10px; text-align: center; } /* 問題文（数式）の表示エリア */
-        #j { margin: 10px; text-align: center; } /* 操作ボタン（判定・リセット等）のコンテナ */
-        .k { border: none; padding: 10px; border-radius: 5px; cursor: pointer; color: white; margin: 2px;} /* ボタン共通スタイル。一貫性のあるデザインを保持 */
-        #l { flex-grow: 1; width: 100%; } /* Blocklyが表示されるメインエリア。残りの高さをすべて占有する(flex-grow: 1) */
-        #m { height: 15vh; background-color: #333; color: #fff; padding: 10px; overflow-y: auto; } /* デバッグ用ログ出力。AIの判定プロセスを可視化 */
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MathBlock - 数式パズル</title>
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Hiragino Kaku Gothic ProN', sans-serif; }
+        .a { display: none; height: 100%; flex-direction: column; }
+        .b { display: flex; }
+        #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow-y: auto;}
+        .d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 600px; width: 100%; margin-bottom: 30px;}
+        .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;}
+        .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; }
+        .g .f { display: block; }
+        #h { background-color: #1976d2; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        #h button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #i { background-color: #e3f2fd; padding: 20px; margin: 10px; text-align: center; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        #l { flex-grow: 1; width: 100%; position: relative; }
+        .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; font-weight: bold; text-align: center; font-size: 1.1em; transition: opacity 0.3s, transform 0.3s; }
+        .toast.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
+        .blocklyInputRow { padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important; line-height: 1 !important; }
+        .blocklyBlockSvg[data-type='math_fraction'] .blocklyInputRow:first-of-type { transform: translateY(4px) !important; }
+        .blocklyBlockSvg[data-type='math_fraction'] .blocklyInputRow:last-of-type { transform: translateY(-8px) !important; }
+        .blocklyFieldLabel[text="—————"] { font-family: 'Times New Roman', serif !important; font-weight: bold !important; font-size: 16px !important; transform: translateY(-5px) !important; line-height: 0 !important; }
+        /* インライン入力（穴）の背景と枠線を完全に消す */
+        .blocklyInlinedElement,
+        .blocklyInlinedElement > rect,
+        .blocklyInlinedElement > .blocklyPath {
+          fill: none !important;
+          stroke: none !important;
+        }
+
+        /* フィールド全体の背景も念のため透明化 */
+        .blocklyFieldRect {
+          fill: transparent !important;
+          stroke: none !important;
+        }
+        .blocklyFieldRect { display: none !important; }
+        .blocklyFieldGroup rect { fill: transparent !important; stroke: none !important; }
+        .blocklyText, .blocklyEditableText { font-family: 'Times New Roman', serif !important; font-style: italic !important; font-size: 14px !important; }
+        .action-bar-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; background: rgba(255, 255, 255, 0.95); padding: 15px 25px; border-radius: 50px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); backdrop-filter: blur(5px); z-index: 1000; }
+        .action-btn { font-family: inherit; font-weight: bold; font-size: 16px; padding: 12px 24px; border: none; border-radius: 25px; cursor: pointer; color: white; transition: all 0.1s ease; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); outline: none; }
+        .action-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2); }
+        .btn-primary { background-color: #58cc02; box-shadow: 0 4px 0 #4a9d00; }
+        .btn-warning { background-color: #ffc800; box-shadow: 0 4px 0 #e5b400; color: #333; }
+        .btn-secondary { background-color: #e5e5e5; box-shadow: 0 4px 0 #cccccc; color: #777; }
+        .btn-danger { background-color: #ff4b4b; box-shadow: 0 4px 0 #cc0000; }
+        .btn-primary:hover, .btn-warning:hover { filter: brightness(1.1); }
+        .btn-secondary:hover { filter: brightness(0.95); }
+        #btn-next { display: none; background-color: #1cb0f6; box-shadow: 0 4px 0 #1899d6; }
+        .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(240, 244, 248, 0.95); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 2000; transition: opacity 0.4s ease, visibility 0.4s ease; }
+        .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .start-content { text-align: center; animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .app-title { font-family: 'Arial Black', sans-serif; font-size: 4rem; color: #4a90e2; margin: 0; text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1); }
+        .app-subtitle { font-size: 1.2rem; color: #555; margin-bottom: 40px; font-weight: bold; }
+        .tutorial-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15); text-align: center; max-width: 500px; transform: translateY(20px); transition: transform 0.4s ease; }
+        .skip-challenge-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); text-align: center; max-width: 520px; width: min(92vw, 520px); }
+        .skip-actions { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .overlay-screen:not(.hidden) .tutorial-card { transform: translateY(0); }
+        .step { display: flex; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: left; }
+        .step-num { background: #4a90e2; color: white; font-weight: bold; font-size: 1.5rem; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin-right: 20px; flex-shrink: 0; }
+        .stage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 18px; margin-bottom: 40px; }
+        .stage-card { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; }
+        .stage-node { width: 100px; height: 100px; border-radius: 28px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 2rem; font-weight: 800; color: #9ca3af; background: #e5e7eb; border: 3px solid #d1d5db; box-shadow: 0 6px 0 #cbd5e1; transition: transform 0.2s, box-shadow 0.2s, filter 0.2s; }
+        .stage-card:active .stage-node { transform: translateY(6px); box-shadow: 0 0 0 #cbd5e1; }
+        .stage-card.unlocked .stage-node { color: #0b4ba8; background: #60a5fa; border-color: #3b82f6; box-shadow: 0 6px 0 #1d4ed8; }
+        .stage-card.cleared .stage-node { color: #ffffff; background: #22c55e; border-color: #16a34a; box-shadow: 0 6px 0 #15803d; }
+        .stage-card:hover .stage-node { filter: brightness(1.04); }
+        .stage-icon { display: block; font-size: 1.1rem; margin-top: 2px; }
+        .stage-label { font-size: 0.95rem; font-weight: 700; color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+        .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f9f9f9; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: auto; }
+        .curtain.hidden { opacity: 0; pointer-events: none; }
+        #streak-counter { font-weight: 800; font-size: 1rem; background: rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; min-width: 58px; text-align: center; }
+        .header-center { display: flex; align-items: center; gap: 10px; }
+        .overwrite-toggle-btn { font-size: 0.82rem; padding: 6px 10px; white-space: nowrap; border: none; color: white; border-radius: 7px; cursor: pointer; font-weight: 700; }
+        .overwrite-toggle-btn.on { background: rgba(88, 204, 2, 0.32); }
+        .overwrite-toggle-btn.off { background: rgba(255, 255, 255, 0.2); }
+        #streak-counter.streak-bounce { animation: streakBounce 320ms ease-out; }
+        @keyframes streakBounce {
+          0% { transform: scale(1); }
+          35% { transform: scale(1.2); }
+          65% { transform: scale(0.95); }
+          100% { transform: scale(1); }
+        }
+        @keyframes floatUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
+      <div id="transition-curtain" class="curtain hidden"></div>
+    <div id="start-screen" class="overlay-screen">
+      <div class="start-content">
+        <h1 class="app-title">MathBlock</h1>
+        <p class="app-subtitle">ブロックを繋いで、証明をハックしよう。</p>
+        <button id="btn-start-app" class="action-btn btn-primary" style="font-size:1.5rem; padding:15px 50px;">START</button>
+      </div>
+    </div>
+    <div id="tutorial-modal" class="overlay-screen hidden">
+      <div class="tutorial-card">
+        <h2>遊び方</h2>
+        <div class="step"><span class="step-num">1</span><p>左から<b>ブロックを引き出す</b></p></div>
+        <div class="step"><span class="step-num">2</span><p>数式と公式を繋いで<b>式を変形する</b></p></div>
+        <div class="step"><span class="step-num">3</span><p>下のボタンで<b>証明を判定する</b></p></div>
+        <button id="btn-close-tutorial" class="action-btn btn-primary" style="margin-top: 20px;">理解した</button>
+      </div>
+    </div>
+    <div id="skip-challenge-modal" class="overlay-screen hidden">
+      <div class="skip-challenge-card">
+        <h2>Skip Challenge</h2>
+        <p id="skip-challenge-message">ステージをスキップして次の挑戦に進みますか？</p>
+        <p style="font-size: 0.92rem; color: #666;">到達先をクリアしたときに、飛ばしたステージもクリア扱いになります。</p>
+        <div class="skip-actions">
+          <button id="btn-skip-challenge-cancel" class="action-btn btn-secondary">通常で進む</button>
+          <button id="btn-skip-challenge-accept" class="action-btn btn-primary">スキップに挑戦</button>
+        </div>
+      </div>
+    </div>
+
     <div id="c" class="a b">
         <h1>問題選択</h1>
-        <div id="n" style="width: 100%; max-width: 600px;"></div> <button onclick="o()" style="margin-top:20px;">リセット</button> </div>
+        <div style="width: 100%; max-width: 600px; margin-bottom: 25px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px;">
+            <span style="color: white; font-weight: bold; font-size: 1.1rem;">学習の進捗</span>
+            <span id="progress-text" style="color: #bbdefb; font-weight: bold; font-size: 0.9rem;">0 / 43 クリア</span>
+          </div>
+          <div style="width: 100%; background: rgba(255, 255, 255, 0.3); height: 16px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+            <div id="overall-progress" style="width: 0%; height: 100%; background: #58cc02; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);"></div>
+          </div>
+        </div>
+        <div id="n" style="width: 100%; max-width: 600px;"></div>
+        <button id="btn-overwrite-permission-menu" class="overwrite-toggle-btn off" style="margin-top:12px;">上書き許可: OFF</button>
+        <button onclick="unlockAllStages()" style="margin-top:20px; padding: 10px; cursor: pointer;">全問題を開放</button>
+        <button onclick="resetSaveData()" style="margin-top:12px; padding: 10px; cursor: pointer;">セーブデータリセット</button> 
+    </div>
 
     <div id="p" class="a">
-        <div id="h">
-            <button id="q">戻る</button> <div id="r"></div> </div>
-        <div id="i"><span id="s"></span></div> <div id="j">
-            <button id="t" class="k" style="background:#ff9800;">判定</button> <button id="u" class="k" style="background:#4caf50;">ヒント</button> <button id="v" class="k" style="background:#f44336;">答え</button> <button id="w" class="k" style="background:#9e9e9e;">やり直す</button> <button id="x" class="k" style="background:#e91e63;display:none;"></button> </div>
-        <div id="y" style="text-align:center;margin:5px;"></div> <div id="l"></div> <div id="m"></div> </div>
+      <div id="h"><button id="btn-back">← 戻る</button><div class="header-center"><div id="r">STAGE</div><button id="btn-overwrite-permission" class="overwrite-toggle-btn off">上書き許可: OFF</button></div><div id="streak-counter">🔥 0</div></div>
+        <div id="i"><span id="s"></span></div>
+        <div id="l"></div>
+        <div id="toast-message" class="toast hidden"></div> 
+        <div class="action-bar-container">
+          <button id="btn-reset" class="action-btn btn-secondary">やり直す</button>
+          <button id="btn-answer" class="action-btn btn-danger">答え</button>
+          <button id="btn-hint" class="action-btn btn-warning">ヒント</button>
+          <button id="btn-submit" class="action-btn btn-primary">判定する</button>
+          <button id="btn-next" class="action-btn btn-primary">次へ進む</button>
+        </div>
+    </div>
+    
     <script src="main.js"></script>
 </body>
 </html>

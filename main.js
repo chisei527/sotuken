@@ -1,216 +1,2015 @@
-// --- 状態管理と初期化 ---
-let a = JSON.parse(localStorage.getItem('s')) || []; // クリア済ステージの保存。LocalStorageを利用しブラウザを閉じてもデータを維持。
-let b = 1; // 現在選択中のステージ番号を追跡するグローバル変数。
-let c = null; // 現在ロードされているステージのJSONデータ。
+// ------------------------------------------------------------
+// MathBlock main script
+// 目的:
+// - Blockly ワークスペースの初期化
+// - 問題JSONの読み込みと表示
+// - 証明判定、ヒント表示、画面遷移
+// ------------------------------------------------------------
 
-// 章ごとの構成定義。拡張性を考慮し、オブジェクトの配列として構造化。
-const d = [
-    {A: "第1章：基本の証明", B: 1, C: 10}, // 第1〜10問
-    {A: "第2章：標準問題", B: 11, C: 20}, // 第11〜20問
-    {A: "第3章：発展問題", B: 21, C: 30}  // 第21〜30問
-];
+// ===== 状態管理 =====
+let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
+let unlockAll = localStorage.getItem('unlock_all') === '1';
+let currentStageNumber = 1;
+let currentProblemData = null;
+let currentHintIndex = 0;
+let currentStreak = 0;
+let currentStageSolved = false;
+let currentSkipOffer = null;
+let pendingSkipChallenge = null;
 
-// 画面切り替え関数。CSSのクラス操作のみで高速な画面遷移（SPA）を実現。
-function e(A) {
-    document.querySelectorAll('.a').forEach(B => B.classList.remove('b'));
-    document.getElementById(A).classList.add('b');
+const MAX_STAGE_NUMBER = 43;
+
+const DIFFICULTY_THRESHOLDS = {
+  BASIC_MAX: 3,
+  STANDARD_MAX: 6,
+};
+
+const GREEN_OPERATION_TYPES = new Set(['replace_operation', 'common_denominator_operation']);
+
+const FORMULA_TEXT_TO_ID = {
+  'sin(x)^2+cos(x)^2=1': 'formula_1',
+  'tan(x)=sin(x)/cos(x)': 'formula_2',
+  '1+tan(x)^2=1/cos(x)^2': 'formula_3',
+  'sin(2*x)=2*sin(x)*cos(x)': 'formula_4',
+  'sin(x)^2=(1-cos(2*x))/2': 'formula_5',
+  'cos(x)^2=(1+cos(2*x))/2': 'formula_6',
+  'tan(x)=sin(2*x)/(1+cos(2*x))': 'formula_7',
+  'tan(x)^2=(1-cos(2*x))/(1+cos(2*x))': 'formula_8',
+};
+
+const FORMULA_ID_LABEL = {
+  formula_1: '公式①',
+  formula_2: '公式②',
+  formula_3: '公式③',
+  formula_4: '公式④',
+  formula_5: '公式⑤',
+  formula_6: '公式⑥',
+  formula_7: '公式⑦',
+  formula_8: '公式⑧',
+};
+
+const FORMULA_ID_TO_CONCEPT = {
+  formula_1: 'pythagorean_identity',
+  formula_2: 'tan_as_sin_over_cos',
+  formula_3: 'tan_pythagorean_relation',
+  formula_4: 'double_angle_sin',
+  formula_5: 'half_angle_sin_square',
+  formula_6: 'half_angle_cos_square',
+  formula_7: 'double_angle_tan',
+  formula_8: 'tan_square_with_cos2',
+};
+
+const OPERATION_TO_CONCEPT = {
+  common_denominator_operation: 'common_denominator',
+};
+
+const CONCEPT_LABEL = {
+  pythagorean_identity: '三角恒等式（sin^2 + cos^2 = 1）',
+  tan_as_sin_over_cos: 'tan の定義（tan = sin/cos）',
+  tan_pythagorean_relation: '1 + tan^2 = 1/cos^2',
+  double_angle_sin: '倍角（sin2θ）',
+  half_angle_sin_square: '半角（sin^2θ）',
+  half_angle_cos_square: '半角（cos^2θ）',
+  double_angle_tan: '倍角（tan）',
+  tan_square_with_cos2: 'tan^2 と cos2θ の関係',
+  common_denominator: '通分',
+};
+
+function normalizeFormulaText(text) {
+  return String(text || '').replace(/\s+/g, '').trim();
 }
 
-// ステージ選択画面の動的生成。HTMLを手書きせずJSで生成することで、30ステージの管理を容易にする。
-function f() {
-    const A = document.getElementById('n');
-    A.innerHTML = ''; // 再描画時の重複を防ぐため初期化。
-    d.forEach(B => {
-        const C = document.createElement('h3');
-        C.innerText = B.A;
-        A.appendChild(C);
-        const D = document.createElement('div');
-        D.className = 'd';
-        for (let i = B.B; i <= B.C; i++) {
-            const E = document.createElement('button');
-            E.className = 'e';
-            if (a.includes(i)) E.classList.add('g'); // クリア済みなら専用の装飾(🎉)を有効化。
-            E.innerHTML = i + '<span class="f">🎉</span>';
-            E.onclick = () => { b = i; g(i); e('p'); }; // クリック時にステージ情報をロードし画面を切り替える。
-            D.appendChild(E);
-        }
-        A.appendChild(D);
+function formulaTextToId(formulaText) {
+  const normalized = normalizeFormulaText(formulaText);
+  return FORMULA_TEXT_TO_ID[normalized] || null;
+}
+
+function formulaIdToLabel(formulaId) {
+  return FORMULA_ID_LABEL[formulaId] || formulaId;
+}
+
+function parseRequiredConcepts(requiredConcepts) {
+  if (!Array.isArray(requiredConcepts)) return [];
+  return requiredConcepts
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => !!item);
+}
+
+function getAnswerFormulaTypeSequence(problemData) {
+  const proofBlock = problemData?.answerState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  const formulas = [];
+
+  while (current) {
+    const formulaType = current?.inputs?.FORMULA?.block?.type;
+    if (typeof formulaType === 'string' && formulaType.startsWith('formula_')) {
+      formulas.push(formulaType);
+    }
+    current = current?.next?.block || null;
+  }
+
+  return formulas;
+}
+
+function getRequiredConceptsForProblem(problemData) {
+  const explicit = parseRequiredConcepts(problemData?.requiredConcepts);
+  if (explicit.length > 0) return explicit;
+
+  const conceptSet = new Set();
+  const answerFormulaTypes = getAnswerFormulaTypeSequence(problemData);
+  answerFormulaTypes.forEach((formulaType) => {
+    const concept = FORMULA_ID_TO_CONCEPT[formulaType];
+    if (concept) conceptSet.add(concept);
+  });
+
+  const answerOperationTypes = getAnswerOperationTypeSequence(problemData);
+  answerOperationTypes.forEach((operationType) => {
+    const concept = OPERATION_TO_CONCEPT[operationType];
+    if (concept) conceptSet.add(concept);
+  });
+
+  return Array.from(conceptSet);
+}
+
+function collectAchievedConceptsFromAST(astArray) {
+  const achieved = new Set();
+  if (!Array.isArray(astArray)) return achieved;
+
+  astArray.forEach((stepData) => {
+    const operationType = String(stepData?.type || '');
+    const operationConcept = OPERATION_TO_CONCEPT[operationType];
+    if (operationConcept) achieved.add(operationConcept);
+
+    const formulaId = formulaTextToId(stepData?.formula);
+    const formulaConcept = FORMULA_ID_TO_CONCEPT[formulaId];
+    if (formulaConcept) achieved.add(formulaConcept);
+  });
+
+  return achieved;
+}
+
+function getConceptLabel(conceptId) {
+  return CONCEPT_LABEL[conceptId] || conceptId;
+}
+
+function getProofScaffoldMode() {
+  const allowedModes = new Set(['guided', 'standard', 'challenge']);
+  const urlMode = new URLSearchParams(window.location.search).get('scaffold');
+  const storedMode = localStorage.getItem('proof_scaffold_mode');
+
+  if (urlMode && allowedModes.has(urlMode)) {
+    localStorage.setItem('proof_scaffold_mode', urlMode);
+    return urlMode;
+  }
+
+  if (storedMode && allowedModes.has(storedMode)) {
+    return storedMode;
+  }
+
+  return 'guided';
+}
+
+function setProofScaffoldMode(mode) {
+  const allowedModes = new Set(['guided', 'standard', 'challenge']);
+  if (!allowedModes.has(mode)) return false;
+  localStorage.setItem('proof_scaffold_mode', mode);
+  return true;
+}
+
+window.setProofScaffoldMode = setProofScaffoldMode;
+
+function updateOverwritePermissionButton() {
+  const button = document.getElementById('btn-overwrite-permission');
+  if (!button) return;
+
+  const mode = getProofScaffoldMode();
+  const isEnabled = mode === 'guided';
+  button.textContent = `上書き許可: ${isEnabled ? 'ON' : 'OFF'}`;
+  button.classList.toggle('on', isEnabled);
+  button.classList.toggle('off', !isEnabled);
+}
+
+// ===== Blockly カスタムフィールド =====
+// 分数の見た目調整用: 幅だけを持つ透明フィールド
+class FieldSpacer extends Blockly.Field {
+  constructor(width) {
+    super('');
+    this.EDITABLE = false;
+    this.spacerWidth_ = width || 0;
+  }
+
+  getSize() {
+    return new Blockly.utils.Size(this.spacerWidth_, 0);
+  }
+
+  setWidth(width) {
+    if (this.spacerWidth_ !== width) {
+      this.spacerWidth_ = width;
+      this.forceRerender();
+    }
+  }
+
+  draw_() {}
+}
+Blockly.fieldRegistry.register('field_spacer', FieldSpacer);
+
+// 分数線のベースラインを中央寄せするフィールド
+class FieldFractionLine extends Blockly.FieldLabel {
+  constructor(text) {
+    super(text);
+    this.className_ = 'fraction-line';
+    this.EDITABLE = false;
+  }
+
+  draw_() {
+    super.draw_();
+    if (this.textElement_) {
+      this.textElement_.setAttribute('dominant-baseline', 'central');
+      this.textElement_.setAttribute('y', '0');
+    }
+  }
+}
+Blockly.fieldRegistry.register('field_fraction_line', FieldFractionLine);
+
+// ===== 解析ヘルパー =====
+// answerState を再帰走査し、操作ブロック数と公式種類数を数える
+function countAllBlocks(block, operationCounter, formulasSet) {
+  if (!block) return;
+
+  if (
+    block.type === 'replace_operation' ||
+    block.type === 'common_denominator_operation' ||
+    block.type === 'conclusion_operation'
+  ) {
+    operationCounter.count++;
+  }
+
+  if (block.type && block.type.startsWith('formula_')) {
+    formulasSet.add(block.type);
+  }
+
+  if (block.next) {
+    countAllBlocks(block.next, operationCounter, formulasSet);
+  }
+
+  if (block.inputs && typeof block.inputs === 'object') {
+    Object.values(block.inputs).forEach((input) => {
+      if (input && input.block) {
+        countAllBlocks(input.block, operationCounter, formulasSet);
+      }
     });
+  }
 }
 
-// セーブデータリセット。ユーザーの意志を確認してからデータを消去する安全設計。
-function o() {
-    localStorage.removeItem('s');
-    a = [];
-    f();
+// 問題の難易度を自動評価する
+function evaluateDifficulty(problemData) {
+  if (!problemData.answerState || !problemData.answerState.blocks || !problemData.answerState.blocks.blocks) {
+    return { difficulty: '不明', score: 0, operationCount: 0, formulaCount: 0 };
+  }
+
+  const blocks = problemData.answerState.blocks.blocks;
+
+  const operationCounter = { count: 0 };
+  const formulasUsed = new Set();
+
+  blocks.forEach((block) => countAllBlocks(block, operationCounter, formulasUsed));
+
+  const operationCount = operationCounter.count;
+  const formulaCount = formulasUsed.size;
+  const score = operationCount + formulaCount * 1.5;
+
+  let difficulty;
+  if (score < DIFFICULTY_THRESHOLDS.BASIC_MAX) {
+    difficulty = '基礎問';
+  } else if (score < DIFFICULTY_THRESHOLDS.STANDARD_MAX) {
+    difficulty = '標準問題';
+  } else {
+    difficulty = '発展問題';
+  }
+
+  return { difficulty, score, operationCount, formulaCount };
 }
 
-// 「戻る」ボタン。ステージ選択画面の最新状態を反映させてから戻る。
-document.getElementById('q').onclick = () => { f(); e('c'); };
+function parseRequiredBlockTypes(requiredBlocks) {
+  if (!Array.isArray(requiredBlocks)) return [];
 
-// --- Blocklyカスタムブロック定義：数学的語彙の拡張 ---
-// 三角関数、数値、分母分子、加算、乗算、自乗の各ブロック。
-// setOutput(true, "Math")により、数学的な式としてのみ連結可能な制約（型チェック）を付与。
-Blockly.Blocks['term_tan'] = { init: function() { this.appendDummyInput().appendField("tan θ"); this.setOutput(true, "Math"); this.setColour(230); } };
-Blockly.Blocks['term_sin'] = { init: function() { this.appendDummyInput().appendField("sin θ"); this.setOutput(true, "Math"); this.setColour(230); } };
-Blockly.Blocks['term_cos'] = { init: function() { this.appendDummyInput().appendField("cos θ"); this.setOutput(true, "Math"); this.setColour(230); } };
-Blockly.Blocks['custom_number'] = { init: function() { this.appendDummyInput().appendField(new Blockly.FieldNumber(1), "NUM"); this.setOutput(true, "Math"); this.setColour(210); } };
-Blockly.Blocks['math_fraction'] = { init: function() { this.appendValueInput("NUMERATOR").setCheck("Math").appendField("分子"); this.appendDummyInput().appendField("---"); this.appendValueInput("DENOMINATOR").setCheck("Math").appendField("分母"); this.setOutput(true, "Math"); this.setColour(260); } };
-Blockly.Blocks['math_add'] = { init: function() { this.appendValueInput("A").setCheck("Math"); this.appendDummyInput().appendField("＋"); this.appendValueInput("B").setCheck("Math"); this.setOutput(true, "Math"); this.setInputsInline(true); this.setColour(260); } };
-Blockly.Blocks['math_multiply'] = { init: function() { this.appendValueInput("A").setCheck("Math"); this.appendDummyInput().appendField("×"); this.appendValueInput("B").setCheck("Math"); this.setOutput(true, "Math"); this.setInputsInline(true); this.setColour(260); } };
-Blockly.Blocks['math_square'] = { init: function() { this.appendValueInput("A").setCheck("Math"); this.appendDummyInput().appendField("の2乗"); this.setOutput(true, "Math"); this.setInputsInline(true); this.setColour(260); } };
+  return requiredBlocks
+    .map((entry) => {
+      if (typeof entry !== 'string') return null;
 
-// 公式ブロック。これ自体は「計算式の文字列」ではなく、「どのルールを使ったか」というフラグの役割。
-Blockly.Blocks['formula_1'] = { init: function() { this.appendDummyInput().appendField("公式①: sin²θ + cos²θ = 1"); this.setOutput(true, "Formula"); this.setColour(300); } };
-Blockly.Blocks['formula_2'] = { init: function() { this.appendDummyInput().appendField("公式②: tanθ = sinθ / cosθ"); this.setOutput(true, "Formula"); this.setColour(300); } };
-Blockly.Blocks['formula_3'] = { init: function() { this.appendDummyInput().appendField("公式③: 1 + tan²θ = 1 / cos²θ"); this.setOutput(true, "Formula"); this.setColour(300); } };
+      // 例: "type":"replace_operation" / "type":"replace_operation"
+      const match = entry.match(/type\"?\s*:\s*\"([a-zA-Z0-9_]+)\"/);
+      if (match && match[1]) return match[1];
 
-// 証明ロジック用ブロック。Statement（文）として縦に連結していく構造を採用。
-Blockly.Blocks['proof_step'] = { init: function() { this.appendDummyInput().appendField("証明"); this.appendStatementInput("OPERATIONS").setCheck("Operation"); this.setPreviousStatement(true, "ProofStep"); this.setNextStatement(true, "ProofStep"); this.setColour(120); } };
-// 「式 A を 公式 X で 式 B にする」という自然言語に近い構造。
-Blockly.Blocks['replace_operation'] = { init: function() { 
-    this.appendValueInput("VALUE").setCheck("Math").appendField("式"); 
-    this.appendDummyInput().appendField("を"); 
-    this.appendValueInput("FORMULA").setCheck("Formula"); 
-    this.appendDummyInput().appendField("で"); 
-    this.appendValueInput("REPLACEMENT").setCheck("Math"); 
-    this.appendDummyInput().appendField("にする"); 
-    this.setInputsInline(true); // 横一行に並べることで視認性を向上。
-    this.setPreviousStatement(true, "Operation"); 
-    this.setNextStatement(true, "Operation"); 
-    this.setColour(160); 
-} };
-Blockly.Blocks['common_denominator_operation'] = { init: function() { 
-    this.appendValueInput("VALUE").setCheck("Math").appendField("式を通分して"); 
-    this.appendValueInput("REPLACEMENT").setCheck("Math"); 
-    this.appendDummyInput().appendField("にする"); 
-    this.setInputsInline(true); 
-    this.setPreviousStatement(true, "Operation"); 
-    this.setNextStatement(true, "Operation"); 
-    this.setColour(160); 
-} };
-Blockly.Blocks['conclusion_operation'] = { init: function() { 
-    this.appendDummyInput().appendField("よって"); 
-    this.appendValueInput("VALUE").setCheck("Math"); 
-    this.appendDummyInput().appendField("となる"); 
-    this.setInputsInline(true); 
-    this.setPreviousStatement(true, "Operation"); 
-    this.setColour(180); 
-} };
+      // 念のため type 名だけが入っているケースも許容
+      const plain = entry.match(/^[a-zA-Z0-9_]+$/);
+      return plain ? entry : null;
+    })
+    .filter((type) => !!type);
+}
 
-// ツールボックス（ブロック置き場）の設定。階層化と「開いたまま(expanded: true)」の設定により使いやすさを向上。
-const h = {
-  "kind": "categoryToolbox",
-  "contents": [
-    {
-      "kind": "category",
-      "name": "📂 ブロック一覧",
-      "expanded": true, // アコーディオンを開いた状態にする。
-      "contents": [
-        { "kind": "category", "name": "項", "contents": [{ "kind": "block", "type": "custom_number" }, { "kind": "block", "type": "term_sin" }, { "kind": "block", "type": "term_cos" }, { "kind": "block", "type": "term_tan" }] },
-        { "kind": "category", "name": "演算", "contents": [{ "kind": "block", "type": "math_fraction" }, { "kind": "block", "type": "math_add" }, { "kind": "block", "type": "math_multiply" }, { "kind": "block", "type": "math_square" }] },
-        { "kind": "category", "name": "公式", "contents": [{ "kind": "block", "type": "formula_1" }, { "kind": "block", "type": "formula_2" }, { "kind": "block", "type": "formula_3" }] },
-        { "kind": "category", "name": "証明", "contents": [{ "kind": "block", "type": "proof_step" }, { "kind": "block", "type": "replace_operation" }, { "kind": "block", "type": "common_denominator_operation" }, { "kind": "block", "type": "conclusion_operation" }] }
-      ]
+function getAnswerOperationTypeSequence(problemData) {
+  const proofBlock = problemData?.answerState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  const sequence = [];
+
+  while (current) {
+    if (typeof current.type === 'string' && current.type) {
+      sequence.push(current.type);
     }
-  ]
-};
+    current = current?.next?.block || null;
+  }
 
-// Blocklyの注入。
-const i = Blockly.inject('l', { toolbox: h });
-// ブロックの変更を監視し、JSON形式でシリアライズ。Unity連携時の通信データ形式として採用予定。
-i.addChangeListener(() => { document.getElementById('m').innerText = JSON.stringify(Blockly.serialization.workspaces.save(i)); });
-
-// ステージロード関数。非同期通信(fetch)を用いて外部ファイルを読み込む。
-async function g(A) {
-    try {
-        const B = await fetch(`problems/${A}.json`); // 指定した問題番号のJSONを取得。
-        c = await B.json();
-        document.getElementById('r').innerText = "STAGE " + A;
-        document.getElementById('s').innerText = c.mathText; // 問題文（TeX形式）を表示。
-        document.getElementById('y').innerHTML = ""; 
-        if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); } // MathJaxの再描画命令。
-        
-        let C = JSON.parse(JSON.stringify(h));
-        let D = { "kind": "category", "name": "✨問題の式", "contents": [] };
-        // 問題独自の初期ブロック（証明対象の式など）をツールボックスの最上部に動的に追加。
-        if (c.initialState.blocks && c.initialState.blocks.blocks) {
-            c.initialState.blocks.blocks.forEach(E => {
-                if (E.type !== "proof_step") {
-                    let F = JSON.parse(JSON.stringify(E));
-                    F.kind = "block"; delete F.x; delete F.y; delete F.id;
-                    D.contents.push(F);
-                }
-            });
-        }
-        if (D.contents.length > 0) C.contents[0].contents.unshift(D);
-        i.updateToolbox(C); // ツールボックスを最新化。
-        
-        i.clear(); // ワークスペースを掃除。
-        Blockly.serialization.workspaces.load(c.initialState, i); // 問題の初期配置をロード。
-        document.getElementById('t').style.display = "inline-block";
-        document.getElementById('x').style.display = "none";
-    } catch (E) { console.error("ロード失敗:", E); }
+  return sequence;
 }
 
-// 数値計算用ジェネレーター。BlocklyをJavaScriptに変換するのではなく、math.jsで評価可能な数式文字列へ変換。
-const j = new Blockly.Generator('MATH');
-j.forBlock['custom_number'] = function(A) { return [String(A.getFieldValue('NUM')), 0]; };
-j.forBlock['term_sin'] = function(A) { return ['sin(x)', 0]; }; // θをxとして扱い、評価エンジンが認識できるようにする。
-j.forBlock['term_cos'] = function(A) { return ['cos(x)', 0]; };
-j.forBlock['term_tan'] = function(A) { return ['tan(x)', 0]; };
-j.forBlock['math_add'] = function(A) { return [`(${j.valueToCode(A, 'A', 0) || '0'} + ${j.valueToCode(A, 'B', 0) || '0'})`, 0]; };
-j.forBlock['math_multiply'] = function(A) { return [`(${j.valueToCode(A, 'A', 0) || '1'} * ${j.valueToCode(A, 'B', 0) || '1'})`, 0]; };
-j.forBlock['math_fraction'] = function(A) { return [`(${j.valueToCode(A, 'NUMERATOR', 0) || '0'}) / (${j.valueToCode(A, 'DENOMINATOR', 0) || '1'})`, 0]; };
-j.forBlock['math_square'] = function(A) { return [`(${j.valueToCode(A, 'A', 0) || '0'})^2`, 0]; };
+function getInitialOperationTypeSequence(problemData) {
+  const proofBlock = problemData?.initialState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  const sequence = [];
 
-// 判定ロジック。
-document.getElementById('t').onclick = () => {
-    let A = true;
-    const B = document.getElementById('y');
-    const C = i.getAllBlocks(false).filter(D => D.type === 'proof_step');
-    if (C.length === 0) return;
-    let D = C[0].getInputTargetBlock('OPERATIONS');
-    let E = [];
-    while (D) { E.push(D); D = D.getNextBlock(); }
-    
-    // 各ステップを個別に検証。変形前と変形後の数式に特定の値を代入し、数値的に一致するかを確認する。
-    // 「厳密な数式等価性」の判定は困難だが、数値的サンプリングによる近似判定は教育用アプリとして十分に実用的。
-    for (let F of E) {
-        if (F.type === 'replace_operation' || F.type === 'common_denominator_operation') {
-            const G = j.valueToCode(F, 'VALUE', 0);
-            const H = j.valueToCode(F, 'REPLACEMENT', 0);
-            try {
-                // サンプリング点（0.5ラジアン等）において、左辺と右辺の差が極小であることを確認。
-                if (Math.abs(math.evaluate(G, {x:0.5}) - math.evaluate(H, {x:0.5})) > 0.0001) A = false;
-            } catch (I) { A = false; }
-        }
+  while (current) {
+    if (typeof current.type === 'string' && current.type) {
+      sequence.push(current.type);
     }
-    const F = E[E.length - 1]; // 最後のブロックが「結論」であることを確認。
-    if (A && F && F.type === 'conclusion_operation') {
-        B.innerHTML = "<span style='color:green'>正解！</span>";
-        if (!a.includes(b)) { a.push(b); localStorage.setItem('s', JSON.stringify(a)); } // クリア状況を保存。
-        document.getElementById('t').style.display = "none";
-        document.getElementById('x').style.display = "inline-block";
-        let G = d.find(H => b >= H.B && b <= H.C);
-        document.getElementById('x').innerText = (b === G.C) ? "章クリア" : "次へ進む";
+    current = current?.next?.block || null;
+  }
+
+  return sequence;
+}
+
+function getAnswerGreenOperationSequence(problemData) {
+  return getAnswerOperationTypeSequence(problemData).filter((type) => GREEN_OPERATION_TYPES.has(type));
+}
+
+function getMissingTypesByRequiredOrder(requiredTypes, actualTypes) {
+  const actualCounts = Object.create(null);
+  actualTypes.forEach((type) => {
+    if (!type) return;
+    actualCounts[type] = (actualCounts[type] || 0) + 1;
+  });
+
+  const missing = [];
+  requiredTypes.forEach((type) => {
+    if (!type) return;
+    if ((actualCounts[type] || 0) > 0) {
+      actualCounts[type] -= 1;
+      return;
+    }
+    missing.push(type);
+  });
+
+  return missing;
+}
+
+function formatOperationTypeLabel(type) {
+  if (type === 'replace_operation') return '置き換え';
+  if (type === 'common_denominator_operation') return '通分';
+  if (type === 'conclusion_operation') return '結論';
+  return type;
+}
+
+function summarizeTypeCounts(types) {
+  const counts = Object.create(null);
+  types.forEach((type) => {
+    if (!type) return;
+    counts[type] = (counts[type] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .map(([type, count]) => `${formatOperationTypeLabel(type)}${count > 1 ? ` ×${count}` : ''}`)
+    .join(', ');
+}
+
+function ensureAnswerGreenBlocksPlaced(targetWorkspace, problemData) {
+  const requiredGreenTypes = getAnswerGreenOperationSequence(problemData);
+  if (requiredGreenTypes.length === 0 || !targetWorkspace) return;
+
+  let proofStep = targetWorkspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
+  if (!proofStep) {
+    proofStep = targetWorkspace.newBlock('proof_step');
+    proofStep.initSvg();
+    proofStep.render();
+  }
+
+  const existingTypes = [];
+  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
+  let lastOp = null;
+  while (currentOp) {
+    existingTypes.push(currentOp.type);
+    lastOp = currentOp;
+    currentOp = currentOp.getNextBlock();
+  }
+
+  const missingTypes = getMissingTypesByRequiredOrder(requiredGreenTypes, existingTypes);
+  if (missingTypes.length === 0) return;
+
+  missingTypes.forEach((type) => {
+    if (!Blockly.Blocks[type]) return;
+    const newOp = targetWorkspace.newBlock(type);
+    newOp.initSvg();
+    newOp.render();
+
+    if (lastOp && lastOp.nextConnection && newOp.previousConnection) {
+      lastOp.nextConnection.connect(newOp.previousConnection);
+    } else if (proofStep.getInput('OPERATIONS')?.connection && newOp.previousConnection) {
+      proofStep.getInput('OPERATIONS').connection.connect(newOp.previousConnection);
+    }
+    lastOp = newOp;
+  });
+}
+
+function ensureAnswerOperationBlocksPlaced(targetWorkspace, problemData) {
+  const requiredAnswerTypes = getAnswerOperationTypeSequence(problemData);
+  if (requiredAnswerTypes.length === 0 || !targetWorkspace) return;
+
+  let proofStep = targetWorkspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
+  if (!proofStep) {
+    proofStep = targetWorkspace.newBlock('proof_step');
+    proofStep.initSvg();
+    proofStep.render();
+  }
+
+  const existingTypes = [];
+  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
+  let lastOp = null;
+  while (currentOp) {
+    existingTypes.push(currentOp.type);
+    lastOp = currentOp;
+    currentOp = currentOp.getNextBlock();
+  }
+
+  const missingTypes = getMissingTypesByRequiredOrder(requiredAnswerTypes, existingTypes);
+  if (missingTypes.length === 0) return;
+
+  missingTypes.forEach((type) => {
+    if (!Blockly.Blocks[type]) return;
+    const newOp = targetWorkspace.newBlock(type);
+    newOp.initSvg();
+    newOp.render();
+
+    if (lastOp && lastOp.nextConnection && newOp.previousConnection) {
+      lastOp.nextConnection.connect(newOp.previousConnection);
+    } else if (proofStep.getInput('OPERATIONS')?.connection && newOp.previousConnection) {
+      proofStep.getInput('OPERATIONS').connection.connect(newOp.previousConnection);
+    }
+    lastOp = newOp;
+  });
+}
+
+function ensureInitialOperationBlocksPlaced(targetWorkspace, problemData) {
+  const requiredInitialTypes = getInitialOperationTypeSequence(problemData);
+  if (requiredInitialTypes.length === 0 || !targetWorkspace) return;
+
+  let proofStep = targetWorkspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
+  if (!proofStep) {
+    proofStep = targetWorkspace.newBlock('proof_step');
+    proofStep.initSvg();
+    proofStep.render();
+  }
+
+  const existingTypes = [];
+  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
+  let lastOp = null;
+  while (currentOp) {
+    existingTypes.push(currentOp.type);
+    lastOp = currentOp;
+    currentOp = currentOp.getNextBlock();
+  }
+
+  const missingTypes = getMissingTypesByRequiredOrder(requiredInitialTypes, existingTypes);
+  if (missingTypes.length === 0) return;
+
+  missingTypes.forEach((type) => {
+    if (!Blockly.Blocks[type]) return;
+    const newOp = targetWorkspace.newBlock(type);
+    newOp.initSvg();
+    newOp.render();
+
+    if (lastOp && lastOp.nextConnection && newOp.previousConnection) {
+      lastOp.nextConnection.connect(newOp.previousConnection);
+    } else if (proofStep.getInput('OPERATIONS')?.connection && newOp.previousConnection) {
+      proofStep.getInput('OPERATIONS').connection.connect(newOp.previousConnection);
+    }
+    lastOp = newOp;
+  });
+}
+
+// ===== UIヘルパー =====
+function switchScreen(screenId) {
+  document.querySelectorAll('.a').forEach((screen) => screen.classList.remove('b'));
+  const target = document.getElementById(screenId);
+  if (target) target.classList.add('b');
+}
+
+// toast-message がある場合はトースト表示。
+// ない場合は result-display にフォールバックする。
+function showToast(htmlContent, isAutoClose = true) {
+  const toastElement = document.getElementById('toast-message');
+  const fallbackResult = document.getElementById('result-display');
+
+  if (toastElement) {
+    toastElement.innerHTML = htmlContent;
+    toastElement.classList.remove('hidden');
+
+    if (isAutoClose) {
+      setTimeout(() => {
+        toastElement.classList.add('hidden');
+      }, 3000);
+    }
+    return;
+  }
+
+  if (fallbackResult) {
+    fallbackResult.innerHTML = htmlContent;
+  }
+}
+
+function updateStreakCounter(shouldAnimate = false) {
+  const streakCounter = document.getElementById('streak-counter');
+  if (!streakCounter) return;
+
+  streakCounter.textContent = `🔥 ${currentStreak}`;
+  if (!shouldAnimate) return;
+
+  streakCounter.classList.remove('streak-bounce');
+  // Reflow to restart the same animation class reliably.
+  void streakCounter.offsetWidth;
+  streakCounter.classList.add('streak-bounce');
+}
+
+function closeSkipChallengeModal() {
+  const skipModal = document.getElementById('skip-challenge-modal');
+  if (skipModal) skipModal.classList.add('hidden');
+}
+
+function openSkipChallengeModal(fromStage, targetStage) {
+  const skipModal = document.getElementById('skip-challenge-modal');
+  const message = document.getElementById('skip-challenge-message');
+  if (!skipModal || !message) return;
+
+  const bypassedStages = [];
+  for (let stage = fromStage + 1; stage < targetStage; stage++) {
+    bypassedStages.push(stage);
+  }
+
+  currentSkipOffer = {
+    fromStage,
+    targetStage,
+    bypassedStages,
+  };
+
+  const bypassLabel = bypassedStages.length > 0 ? bypassedStages.join(', ') : 'なし';
+  message.textContent = `ステージ ${targetStage} へ挑戦しますか？（スキップ候補: ${bypassLabel}）`;
+  skipModal.classList.remove('hidden');
+}
+
+function applyPendingSkipClearIfNeeded() {
+  if (!pendingSkipChallenge) return;
+  if (currentStageNumber !== pendingSkipChallenge.targetStage) return;
+
+  let changed = false;
+  pendingSkipChallenge.bypassedStages.forEach((stage) => {
+    if (stage < 1 || stage > MAX_STAGE_NUMBER) return;
+    if (clearedStages.includes(stage)) return;
+    clearedStages.push(stage);
+    changed = true;
+  });
+
+  if (changed) {
+    localStorage.setItem('s', JSON.stringify(clearedStages));
+  }
+
+  pendingSkipChallenge = null;
+}
+
+// トップブロックを左から順に並べる
+function arrangeBlocks() {
+  setTimeout(() => {
+    let topBlocks = workspace.getTopBlocks(false);
+    if (!topBlocks || topBlocks.length === 0) return;
+    // 証明ブロック(proof_step)を一番左に
+    topBlocks = topBlocks.slice(); // 破壊的変更防止
+    const proofIdx = topBlocks.findIndex(b => b.type === 'proof_step');
+    if (proofIdx > 0) {
+      const [proofBlock] = topBlocks.splice(proofIdx, 1);
+      topBlocks.unshift(proofBlock);
+    }
+
+    // ツールボックス/フライアウトを避けつつ、アスペクト比に応じて中央寄りへ配置する
+    const metrics = typeof workspace.getMetrics === 'function' ? workspace.getMetrics() : null;
+    const toolboxWidthFromApi = workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getWidth ? workspace.getToolbox().getWidth() : 0;
+    const toolboxDiv = document.querySelector('#l .blocklyToolboxDiv');
+    const flyoutSvg = document.querySelector('#l .blocklyFlyout');
+    const parentRect = workspace.getParentSvg() ? workspace.getParentSvg().getBoundingClientRect() : null;
+
+    const toolboxWidth = Math.max(metrics?.toolboxWidth || 0, toolboxWidthFromApi || 0, toolboxDiv ? toolboxDiv.getBoundingClientRect().width : 0);
+    const flyoutWidth = Math.max(metrics?.flyoutWidth || 0, flyoutSvg ? flyoutSvg.getBoundingClientRect().width : 0);
+    const leftInset = Math.ceil(toolboxWidth + flyoutWidth + 24);
+
+    const viewportWidth = Math.max(metrics?.viewWidth || 0, parentRect ? parentRect.width : 0);
+    const viewportHeight = Math.max(metrics?.viewHeight || 0, parentRect ? parentRect.height : 0);
+    const aspectRatio = viewportHeight > 0 ? viewportWidth / viewportHeight : 1;
+
+    const gap = aspectRatio < 1 ? 24 : 32;
+    const sizes = topBlocks.map((block) => block.getHeightWidth());
+    const totalWidth = sizes.reduce((sum, size) => sum + (size?.width || 0), 0) + gap * (topBlocks.length - 1);
+    const maxHeight = sizes.reduce((max, size) => Math.max(max, size?.height || 0), 0);
+
+    const availableWidth = Math.max(120, viewportWidth - leftInset - 24);
+    const centeredX = leftInset + Math.max(0, Math.floor((availableWidth - totalWidth) / 2));
+    const nudgeLeft = Math.min(220, Math.max(60, Math.floor(availableWidth * 0.25)));
+    const rightSafeX = Math.max(leftInset, viewportWidth - totalWidth - 12);
+    let currentX = Math.min(Math.max(leftInset, centeredX - nudgeLeft), rightSafeX);
+
+    let startY;
+    if (aspectRatio < 0.9) {
+      // 縦長画面は上寄りの中央に置いて、下方向の作業スペースを確保
+      startY = Math.max(20, Math.floor(viewportHeight * 0.14));
     } else {
-        B.innerHTML = "<span style='color:red'>不正解。数式が一致していないか、結論がありません。</span>";
+      // 横長〜標準画面は中央付近
+      startY = Math.max(20, Math.floor((viewportHeight - maxHeight) / 2) - 90);
     }
+
+    topBlocks.forEach((block) => {
+      const xy = block.getRelativeToSurfaceXY();
+      block.moveBy(currentX - xy.x, startY - xy.y);
+      const blockSize = block.getHeightWidth();
+      currentX += blockSize.width + gap;
+    });
+  }, 50);
+}
+
+// 画面切替の認知負荷を下げるカーテントランジション
+async function transitionToStage(stageNum) {
+  const curtain = document.getElementById('transition-curtain');
+
+  if (!curtain) {
+    currentStageNumber = stageNum;
+    switchScreen('p');
+    if (typeof Blockly.svgResize === 'function') Blockly.svgResize(workspace);
+    await loadStage(stageNum);
+    return;
+  }
+
+  curtain.classList.remove('hidden');
+
+  setTimeout(async () => {
+    // 重要: 先に p 画面を表示してワークスペースのサイズを確定させる
+    // 非表示状態で loadStage すると、Zelos の描画が崩れる場合がある
+    switchScreen('p');
+    if (typeof Blockly.svgResize === 'function') Blockly.svgResize(workspace);
+
+    currentStageNumber = stageNum;
+    await loadStage(stageNum);
+
+    setTimeout(() => {
+      curtain.classList.add('hidden');
+    }, 200);
+  }, 300);
+}
+
+// ===== ステージ選択描画 =====
+async function renderStageSelectionDynamic() {
+  const stageContainer = document.getElementById('n');
+  if (!stageContainer) return;
+
+  stageContainer.innerHTML = '<p>問題を読み込み中...</p>';
+
+  try {
+    const difficulties = {
+      基礎問: [],
+      標準問題: [],
+      発展問題: [],
+    };
+
+    const maxStageNumber = 43;
+
+    for (let stageNum = 1; stageNum <= maxStageNumber; stageNum++) {
+      try {
+        const response = await fetch(`problems/${stageNum}.json`);
+        if (!response.ok) continue;
+
+        const problemData = await response.json();
+        const evaluation = evaluateDifficulty(problemData);
+
+        if (difficulties[evaluation.difficulty]) {
+          difficulties[evaluation.difficulty].push({
+            id: stageNum,
+            data: problemData,
+          });
+        }
+      } catch (error) {
+        console.warn(`問題 ${stageNum} の読み込みに失敗`, error);
+      }
+    }
+
+    stageContainer.innerHTML = '';
+
+    ['基礎問', '標準問題', '発展問題'].forEach((difficulty) => {
+      const problems = difficulties[difficulty];
+      if (!problems || problems.length === 0) return;
+
+      const chapterTitle = document.createElement('h3');
+      chapterTitle.innerText = difficulty;
+      stageContainer.appendChild(chapterTitle);
+
+      const buttonContainer = document.createElement('div');
+      buttonContainer.className = 'stage-grid';
+
+      problems.forEach((problem) => {
+        const stageCard = document.createElement('div');
+        const isCleared = clearedStages.includes(problem.id);
+        const isUnlocked = unlockAll || problem.id === 1 || clearedStages.includes(problem.id - 1);
+
+        stageCard.className = 'stage-card';
+        if (isCleared) stageCard.classList.add('cleared');
+        else if (isUnlocked) stageCard.classList.add('unlocked');
+
+        stageCard.innerHTML = `<div class="stage-node">${problem.id}<span class="stage-icon">${isCleared ? '⭐' : isUnlocked ? '🔓' : '🔒'}</span></div><div class="stage-label">ステージ ${problem.id}</div>`;
+
+        stageCard.onclick = () => {
+          if (!isUnlocked) {
+            showToast('まだ遊べません', true);
+            return;
+          }
+          currentStageNumber = problem.id;
+          transitionToStage(problem.id);
+        };
+
+        buttonContainer.appendChild(stageCard);
+      });
+
+      stageContainer.appendChild(buttonContainer);
+    });
+
+    const totalStages = 43;
+    const clearedCount = clearedStages.length;
+    const progressPercent = Math.round((clearedCount / totalStages) * 100);
+
+    const progressBar = document.getElementById('overall-progress');
+    const progressText = document.getElementById('progress-text');
+
+    if (progressBar) progressBar.style.width = `${progressPercent}%`;
+    if (progressText) progressText.innerText = `${clearedCount} / ${totalStages} クリア (${progressPercent}%)`;
+  } catch (error) {
+    stageContainer.innerHTML = '<p style="color:red;">問題の読み込みに失敗しました。</p>';
+  }
+}
+
+// セーブデータ + チュートリアル既読フラグを初期化
+function resetSaveData() {
+  localStorage.removeItem('s');
+  localStorage.removeItem('tutorial_seen');
+  localStorage.removeItem('unlock_all');
+  clearedStages = [];
+  unlockAll = false;
+  renderStageSelectionDynamic();
+}
+
+// 全問題を開放してチャレンジ可能にする
+function unlockAllStages() {
+  unlockAll = true;
+  localStorage.setItem('unlock_all', '1');
+  renderStageSelectionDynamic();
+}
+
+// ===== Blockly ブロック定義 =====
+Blockly.Blocks.term_tan = {
+  init: function () {
+    this.appendDummyInput().appendField('tan θ');
+    this.setOutput(true, 'Math');
+    this.setColour(230);
+  },
 };
 
-// 次のステージへ、またはタイトルへ。
-document.getElementById('x').onclick = () => {
-    let A = d.find(B => b >= B.B && b <= B.C);
-    if (b < A.C) { b++; g(b); } else { f(); e('c'); }
+Blockly.Blocks.term_sin = {
+  init: function () {
+    this.appendDummyInput().appendField('sin θ');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
 };
 
-document.getElementById('w').onclick = () => g(b); // ステージのリセット。
-document.getElementById('v').onclick = () => { // 解答例の表示。
-    if(c && c.answerState) Blockly.serialization.workspaces.load(c.answerState, i);
-};
-document.getElementById('u').onclick = () => { // ヒント表示。JSONから読み込んだテキストを出す。
-    document.getElementById('y').innerHTML = c.hints ? c.hints[0] : "ヒントはありません";
+Blockly.Blocks.term_cos = {
+  init: function () {
+    this.appendDummyInput().appendField('cos θ');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
 };
 
-window.onload = f; // 起動時にステージリストを描画。
+Blockly.Blocks.term_sin2 = {
+  init: function () {
+    this.appendDummyInput().appendField('sin 2θ');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_cos2 = {
+  init: function () {
+    this.appendDummyInput().appendField('cos 2θ');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_pi = {
+  init: function () {
+    this.appendDummyInput().appendField('π');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_pi_sixth = {
+  init: function () {
+    this.appendDummyInput().appendField('π/6');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_pi_quarter = {
+  init: function () {
+    this.appendDummyInput().appendField('π/4');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_pi_third = {
+  init: function () {
+    this.appendDummyInput().appendField('π/3');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_pi_half = {
+  init: function () {
+    this.appendDummyInput().appendField('π/2');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_two_pi_thirds = {
+  init: function () {
+    this.appendDummyInput().appendField('2π/3');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_three_pi_quarters = {
+  init: function () {
+    this.appendDummyInput().appendField('3π/4');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_five_pi_sixths = {
+  init: function () {
+    this.appendDummyInput().appendField('5π/6');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_half_value = {
+  init: function () {
+    this.appendDummyInput().appendField('1/2');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_sqrt2_half = {
+  init: function () {
+    this.appendDummyInput().appendField('√2/2');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_sqrt3_half = {
+  init: function () {
+    this.appendDummyInput().appendField('√3/2');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_sin_of = {
+  init: function () {
+    this.appendDummyInput().appendField('sin(');
+    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().appendField(')');
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_cos_of = {
+  init: function () {
+    this.appendDummyInput().appendField('cos(');
+    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().appendField(')');
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.term_tan_of = {
+  init: function () {
+    this.appendDummyInput().appendField('tan(');
+    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().appendField(')');
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.custom_number = {
+  init: function () {
+    this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
+    this.setOutput(true, 'Math');
+    this.setColour('#1e40af');
+  },
+};
+
+Blockly.Blocks.math_fraction = {
+  init: function () {
+    this.appendValueInput('NUMERATOR').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField(new FieldSpacer(0), 'SPACER_NUM');
+    this.appendDummyInput('DIVIDER_ROW').appendField(new FieldFractionLine('─────')).setAlign(Blockly.ALIGN_CENTRE);
+    this.appendValueInput('DENOMINATOR').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField(new FieldSpacer(0), 'SPACER_DEN');
+    this.setInputsInline(false);
+    this.setOutput(true, 'Math');
+    this.setColour('#4a90e2');
+    this.onchange = this.updateFractionLine_;
+  },
+
+  updateFractionLine_: function () {
+    const numeratorBlock = this.getInputTargetBlock('NUMERATOR');
+    const denominatorBlock = this.getInputTargetBlock('DENOMINATOR');
+
+    const numWidth = numeratorBlock ? numeratorBlock.getHeightWidth()?.width || 20 : 20;
+    const denWidth = denominatorBlock ? denominatorBlock.getHeightWidth()?.width || 20 : 20;
+
+    const maxWidth = Math.max(numWidth, denWidth);
+    const charCount = Math.ceil(maxWidth / 10);
+    const newLineText = '─'.repeat(Math.max(3, charCount));
+
+    const padNum = Math.max(0, (maxWidth - numWidth) / 2);
+    const padDen = Math.max(0, (maxWidth - denWidth) / 2);
+
+    const spacerNum = this.getField('SPACER_NUM');
+    const spacerDen = this.getField('SPACER_DEN');
+    if (spacerNum && typeof spacerNum.setWidth === 'function') spacerNum.setWidth(padNum);
+    if (spacerDen && typeof spacerDen.setWidth === 'function') spacerDen.setWidth(padDen);
+
+    const dividerRow = this.getInput('DIVIDER_ROW');
+    if (dividerRow && dividerRow.fieldRow && dividerRow.fieldRow[0]) {
+      const currentValue = dividerRow.fieldRow[0].getText();
+      if (currentValue !== newLineText) dividerRow.fieldRow[0].setValue(newLineText);
+    }
+
+    if (this.workspace) this.render();
+  },
+};
+
+Blockly.Blocks.math_add = {
+  init: function () {
+    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput('OPERATOR_ROW').setAlign(Blockly.ALIGN_CENTRE).appendField('＋');
+    this.appendValueInput('B').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#0ea5e9');
+  },
+};
+
+Blockly.Blocks.math_negate = {
+  init: function () {
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('−(');
+    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField(')');
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#0ea5e9');
+  },
+};
+
+Blockly.Blocks.math_multiply = {
+  init: function () {
+    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput('OPERATOR_ROW').setAlign(Blockly.ALIGN_CENTRE).appendField('×');
+    this.appendValueInput('B').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#0ea5e9');
+  },
+};
+
+Blockly.Blocks.math_square = {
+  init: function () {
+    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('²');
+    this.setInputsInline(true);
+    this.setOutput(true, 'Math');
+    this.setColour('#0ea5e9');
+  },
+};
+
+Blockly.Blocks.formula_1 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式①: sin²θ + cos²θ = 1');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_2 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式②: tanθ = sinθ / cosθ');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_3 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式③: 1 + tan²θ = 1 / cos²θ');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_4 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式④: sin2θ = 2sinθcosθ');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_5 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式⑤: sin²θ = (1 - cos2θ) / 2');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_6 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式⑥: cos²θ = (1 + cos2θ) / 2');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_7 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式⑦: tanθ = sin2θ / (1 + cos2θ)');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.formula_8 = {
+  init: function () {
+    this.appendDummyInput().appendField('公式⑧: tan²θ = (1 - cos2θ) / (1 + cos2θ)');
+    this.setOutput(true, 'Formula');
+    this.setColour(300);
+  },
+};
+
+Blockly.Blocks.proof_step = {
+  init: function () {
+    this.appendDummyInput('TITLE').setAlign(Blockly.ALIGN_CENTRE).appendField('証明');
+    this.appendStatementInput('OPERATIONS').setCheck('Operation');
+    this.setPreviousStatement(true, 'ProofStep');
+    this.setNextStatement(true, 'ProofStep');
+    this.setColour(120);
+  },
+};
+
+Blockly.Blocks.replace_operation = {
+  init: function () {
+    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField('式');
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('を');
+    this.appendValueInput('FORMULA').setCheck('Formula').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('で');
+    this.appendValueInput('REPLACEMENT').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('にする');
+    this.setInputsInline(true);
+    this.setPreviousStatement(true, 'Operation');
+    this.setNextStatement(true, 'Operation');
+    this.setColour(160);
+  },
+};
+
+Blockly.Blocks.common_denominator_operation = {
+  init: function () {
+    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField('式');
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('を通分して');
+    this.appendValueInput('REPLACEMENT').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('にする');
+    this.setInputsInline(true);
+    this.setPreviousStatement(true, 'Operation');
+    this.setNextStatement(true, 'Operation');
+    this.setColour(160);
+  },
+};
+
+Blockly.Blocks.conclusion_operation = {
+  init: function () {
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('よって');
+    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
+    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('となる');
+    this.setInputsInline(true);
+    this.setPreviousStatement(true, 'Operation');
+    this.setColour(180);
+  },
+};
+
+// ===== ツールボックス設定 =====
+const toolboxConfig = {
+  kind: 'categoryToolbox',
+  contents: [
+    {
+      kind: 'category',
+      name: '📂 ブロック一覧',
+      expanded: true,
+      contents: [
+        {
+          kind: 'category',
+          name: '項',
+          contents: [
+            { kind: 'block', type: 'custom_number' },
+            { kind: 'block', type: 'term_sin' },
+            { kind: 'block', type: 'term_cos' },
+            { kind: 'block', type: 'term_tan' },
+            { kind: 'block', type: 'term_sin2' },
+            { kind: 'block', type: 'term_cos2' },
+            { kind: 'block', type: 'term_sin_of' },
+            { kind: 'block', type: 'term_cos_of' },
+            { kind: 'block', type: 'term_tan_of' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '有名角',
+          contents: [
+            { kind: 'block', type: 'term_pi_sixth' },
+            { kind: 'block', type: 'term_pi_quarter' },
+            { kind: 'block', type: 'term_pi_third' },
+            { kind: 'block', type: 'term_pi_half' },
+            { kind: 'block', type: 'term_two_pi_thirds' },
+            { kind: 'block', type: 'term_three_pi_quarters' },
+            { kind: 'block', type: 'term_five_pi_sixths' },
+            { kind: 'block', type: 'term_pi' },
+            { kind: 'block', type: 'term_half_value' },
+            { kind: 'block', type: 'term_sqrt2_half' },
+            { kind: 'block', type: 'term_sqrt3_half' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '演算',
+          contents: [
+            { kind: 'block', type: 'math_fraction' },
+            { kind: 'block', type: 'math_add' },
+            { kind: 'block', type: 'math_negate' },
+            { kind: 'block', type: 'math_multiply' },
+            { kind: 'block', type: 'math_square' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '公式',
+          contents: [
+            { kind: 'block', type: 'formula_1' },
+            { kind: 'block', type: 'formula_2' },
+            { kind: 'block', type: 'formula_3' },
+            { kind: 'block', type: 'formula_4' },
+            { kind: 'block', type: 'formula_5' },
+            { kind: 'block', type: 'formula_6' },
+            { kind: 'block', type: 'formula_7' },
+            { kind: 'block', type: 'formula_8' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '証明',
+          contents: [
+            { kind: 'block', type: 'proof_step' },
+            { kind: 'block', type: 'replace_operation' },
+            { kind: 'block', type: 'common_denominator_operation' },
+            { kind: 'block', type: 'conclusion_operation' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+// ===== テーマ + ワークスペース初期化 =====
+const customTheme = Blockly.Theme.defineTheme('mathTheme', {
+  base: Blockly.Themes.Classic,
+  componentStyles: {
+    workspaceBackgroundColour: '#ffffff',
+    toolboxBackgroundColour: '#f5f5f5',
+    toolboxForegroundColour: '#333',
+    flyoutBackgroundColour: '#f9f9f9',
+    flyoutForegroundColour: '#333',
+    scrollbarColour: '#ccc',
+    insertionMarkerColour: '#4a90e2',
+    insertionMarkerOpacity: 0.3,
+    scrollbarOpacity: 0.4,
+    cursorColour: '#d0d0d0',
+    blackBackground: '#333',
+  },
+});
+
+const workspace = Blockly.inject('l', {
+  toolbox: toolboxConfig,
+  renderer: 'zelos',
+  theme: customTheme,
+  rendererOverrides: {
+    ROW_PADDING: 0.3,
+    MIN_BLOCK_HEIGHT: 10,
+    STATEMENT_BOTTOM_SPACING: 0,
+    EMPTY_INLINE_INPUT_PADDING: 0,
+    DUMMY_INPUT_MIN_HEIGHT: 10,
+    INLINE_PADDING_H: 2,
+    INLINE_PADDING_V: 0,
+  },
+  move: {
+    drag: true,
+    wheel: true,
+  },
+  zoom: {
+    controls: true,
+    wheel: false,
+    startScale: 1.2,
+    maxScale: 3,
+    minScale: 0.3,
+  },
+});
+
+// ===== ステージロード =====
+async function loadStage(stageNumber) {
+  try {
+    const response = await fetch(`problems/${stageNumber}.json`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    currentProblemData = await response.json();
+    currentHintIndex = 0;
+    currentStageSolved = false;
+    currentSkipOffer = null;
+    closeSkipChallengeModal();
+    updateStreakCounter(false);
+
+    const stageText = document.getElementById('r');
+    const problemText = document.getElementById('s');
+    if (stageText) stageText.innerText = `STAGE ${stageNumber}`;
+    if (problemText) problemText.innerText = currentProblemData.mathText || '';
+
+    const toastElement = document.getElementById('toast-message');
+    if (toastElement) toastElement.classList.add('hidden');
+
+    if (window.MathJax) {
+      MathJax.typesetClear();
+      MathJax.typesetPromise();
+    }
+
+    // 問題式カテゴリをツールボックス先頭に追加
+    const updatedToolbox = JSON.parse(JSON.stringify(toolboxConfig));
+    const problemBlocksCategory = { kind: 'category', name: '✨問題の式', contents: [] };
+
+    if (currentProblemData.initialState?.blocks?.blocks) {
+      currentProblemData.initialState.blocks.blocks.forEach((block) => {
+        if (block.type !== 'proof_step') {
+          const blockCopy = JSON.parse(JSON.stringify(block));
+          blockCopy.kind = 'block';
+          delete blockCopy.x;
+          delete blockCopy.y;
+          delete blockCopy.id;
+          problemBlocksCategory.contents.push(blockCopy);
+        }
+      });
+    }
+
+    if (problemBlocksCategory.contents.length > 0) {
+      updatedToolbox.contents[0].contents.unshift(problemBlocksCategory);
+    }
+
+    workspace.updateToolbox(updatedToolbox);
+    workspace.clear();
+  Blockly.serialization.workspaces.load(currentProblemData.initialState, workspace);
+
+    const scaffoldMode = getProofScaffoldMode();
+
+    if (scaffoldMode === 'guided') {
+      // 初期表示データに登録された操作ブロック不足分を補完する
+      ensureInitialOperationBlocksPlaced(workspace, currentProblemData);
+
+      // 答えデータに登録された操作ブロック（結論を含む）を空入力のまま初期配置する
+      ensureAnswerOperationBlocksPlaced(workspace, currentProblemData);
+
+      // 答えデータに登録された緑ブロックを初期配置する
+      ensureAnswerGreenBlocksPlaced(workspace, currentProblemData);
+    }
+
+    // 2. 初期式の自動接続（同期実行で確実に行う）
+    const proofStep = workspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
+    if (proofStep && scaffoldMode === 'guided') {
+      const firstOp = proofStep.getInputTargetBlock('OPERATIONS');
+      if (firstOp && firstOp.type === 'replace_operation') {
+        const valueInput = firstOp.getInput('VALUE');
+        // 入力が完全に空であることを確認
+        if (valueInput && valueInput.connection && !valueInput.connection.targetBlock()) {
+          // インライン表示のときは、複雑な式を自動接続すると表示が崩れやすいため除外する
+          const isInlineLayout = typeof firstOp.getInputsInline === 'function' ? firstOp.getInputsInline() : false;
+          const disallowedInlineDockTypes = ['math_add', 'math_fraction', 'math_multiply', 'math_square'];
+
+          // 接続対象の式ブロック（Math出力あり、かつ操作系ではないもの）を 1 つだけ取得
+          const mathBlock = workspace.getTopBlocks(false).find((b) =>
+            b.outputConnection &&
+            !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(b.type) &&
+            (!isInlineLayout || !disallowedInlineDockTypes.includes(b.type)),
+          );
+          if (mathBlock) {
+            valueInput.connection.connect(mathBlock.outputConnection);
+          }
+        }
+      }
+    }
+
+    arrangeBlocks(); // 最後に整列
+
+    const submitBtn = document.getElementById('btn-submit');
+    const nextBtn = document.getElementById('btn-next');
+    if (submitBtn) submitBtn.style.display = 'inline-block';
+    if (nextBtn) {
+      nextBtn.style.display = 'none';
+      nextBtn.innerText = '次へ進む';
+    }
+  } catch (error) {
+    const errorText = error && error.message ? String(error.message) : '';
+    const isHttpError = /^HTTP\s+\d+/.test(errorText);
+    const message = isHttpError
+      ? `問題ファイルが見つかりません: problems/${stageNumber}.json (${errorText})`
+      : `問題ファイルの内容が不正です: problems/${stageNumber}.json`;
+    showToast(`<span style='color:red'>${message}</span>`, false);
+
+    const stageText = document.getElementById('r');
+    const problemText = document.getElementById('s');
+    const submitBtn = document.getElementById('btn-submit');
+
+    if (stageText) stageText.innerText = 'エラー';
+    if (problemText) problemText.innerText = '';
+    if (submitBtn) submitBtn.style.display = 'none';
+  }
+}
+
+// ===== 判定用ジェネレーター =====
+const mathGenerator = new Blockly.Generator('MATH');
+mathGenerator.forBlock.custom_number = function (block) {
+  return [String(block.getFieldValue('NUM')), 0];
+};
+mathGenerator.forBlock.term_sin = function () {
+  return ['sin(x)', 0];
+};
+mathGenerator.forBlock.term_cos = function () {
+  return ['cos(x)', 0];
+};
+mathGenerator.forBlock.term_sin2 = function () {
+  return ['sin(2 * x)', 0];
+};
+mathGenerator.forBlock.term_cos2 = function () {
+  return ['cos(2 * x)', 0];
+};
+mathGenerator.forBlock.term_pi = function () {
+  return ['pi', 0];
+};
+mathGenerator.forBlock.term_pi_sixth = function () {
+  return ['(pi/6)', 0];
+};
+mathGenerator.forBlock.term_pi_quarter = function () {
+  return ['(pi/4)', 0];
+};
+mathGenerator.forBlock.term_pi_third = function () {
+  return ['(pi/3)', 0];
+};
+mathGenerator.forBlock.term_pi_half = function () {
+  return ['(pi/2)', 0];
+};
+mathGenerator.forBlock.term_two_pi_thirds = function () {
+  return ['((2*pi)/3)', 0];
+};
+mathGenerator.forBlock.term_three_pi_quarters = function () {
+  return ['((3*pi)/4)', 0];
+};
+mathGenerator.forBlock.term_five_pi_sixths = function () {
+  return ['((5*pi)/6)', 0];
+};
+mathGenerator.forBlock.term_half_value = function () {
+  return ['(1/2)', 0];
+};
+mathGenerator.forBlock.term_sqrt2_half = function () {
+  return ['(sqrt(2)/2)', 0];
+};
+mathGenerator.forBlock.term_sqrt3_half = function () {
+  return ['(sqrt(3)/2)', 0];
+};
+mathGenerator.forBlock.term_tan = function () {
+  return ['tan(x)', 0];
+};
+mathGenerator.forBlock.term_sin_of = function (block) {
+  return [`sin(${mathGenerator.valueToCode(block, 'ANGLE', 0) || '0'})`, 0];
+};
+mathGenerator.forBlock.term_cos_of = function (block) {
+  return [`cos(${mathGenerator.valueToCode(block, 'ANGLE', 0) || '0'})`, 0];
+};
+mathGenerator.forBlock.term_tan_of = function (block) {
+  return [`tan(${mathGenerator.valueToCode(block, 'ANGLE', 0) || '0'})`, 0];
+};
+mathGenerator.forBlock.math_add = function (block) {
+  return [`(${mathGenerator.valueToCode(block, 'A', 0) || '0'} + ${mathGenerator.valueToCode(block, 'B', 0) || '0'})`, 0];
+};
+mathGenerator.forBlock.math_negate = function (block) {
+  return [`(-(${mathGenerator.valueToCode(block, 'A', 0) || '0'}))`, 0];
+};
+mathGenerator.forBlock.math_multiply = function (block) {
+  return [`(${mathGenerator.valueToCode(block, 'A', 0) || '1'} * ${mathGenerator.valueToCode(block, 'B', 0) || '1'})`, 0];
+};
+mathGenerator.forBlock.math_fraction = function (block) {
+  return [`(${mathGenerator.valueToCode(block, 'NUMERATOR', 0) || '0'}) / (${mathGenerator.valueToCode(block, 'DENOMINATOR', 0) || '1'})`, 0];
+};
+mathGenerator.forBlock.math_square = function (block) {
+  return [`(${mathGenerator.valueToCode(block, 'A', 0) || '0'})^2`, 0];
+};
+mathGenerator.forBlock.formula_1 = function () {
+  return ['sin(x)^2 + cos(x)^2 = 1', 0];
+};
+mathGenerator.forBlock.formula_2 = function () {
+  return ['tan(x) = sin(x) / cos(x)', 0];
+};
+mathGenerator.forBlock.formula_3 = function () {
+  return ['1 + tan(x)^2 = 1 / cos(x)^2', 0];
+};
+mathGenerator.forBlock.formula_4 = function () {
+  return ['sin(2 * x) = 2 * sin(x) * cos(x)', 0];
+};
+mathGenerator.forBlock.formula_5 = function () {
+  return ['sin(x)^2 = (1 - cos(2 * x)) / 2', 0];
+};
+mathGenerator.forBlock.formula_6 = function () {
+  return ['cos(x)^2 = (1 + cos(2 * x)) / 2', 0];
+};
+mathGenerator.forBlock.formula_7 = function () {
+  return ['tan(x) = sin(2 * x) / (1 + cos(2 * x))', 0];
+};
+mathGenerator.forBlock.formula_8 = function () {
+  return ['tan(x)^2 = (1 - cos(2 * x)) / (1 + cos(2 * x))', 0];
+};
+
+function safeValueToCode(block, inputName, fallbackValue) {
+  if (!block) return fallbackValue;
+  try {
+    const generated = mathGenerator.valueToCode(block, inputName, 0);
+    if (typeof generated !== 'string') return fallbackValue;
+    return generated;
+  } catch (error) {
+    return fallbackValue;
+  }
+}
+
+function parseBlocksToAST(targetWorkspace) {
+  const ast = [];
+  if (!targetWorkspace) return ast;
+
+  const proofSteps = targetWorkspace
+    .getAllBlocks(false)
+    .filter((block) => block.type === 'proof_step');
+
+  if (proofSteps.length === 0) {
+    return ast;
+  }
+
+  let stepIndex = 1;
+
+  proofSteps.forEach((proofStep) => {
+    let currentOperation = proofStep.getInputTargetBlock('OPERATIONS');
+
+    while (currentOperation) {
+      const before = safeValueToCode(currentOperation, 'VALUE', '');
+      const formula = currentOperation.type === 'replace_operation'
+        ? safeValueToCode(currentOperation, 'FORMULA', null)
+        : null;
+      const after = currentOperation.type === 'conclusion_operation'
+        ? null
+        : safeValueToCode(currentOperation, 'REPLACEMENT', null);
+
+      ast.push({
+        step: stepIndex,
+        type: String(currentOperation.type || ''),
+        before: before == null ? '' : String(before),
+        formula: formula == null ? null : String(formula),
+        after: after == null ? null : String(after),
+      });
+
+      stepIndex += 1;
+      currentOperation = currentOperation.getNextBlock();
+    }
+  });
+
+  return ast;
+}
+
+function validateProof(astArray) {
+  const EPSILON = 0.0001;
+  const samplingPoints = [0.5, 1.2, 2.3];
+  const evaluateEquivalence = (leftExpr, rightExpr) => {
+    for (const xValue of samplingPoints) {
+      try {
+        const leftValue = math.evaluate(leftExpr, { x: xValue });
+        const rightValue = math.evaluate(rightExpr, { x: xValue });
+
+        if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+          return { ok: false, reason: 'non-finite' };
+        }
+
+        if (Math.abs(leftValue - rightValue) > EPSILON) {
+          return { ok: false, reason: 'mismatch' };
+        }
+      } catch (error) {
+        const rawMessage = error && error.message ? String(error.message) : '';
+        const isDivisionByZero = /division\s+by\s+zero|divide\s+by\s+zero|Infinity/i.test(rawMessage);
+        return { ok: false, reason: isDivisionByZero ? 'division-by-zero' : 'eval-error' };
+      }
+    }
+
+    return { ok: true };
+  };
+  const stripOuterParens = (expr) => {
+    let s = String(expr || '').trim();
+    while (s.startsWith('(') && s.endsWith(')')) {
+      let depth = 0;
+      let wrapsWhole = true;
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === '(') depth += 1;
+        else if (ch === ')') depth -= 1;
+        if (depth === 0 && i < s.length - 1) {
+          wrapsWhole = false;
+          break;
+        }
+      }
+      if (!wrapsWhole) break;
+      s = s.slice(1, -1).trim();
+    }
+    return s;
+  };
+  const extractTrigArguments = (expr) => {
+    const source = String(expr || '');
+    const args = [];
+    for (let i = 0; i < source.length; i++) {
+      const fn = source.slice(i, i + 4);
+      if (fn !== 'sin(' && fn !== 'cos(' && fn !== 'tan(') continue;
+      let start = i + 4;
+      let depth = 1;
+      let end = start;
+      while (end < source.length && depth > 0) {
+        if (source[end] === '(') depth += 1;
+        else if (source[end] === ')') depth -= 1;
+        end += 1;
+      }
+      if (depth === 0) {
+        args.push(source.slice(start, end - 1).trim());
+        i = end - 1;
+      }
+    }
+    return args;
+  };
+  const deriveHalfAngleCandidate = (expr) => {
+    const text = stripOuterParens(expr);
+    const doubled = text.match(/^2\s*\*\s*(.+)$/);
+    if (doubled && doubled[1]) return stripOuterParens(doubled[1]);
+    return null;
+  };
+  const buildFormulaSides = (formulaId, thetaExpr) => {
+    const t = `(${thetaExpr})`;
+    const sides = {
+      formula_1: [`sin${t}^2 + cos${t}^2`, '1'],
+      formula_2: [`tan${t}`, `(sin${t} / cos${t})`],
+      formula_3: [`1 + tan${t}^2`, `(1 / cos${t}^2)`],
+      formula_4: [`sin(2 * ${t})`, `(2 * sin${t} * cos${t})`],
+      formula_5: [`sin${t}^2`, `((1 - cos(2 * ${t})) / 2)`],
+      formula_6: [`cos${t}^2`, `((1 + cos(2 * ${t})) / 2)`],
+      formula_7: [`tan${t}`, `(sin(2 * ${t}) / (1 + cos(2 * ${t})))`],
+      formula_8: [`tan${t}^2`, `((1 - cos(2 * ${t})) / (1 + cos(2 * ${t})))`],
+    };
+    return sides[formulaId] || null;
+  };
+  const verifyFormulaApplication = (formulaId, beforeExpr, afterExpr) => {
+    const candidateSet = new Set(['x']);
+    const trigArgs = [
+      ...extractTrigArguments(beforeExpr),
+      ...extractTrigArguments(afterExpr),
+    ];
+
+    trigArgs.forEach((arg) => {
+      const cleaned = stripOuterParens(arg);
+      if (cleaned) candidateSet.add(cleaned);
+      const half = deriveHalfAngleCandidate(cleaned);
+      if (half) candidateSet.add(half);
+    });
+
+    for (const thetaExpr of candidateSet) {
+      const sides = buildFormulaSides(formulaId, thetaExpr);
+      if (!sides) continue;
+      const [leftSide, rightSide] = sides;
+
+      const direct = evaluateEquivalence(beforeExpr, leftSide).ok && evaluateEquivalence(afterExpr, rightSide).ok;
+      if (direct) return true;
+
+      const reverse = evaluateEquivalence(beforeExpr, rightSide).ok && evaluateEquivalence(afterExpr, leftSide).ok;
+      if (reverse) return true;
+    }
+
+    return false;
+  };
+  const detectMatchingFormulaIds = (beforeExpr, afterExpr) => {
+    const allFormulaIds = Object.keys(FORMULA_ID_TO_CONCEPT);
+    return allFormulaIds.filter((formulaId) => verifyFormulaApplication(formulaId, beforeExpr, afterExpr));
+  };
+
+  if (!Array.isArray(astArray) || astArray.length === 0) {
+    return {
+      isValid: false,
+      errorStepIndex: null,
+      message: '証明ブロックが見つかりません。まず「証明」ブロックを配置してください。',
+    };
+  }
+
+  for (let i = 0; i < astArray.length; i++) {
+    const stepData = astArray[i] || {};
+    const stepIndex = Number.isFinite(stepData.step) ? stepData.step : i + 1;
+    const operationType = String(stepData.type || '');
+
+    if (operationType !== 'replace_operation' && operationType !== 'common_denominator_operation') {
+      continue;
+    }
+
+    const beforeExpr = typeof stepData.before === 'string' ? stepData.before.trim() : '';
+    const afterExpr = typeof stepData.after === 'string' ? stepData.after.trim() : '';
+    const formulaExpr = typeof stepData.formula === 'string' ? stepData.formula.trim() : '';
+
+    if (!beforeExpr || !afterExpr) {
+      return {
+        isValid: false,
+        errorStepIndex: stepIndex,
+        message: `${stepIndex}段目: 「式」または「変形後」の入力が空です。ブロックを接続して式を完成させてください。`,
+      };
+    }
+
+    const sameStepCheck = evaluateEquivalence(beforeExpr, afterExpr);
+    if (!sameStepCheck.ok) {
+      if (sameStepCheck.reason === 'non-finite' || sameStepCheck.reason === 'division-by-zero') {
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          message: `${stepIndex}段目: 計算結果が無効です（0 除算の可能性があります）。分母が 0 になっていないか確認してください。`,
+        };
+      }
+
+      if (sameStepCheck.reason === 'mismatch') {
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          message: `${stepIndex}段目: 変形前と変形後が一致しません。使用した公式と置き換え先の式を見直してください。`,
+        };
+      }
+
+      return {
+        isValid: false,
+        errorStepIndex: stepIndex,
+        message: `${stepIndex}段目: 式を評価できません。未接続ブロックや不正な式がないか確認してください。`,
+      };
+    }
+
+    if (operationType === 'replace_operation') {
+      if (!formulaExpr) {
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          message: `${stepIndex}段目: 置き換え操作には公式ブロックが必要です。`,
+        };
+      }
+
+      const formulaId = formulaTextToId(formulaExpr);
+      if (!formulaId) {
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          message: `${stepIndex}段目: この公式は判定対象外です。公式ブロックを確認してください。`,
+        };
+      }
+
+      const formulaMatch = verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
+      if (!formulaMatch) {
+        const candidates = detectMatchingFormulaIds(beforeExpr, afterExpr)
+          .filter((candidate) => candidate !== formulaId)
+          .map((candidate) => formulaIdToLabel(candidate));
+        const suggestion = candidates.length > 0
+          ? ` 候補: ${candidates.join(' / ')}`
+          : '';
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          message: `${stepIndex}段目: 選択した公式と変形内容が一致していません。${suggestion}`,
+        };
+      }
+    }
+  }
+
+  for (let i = 1; i < astArray.length; i++) {
+    const prevStepData = astArray[i - 1] || {};
+    const currentStepData = astArray[i] || {};
+    const prevStepIndex = Number.isFinite(prevStepData.step) ? prevStepData.step : i;
+    const currentStepIndex = Number.isFinite(currentStepData.step) ? currentStepData.step : i + 1;
+
+    const prevAfterExpr = typeof prevStepData.after === 'string' ? prevStepData.after.trim() : '';
+    const currentBeforeExpr = typeof currentStepData.before === 'string' ? currentStepData.before.trim() : '';
+
+    if (!prevAfterExpr) {
+      continue;
+    }
+
+    if (!currentBeforeExpr) {
+      return {
+        isValid: false,
+        errorStepIndex: currentStepIndex,
+        message: `${currentStepIndex}段目: 前段とのつながりを確認できません。${currentStepIndex}段目の「式」を入力してください。`,
+      };
+    }
+
+    const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
+    if (!chainCheck.ok) {
+      if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
+        return {
+          isValid: false,
+          errorStepIndex: currentStepIndex,
+          message: `${currentStepIndex}段目: 前段との接続確認中に無効な値が発生しました。${prevStepIndex}段目の「変形後」と${currentStepIndex}段目の「式」を見直してください。`,
+        };
+      }
+
+      if (chainCheck.reason === 'mismatch') {
+        return {
+          isValid: false,
+          errorStepIndex: currentStepIndex,
+          message: `${currentStepIndex}段目: 前段とのつながりが不一致です。${prevStepIndex}段目の「変形後」と${currentStepIndex}段目の「式」を一致させてください。`,
+        };
+      }
+
+      return {
+        isValid: false,
+        errorStepIndex: currentStepIndex,
+        message: `${currentStepIndex}段目: 前段との接続確認で式を評価できません。未接続ブロックや不正な式がないか確認してください。`,
+      };
+    }
+  }
+
+  const lastStep = astArray[astArray.length - 1] || null;
+  if (!lastStep || lastStep.type !== 'conclusion_operation') {
+    return {
+      isValid: false,
+      errorStepIndex: lastStep && Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
+      message: '最後の行を「よって ... となる（結論）」ブロックで締めてください。',
+    };
+  }
+
+  return {
+    isValid: true,
+    errorStepIndex: null,
+    message: '証明は正しいです。',
+  };
+}
+
+function setupEventListeners() {
+  document.getElementById('btn-overwrite-permission')?.addEventListener('click', () => {
+    const currentMode = getProofScaffoldMode();
+    const nextMode = currentMode === 'guided' ? 'standard' : 'guided';
+    setProofScaffoldMode(nextMode);
+    updateOverwritePermissionButton();
+
+    if (document.getElementById('p')?.classList.contains('b')) {
+      loadStage(currentStageNumber);
+    }
+
+    showToast(nextMode === 'guided' ? '上書き許可を ON にしました' : '上書き許可を OFF にしました');
+  });
+
+  document.getElementById('btn-reset')?.addEventListener('click', () => {
+    currentStreak = 0;
+    updateStreakCounter(false);
+    loadStage(currentStageNumber);
+  });
+
+  document.getElementById('btn-hint')?.addEventListener('click', () => {
+    if (!currentProblemData?.hints?.length) return showToast('ヒントはありません');
+    showToast(currentProblemData.hints[currentHintIndex]);
+    currentHintIndex = (currentHintIndex + 1) % currentProblemData.hints.length;
+  });
+
+  document.getElementById('btn-answer')?.addEventListener('click', () => {
+    if (!currentProblemData?.answerState) return showToast('解答はありません', false);
+    workspace.clear();
+    Blockly.serialization.workspaces.load(currentProblemData.answerState, workspace);
+    arrangeBlocks();
+    showToast('解答を表示しました');
+  });
+
+  document.getElementById('btn-back')?.addEventListener('click', () => {
+    closeSkipChallengeModal();
+    renderStageSelectionDynamic();
+    switchScreen('c');
+  });
+
+  document.getElementById('btn-skip-challenge-cancel')?.addEventListener('click', () => {
+    closeSkipChallengeModal();
+    currentSkipOffer = null;
+    const nextBtn = document.getElementById('btn-next');
+    if (nextBtn) {
+      nextBtn.style.display = 'inline-block';
+      nextBtn.innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次へ進む';
+    }
+  });
+
+  document.getElementById('btn-skip-challenge-accept')?.addEventListener('click', () => {
+    if (!currentSkipOffer) {
+      closeSkipChallengeModal();
+      return;
+    }
+
+    const { targetStage, bypassedStages } = currentSkipOffer;
+    pendingSkipChallenge = {
+      targetStage,
+      bypassedStages,
+    };
+
+    closeSkipChallengeModal();
+    currentSkipOffer = null;
+
+    const nextBtn = document.getElementById('btn-next');
+    if (nextBtn) nextBtn.style.display = 'none';
+    document.getElementById('btn-submit').style.display = 'inline-block';
+    transitionToStage(targetStage);
+  });
+
+  document.getElementById('btn-next')?.addEventListener('click', () => {
+    closeSkipChallengeModal();
+    currentSkipOffer = null;
+    document.getElementById('btn-next').style.display = 'none';
+    document.getElementById('btn-submit').style.display = 'inline-block';
+    if (currentStageNumber < MAX_STAGE_NUMBER) transitionToStage(currentStageNumber + 1);
+    else {
+      renderStageSelectionDynamic();
+      switchScreen('c');
+    }
+  });
+
+  document.getElementById('btn-submit')?.addEventListener('click', () => {
+    const ast = parseBlocksToAST(workspace);
+    console.log('Parsed AST:', ast);
+
+    const requiredConcepts = getRequiredConceptsForProblem(currentProblemData);
+    if (requiredConcepts.length > 0) {
+      const achievedConcepts = collectAchievedConceptsFromAST(ast);
+      const missingConcepts = requiredConcepts.filter((conceptId) => !achievedConcepts.has(conceptId));
+      if (missingConcepts.length > 0) {
+        const labels = missingConcepts.map((conceptId) => getConceptLabel(conceptId)).join('、');
+        showToast(`<span style='color:#ff4b4b'>必要な考え方が不足しています: ${labels}</span>`);
+        return;
+      }
+    } else {
+      const actualGreenTypes = ast
+        .map((step) => String(step.type || ''))
+        .filter((type) => GREEN_OPERATION_TYPES.has(type));
+      const requiredGreenTypes = getAnswerGreenOperationSequence(currentProblemData);
+      const missingGreenTypes = getMissingTypesByRequiredOrder(requiredGreenTypes, actualGreenTypes);
+      if (missingGreenTypes.length > 0) {
+        showToast(`<span style='color:#ff4b4b'>必須ブロックが不足しています: ${summarizeTypeCounts(missingGreenTypes)}</span>`);
+        return;
+      }
+    }
+
+    const validation = validateProof(ast);
+    if (validation.isValid) {
+      if (!currentStageSolved) {
+        currentStreak += 1;
+        updateStreakCounter(true);
+      }
+      currentStageSolved = true;
+
+      showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#58cc02', '#1cb0f6', '#ffc800', '#ff4b4b'],
+        });
+      }
+
+      if (!clearedStages.includes(currentStageNumber)) {
+        clearedStages.push(currentStageNumber);
+        localStorage.setItem('s', JSON.stringify(clearedStages));
+      }
+
+      applyPendingSkipClearIfNeeded();
+
+      // 強制遷移を廃止し、ボタンを切り替える
+      document.getElementById('btn-submit').style.display = 'none';
+      const canOfferSkip = currentStreak === 5 && currentStageNumber + 3 <= MAX_STAGE_NUMBER;
+      if (canOfferSkip) {
+        document.getElementById('btn-next').style.display = 'none';
+        openSkipChallengeModal(currentStageNumber, currentStageNumber + 3);
+      } else {
+        document.getElementById('btn-next').style.display = 'inline-block';
+        document.getElementById('btn-next').innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次へ進む';
+      }
+    } else {
+      currentStreak = 0;
+      updateStreakCounter(false);
+      const stepLabel = validation.errorStepIndex == null ? '' : `（エラー箇所: ${validation.errorStepIndex}段目）`;
+      showToast(`<span style='color:#ff4b4b'>不正解。${validation.message} ${stepLabel}</span>`);
+      return;
+    }
+  });
+}
+
+// ===== アプリケーション初期化ルーティング =====
+async function routeToTarget() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const stageParam = parseInt(urlParams.get('stage'), 10);
+
+  if (stageParam >= 1 && stageParam <= 43) {
+    currentStageNumber = stageParam;
+    await loadStage(stageParam);
+    switchScreen('p');
+  } else {
+    await renderStageSelectionDynamic();
+    switchScreen('c');
+  }
+}
+
+async function bootApplication() {
+  setupEventListeners();
+  updateStreakCounter(false);
+  updateOverwritePermissionButton();
+
+  const startScreen = document.getElementById('start-screen');
+  const tutorialModal = document.getElementById('tutorial-modal');
+  const startBtn = document.getElementById('btn-start-app');
+  const closeTutorialBtn = document.getElementById('btn-close-tutorial');
+  const tutorialSeen = localStorage.getItem('tutorial_seen') === 'true';
+
+  if (!tutorialSeen) {
+    if (startScreen) startScreen.classList.remove('hidden');
+    if (tutorialModal) tutorialModal.classList.add('hidden');
+
+    if (startBtn) {
+      startBtn.onclick = () => {
+        if (startScreen) startScreen.classList.add('hidden');
+        if (tutorialModal) tutorialModal.classList.remove('hidden');
+      };
+    }
+
+    if (closeTutorialBtn) {
+      closeTutorialBtn.onclick = async () => {
+        if (tutorialModal) tutorialModal.classList.add('hidden');
+        localStorage.setItem('tutorial_seen', 'true');
+        await routeToTarget();
+      };
+    }
+
+    return;
+  }
+
+  if (startScreen) startScreen.classList.add('hidden');
+  if (tutorialModal) tutorialModal.classList.add('hidden');
+  await routeToTarget();
+}
+
+bootApplication();

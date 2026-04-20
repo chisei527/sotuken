@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^# Fix the missing closing quotes in the script\\.\n\\$path = \"\\.\\\\generate_radian_problems\\.ps1\"\n\\(Get-Content \\$path\\) -replace \"hint = '\\(\\.\\*\\)\\$\", \"hint = '\\$1'\" \\| Set-Content \\$path -Encoding UTF8\n\n# Actually, the hint lines end with Japanese characters\\. \n# Let's try to just append a quote to every line that starts with \"hint = '\" and doesn't end with \"'\"\\.\n\\$lines = Get-Content \\$path\n\\$newLines = foreach \\(\\$line in \\$lines\\) \\{\n    if \\(\\$line -match \"\\^\\\\s\\*hint = '\" -and \\$line -notmatch \"'\\\\s\\*\\$\"\\) \\{\n        \\$line \\+ \"'\"\n    \\} else \\{\n        \\$line\n    \\}\n\\}\n\\$newLines \\| Set-Content \\$path -Encoding UTF8\n\n# Now try running it again\\.\npowershell -ExecutionPolicy Bypass -File \\.\\\\generate_radian_problems\\.ps1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
