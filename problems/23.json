@@ -3,6 +3,7 @@
     "mathText":  "\\[ 1 + \\tan^2(\\frac{\\pi}{6}) = \\frac{1}{\\cos^2(\\frac{\\pi}{6})} \\]",
     "requiredBlocks":  [
                            "\"type\":\"replace_operation\"",
+                           "\"type\":\"common_denominator_operation\"",
                            "\"type\":\"conclusion_operation\""
                        ],
     "hints":  [
@@ -162,134 +163,91 @@
                                                           "x":  600
                                                       },
                                                       {
+                                                          "type":  "proof_step",
+                                                          "x":  50,
                                                           "y":  150,
                                                           "inputs":  {
                                                                          "OPERATIONS":  {
                                                                                             "block":  {
+                                                                                                          "type":  "replace_operation",
                                                                                                           "inputs":  {
+                                                                                                                         "VALUE":  {
+                                                                                                                                       "block":  {
+                                                                                                                                                     "type":  "math_add",
+                                                                                                                                                     "inputs":  {
+                                                                                                                                                                    "A":  {
+                                                                                                                                                                              "block":  {
+                                                                                                                                                                                            "type":  "custom_number",
+                                                                                                                                                                                            "fields":  {
+                                                                                                                                                                                                           "NUM":  1
+                                                                                                                                                                                                       }
+                                                                                                                                                                                        }
+                                                                                                                                                                          },
+                                                                                                                                                                    "B":  {
+                                                                                                                                                                              "block":  {
+                                                                                                                                                                                            "type":  "math_square",
+                                                                                                                                                                                            "inputs":  {
+                                                                                                                                                                                                           "A":  {
+                                                                                                                                                                                                                     "block":  {
+                                                                                                                                                                                                                                   "type":  "term_tan_of",
+                                                                                                                                                                                                                                   "inputs":  {
+                                                                                                                                                                                                                                                  "ANGLE":  {
+                                                                                                                                                                                                                                                                "block":  {
+                                                                                                                                                                                                                                                                              "type":  "custom_number",
+                                                                                                                                                                                                                                                                              "fields":  {
+                                                                                                                                                                                                                                                                                             "NUM":  0
+                                                                                                                                                                                                                                                                                         }
+                                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                               }
+                                                                                                                                                                                                                 }
+                                                                                                                                                                                                       }
+                                                                                                                                                                                        }
+                                                                                                                                                                          }
+                                                                                                                                                                }
+                                                                                                                                                 }
+                                                                                                                                   },
                                                                                                                          "FORMULA":  {
                                                                                                                                          "block":  {
                                                                                                                                                        "type":  "formula_3"
                                                                                                                                                    }
                                                                                                                                      },
-                                                                                                                         "VALUE":  {
-                                                                                                                                       "block":  {
-                                                                                                                                                     "inputs":  {
-                                                                                                                                                                    "A":  {
-                                                                                                                                                                              "block":  {
-                                                                                                                                                                                            "fields":  {
-                                                                                                                                                                                                           "NUM":  1
-                                                                                                                                                                                                       },
-                                                                                                                                                                                            "type":  "custom_number"
-                                                                                                                                                                                        }
-                                                                                                                                                                          },
-                                                                                                                                                                    "B":  {
-                                                                                                                                                                              "block":  {
-                                                                                                                                                                                            "inputs":  {
-                                                                                                                                                                                                           "A":  {
-                                                                                                                                                                                                                     "block":  {
-                                                                                                                                                                                                                                   "inputs":  {
-                                                                                                                                                                                                                                                  "ANGLE":  {
-                                                                                                                                                                                                                                                                "block":  {
-                                                                                                                                                                                                                                                                              "type":  "term_pi_sixth"
-                                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                              },
-                                                                                                                                                                                                                                   "type":  "term_tan_of"
-                                                                                                                                                                                                                               }
-                                                                                                                                                                                                                 }
-                                                                                                                                                                                                       },
-                                                                                                                                                                                            "type":  "math_square"
-                                                                                                                                                                                        }
-                                                                                                                                                                          }
-                                                                                                                                                                },
-                                                                                                                                                     "type":  "math_add"
-                                                                                                                                                 }
-                                                                                                                                   },
                                                                                                                          "REPLACEMENT":  {
-                                                                                                                                             "block":  {
-                                                                                                                                                           "inputs":  {
-                                                                                                                                                                          "DENOMINATOR":  {
-                                                                                                                                                                                              "block":  {
-                                                                                                                                                                                                            "inputs":  {
-                                                                                                                                                                                                                           "A":  {
-                                                                                                                                                                                                                                     "block":  {
-                                                                                                                                                                                                                                                   "inputs":  {
-                                                                                                                                                                                                                                                                  "ANGLE":  {
-                                                                                                                                                                                                                                                                                "block":  {
-                                                                                                                                                                                                                                                                                              "type":  "term_pi_sixth"
-                                                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                              },
-                                                                                                                                                                                                                                                   "type":  "term_cos_of"
-                                                                                                                                                                                                                                               }
-                                                                                                                                                                                                                                 }
-                                                                                                                                                                                                                       },
-                                                                                                                                                                                                            "type":  "math_square"
-                                                                                                                                                                                                        }
-                                                                                                                                                                                          },
-                                                                                                                                                                          "NUMERATOR":  {
-                                                                                                                                                                                            "block":  {
-                                                                                                                                                                                                          "fields":  {
-                                                                                                                                                                                                                         "NUM":  1
-                                                                                                                                                                                                                     },
-                                                                                                                                                                                                          "type":  "custom_number"
-                                                                                                                                                                                                      }
-                                                                                                                                                                                        }
-                                                                                                                                                                      },
-                                                                                                                                                           "type":  "math_fraction"
-                                                                                                                                                       }
+                                                                                                                                             "block":  3
                                                                                                                                          }
                                                                                                                      },
                                                                                                           "next":  {
                                                                                                                        "block":  {
+                                                                                                                                     "type":  "common_denominator_operation",
                                                                                                                                      "inputs":  {
                                                                                                                                                     "VALUE":  {
-                                                                                                                                                                  "block":  {
-                                                                                                                                                                                "inputs":  {
-                                                                                                                                                                                               "DENOMINATOR":  {
-                                                                                                                                                                                                                   "block":  {
-                                                                                                                                                                                                                                 "inputs":  {
-                                                                                                                                                                                                                                                "A":  {
-                                                                                                                                                                                                                                                          "block":  {
-                                                                                                                                                                                                                                                                        "inputs":  {
-                                                                                                                                                                                                                                                                                       "ANGLE":  {
-                                                                                                                                                                                                                                                                                                     "block":  {
-                                                                                                                                                                                                                                                                                                                   "type":  "term_pi_sixth"
-                                                                                                                                                                                                                                                                                                               }
-                                                                                                                                                                                                                                                                                                 }
-                                                                                                                                                                                                                                                                                   },
-                                                                                                                                                                                                                                                                        "type":  "term_cos_of"
-                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                            },
-                                                                                                                                                                                                                                 "type":  "math_square"
-                                                                                                                                                                                                                             }
-                                                                                                                                                                                                               },
-                                                                                                                                                                                               "NUMERATOR":  {
-                                                                                                                                                                                                                 "block":  {
-                                                                                                                                                                                                                               "fields":  {
-                                                                                                                                                                                                                                              "NUM":  1
-                                                                                                                                                                                                                                          },
-                                                                                                                                                                                                                               "type":  "custom_number"
-                                                                                                                                                                                                                           }
-                                                                                                                                                                                                             }
-                                                                                                                                                                                           },
-                                                                                                                                                                                "type":  "math_fraction"
-                                                                                                                                                                            }
-                                                                                                                                                              }
+                                                                                                                                                                  "block":  3
+                                                                                                                                                              },
+                                                                                                                                                    "REPLACEMENT":  {
+                                                                                                                                                                        "block":  3
+                                                                                                                                                                    }
                                                                                                                                                 },
-                                                                                                                                     "type":  "conclusion_operation"
+                                                                                                                                     "next":  {
+                                                                                                                                                  "block":  {
+                                                                                                                                                                "type":  "conclusion_operation",
+                                                                                                                                                                "inputs":  {
+                                                                                                                                                                               "VALUE":  {
+                                                                                                                                                                                             "block":  3
+                                                                                                                                                                                         }
+                                                                                                                                                                           }
+                                                                                                                                                            }
+                                                                                                                                              }
                                                                                                                                  }
-                                                                                                                   },
-                                                                                                          "type":  "replace_operation"
+                                                                                                                   }
                                                                                                       }
                                                                                         }
-                                                                     },
-                                                          "type":  "proof_step",
-                                                          "x":  50
+                                                                     }
                                                       }
                                                   ]
                                    }
-                    }
+                    },
+    "requiredFormulas":  [
+                             "formula_3"
+                         ]
 }

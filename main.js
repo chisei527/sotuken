@@ -102,6 +102,19 @@ const CONCEPT_LABEL = {
   common_denominator: '通分',
 };
 
+const CIRCLED_FORMULA_DIGIT_TO_NUMBER = {
+  '①': 1,
+  '②': 2,
+  '③': 3,
+  '④': 4,
+  '⑤': 5,
+  '⑥': 6,
+  '⑦': 7,
+  '⑧': 8,
+  '⑨': 9,
+  '⑩': 10,
+};
+
 function normalizeFormulaText(text) {
   return String(text || '').replace(/\s+/g, '').trim();
 }
@@ -114,6 +127,198 @@ function formulaTextToId(formulaText) {
 
 function formulaIdToLabel(formulaId) {
   return FORMULA_REGISTRY[formulaId]?.label || formulaId;
+}
+
+function toFormulaIdFromToken(token) {
+  if (typeof token !== 'string') return null;
+  const trimmed = token.trim();
+  if (!trimmed) return null;
+
+  if (/^formula_\d+$/i.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+
+  const circledMatch = trimmed.match(/[①-⑩]/);
+  if (circledMatch) {
+    const number = CIRCLED_FORMULA_DIGIT_TO_NUMBER[circledMatch[0]];
+    return number ? `formula_${number}` : null;
+  }
+
+  const numberMatch = trimmed.match(/^公式\s*(10|[1-9])$/);
+  if (numberMatch) {
+    return `formula_${numberMatch[1]}`;
+  }
+
+  if (/^(10|[1-9])$/.test(trimmed)) {
+    return `formula_${trimmed}`;
+  }
+
+  return null;
+}
+
+function parseRequiredFormulaIds(requiredFormulaList) {
+  if (!Array.isArray(requiredFormulaList)) return [];
+  return requiredFormulaList
+    .map((item) => toFormulaIdFromToken(typeof item === 'string' ? item : ''))
+    .filter((id) => !!id);
+}
+
+function extractRequiredFormulaIdsFromHints(problemData) {
+  if (!Array.isArray(problemData?.hints)) return [];
+
+  const formulaIdSet = new Set();
+  problemData.hints.forEach((hint) => {
+    if (typeof hint !== 'string') return;
+
+    const circledMatches = hint.match(/[①-⑩]/g) || [];
+    circledMatches.forEach((char) => {
+      const number = CIRCLED_FORMULA_DIGIT_TO_NUMBER[char];
+      if (number) formulaIdSet.add(`formula_${number}`);
+    });
+
+    const plainMatches = hint.match(/公式\s*(10|[1-9])/g) || [];
+    plainMatches.forEach((match) => {
+      const formulaId = toFormulaIdFromToken(match);
+      if (formulaId) formulaIdSet.add(formulaId);
+    });
+  });
+
+  return Array.from(formulaIdSet);
+}
+
+function getRequiredFormulaIdsForProblem(problemData) {
+  const explicit = parseRequiredFormulaIds(problemData?.requiredFormulas || problemData?.requiredFormulaIds);
+  if (explicit.length > 0) return Array.from(new Set(explicit));
+
+  const fromHints = extractRequiredFormulaIdsFromHints(problemData);
+  if (fromHints.length > 0) return Array.from(new Set(fromHints));
+
+  const fromAnswer = getAnswerFormulaTypeSequence(problemData);
+  return Array.from(new Set(fromAnswer));
+}
+
+function isSupportedFormulaId(formulaId) {
+  return !!FORMULA_REGISTRY[formulaId];
+}
+
+function collectUsedFormulaIdsFromAST(astArray) {
+  const used = new Set();
+  if (!Array.isArray(astArray)) return used;
+
+  astArray.forEach((stepData) => {
+    const formulaId = formulaTextToId(stepData?.formula);
+    if (formulaId) used.add(formulaId);
+  });
+
+  return used;
+}
+
+function readInputBlock(serializedBlock, inputName) {
+  return serializedBlock?.inputs?.[inputName]?.block || null;
+}
+
+function expressionFromSerializedBlock(block) {
+  if (!block || typeof block.type !== 'string') return '';
+
+  switch (block.type) {
+    case 'custom_number': {
+      const num = block?.fields?.NUM;
+      return num == null ? '0' : String(num);
+    }
+    case 'term_sin':
+      return 'sin(theta)';
+    case 'term_cos':
+      return 'cos(theta)';
+    case 'term_tan':
+      return 'tan(theta)';
+    case 'term_sin2':
+      return 'sin(2 * theta)';
+    case 'term_cos2':
+      return 'cos(2 * theta)';
+    case 'term_pi':
+      return 'pi';
+    case 'term_pi_sixth':
+      return '(pi/6)';
+    case 'term_pi_quarter':
+      return '(pi/4)';
+    case 'term_pi_third':
+      return '(pi/3)';
+    case 'term_pi_half':
+      return '(pi/2)';
+    case 'term_two_pi_thirds':
+      return '((2*pi)/3)';
+    case 'term_three_pi_quarters':
+      return '((3*pi)/4)';
+    case 'term_five_pi_sixths':
+      return '((5*pi)/6)';
+    case 'term_half_value':
+      return '(1/2)';
+    case 'term_sqrt2_half':
+      return '(sqrt(2)/2)';
+    case 'term_sqrt3_half':
+      return '(sqrt(3)/2)';
+    case 'term_sin_of': {
+      const angle = expressionFromSerializedBlock(readInputBlock(block, 'ANGLE')) || '0';
+      return `sin(${angle})`;
+    }
+    case 'term_cos_of': {
+      const angle = expressionFromSerializedBlock(readInputBlock(block, 'ANGLE')) || '0';
+      return `cos(${angle})`;
+    }
+    case 'term_tan_of': {
+      const angle = expressionFromSerializedBlock(readInputBlock(block, 'ANGLE')) || '0';
+      return `tan(${angle})`;
+    }
+    case 'math_add': {
+      const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '0';
+      const b = expressionFromSerializedBlock(readInputBlock(block, 'B')) || '0';
+      return `(${a} + ${b})`;
+    }
+    case 'math_negate': {
+      const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '0';
+      return `(-(${a}))`;
+    }
+    case 'math_multiply': {
+      const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '1';
+      const b = expressionFromSerializedBlock(readInputBlock(block, 'B')) || '1';
+      return `(${a} * ${b})`;
+    }
+    case 'math_fraction': {
+      const numerator = expressionFromSerializedBlock(readInputBlock(block, 'NUMERATOR')) || '0';
+      const denominator = expressionFromSerializedBlock(readInputBlock(block, 'DENOMINATOR')) || '1';
+      return `(${numerator}) / (${denominator})`;
+    }
+    case 'math_square': {
+      const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '0';
+      return `(${a})^2`;
+    }
+    default:
+      return '';
+  }
+}
+
+function getExpectedConclusionExpression(problemData) {
+  const proofBlock = problemData?.answerState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  let lastOperation = null;
+
+  while (current) {
+    lastOperation = current;
+    current = current?.next?.block || null;
+  }
+
+  if (lastOperation?.type === 'conclusion_operation') {
+    return expressionFromSerializedBlock(readInputBlock(lastOperation, 'VALUE'));
+  }
+
+  const topMathBlocks = (problemData?.answerState?.blocks?.blocks || []).filter(
+    (block) => block && block.type !== 'proof_step',
+  );
+  if (topMathBlocks.length >= 2) {
+    return expressionFromSerializedBlock(topMathBlocks[1]);
+  }
+
+  return '';
 }
 
 function parseRequiredConcepts(requiredConcepts) {
@@ -1810,6 +2015,37 @@ function extractTrigArguments(expr) {
   return args;
 }
 
+function extractTrigFunctionCounts(expr) {
+  const parsed = tryParseMathNode(expr);
+  if (!parsed) return null;
+
+  const counts = {
+    sin: 0,
+    cos: 0,
+    tan: 0,
+  };
+
+  parsed.traverse((node) => {
+    if (!node || node.type !== 'FunctionNode') return;
+    const functionName = getFunctionNodeName(node);
+    if (functionName === 'sin' || functionName === 'cos' || functionName === 'tan') {
+      counts[functionName] += 1;
+    }
+  });
+
+  return counts;
+}
+
+function hasTrigProfileChanged(beforeExpr, afterExpr) {
+  const beforeCounts = extractTrigFunctionCounts(beforeExpr);
+  const afterCounts = extractTrigFunctionCounts(afterExpr);
+  if (!beforeCounts || !afterCounts) return false;
+
+  return beforeCounts.sin !== afterCounts.sin
+    || beforeCounts.cos !== afterCounts.cos
+    || beforeCounts.tan !== afterCounts.tan;
+}
+
 function deriveHalfAngleCandidate(expr) {
   const parsed = tryParseMathNode(expr);
   if (!parsed) return null;
@@ -1869,6 +2105,38 @@ function detectMatchingFormulaIds(beforeExpr, afterExpr) {
   return allFormulaIds.filter((formulaId) => verifyFormulaApplication(formulaId, beforeExpr, afterExpr));
 }
 
+function collectAppliedFormulaIdsFromAST(astArray) {
+  const applied = new Set();
+  if (!Array.isArray(astArray)) return applied;
+
+  astArray.forEach((stepData) => {
+    const operationType = String(stepData?.type || '');
+    if (operationType !== 'replace_operation') return;
+
+    const formulaExpr = typeof stepData.formula === 'string' ? stepData.formula.trim() : '';
+    const beforeExpr = typeof stepData.before === 'string' ? stepData.before.trim() : '';
+    const afterExpr = typeof stepData.after === 'string' ? stepData.after.trim() : '';
+    if (!formulaExpr || !beforeExpr || !afterExpr) return;
+
+    const formulaId = formulaTextToId(formulaExpr);
+    if (!formulaId) return;
+
+    if (verifyFormulaApplication(formulaId, beforeExpr, afterExpr)) {
+      applied.add(formulaId);
+    }
+  });
+
+  return applied;
+}
+
+function getTransformSteps(astArray) {
+  if (!Array.isArray(astArray)) return [];
+  return astArray.filter((stepData) => {
+    const operationType = String(stepData?.type || '');
+    return operationType === 'replace_operation' || operationType === 'common_denominator_operation';
+  });
+}
+
 function getErrorMessage(errorCode, stepIndex, suggestions) {
   const stepPrefix = stepIndex == null ? '' : `${stepIndex}段目: `;
   const suggestionText = Array.isArray(suggestions) && suggestions.length > 0
@@ -1892,6 +2160,8 @@ function getErrorMessage(errorCode, stepIndex, suggestions) {
       return `${stepPrefix}この公式は判定対象外です。公式ブロックを確認してください。`;
     case 'ERROR_FORMULA_MISMATCH':
       return `${stepPrefix}選択した公式と変形内容が一致していません。${suggestionText}`.trim();
+    case 'ERROR_COMMON_DENOMINATOR_RULE':
+      return `${stepPrefix}通分では tan→sin/cos などの三角関数置換はできません。置き換えブロックで公式を使って変形してください。`;
     case 'ERROR_CHAIN_EMPTY_INPUT':
       return `${stepPrefix}前段とのつながりを確認できません。この段の「式」を入力してください。`;
     case 'ERROR_CHAIN_DIVISION_BY_ZERO':
@@ -1902,12 +2172,20 @@ function getErrorMessage(errorCode, stepIndex, suggestions) {
       return `${stepPrefix}前段との接続確認で式を評価できません。未接続ブロックや不正な式がないか確認してください。`;
     case 'ERROR_NO_CONCLUSION':
       return '最後の行を「よって ... となる（結論）」ブロックで締めてください。';
+    case 'ERROR_FINAL_EMPTY':
+      return '最後の結論式が空です。目標の式を「よって ... となる」に接続してください。';
+    case 'ERROR_FINAL_DIVISION_BY_ZERO':
+      return '最終式の判定で無効な値が発生しました（0 除算の可能性があります）。最終式を見直してください。';
+    case 'ERROR_FINAL_MISMATCH':
+      return '最終式が問題の目標式と一致していません。通分だけでなく必要な公式変形まで行ってください。';
+    case 'ERROR_FINAL_EVALUATION':
+      return '最終式を評価できません。未接続ブロックや不正な式がないか確認してください。';
     default:
       return '不明なエラーが発生しました。ブロックの接続と式を確認してください。';
   }
 }
 
-function validateProof(astArray) {
+function validateProof(astArray, problemData) {
   if (!Array.isArray(astArray) || astArray.length === 0) {
     return {
       isValid: false,
@@ -2000,6 +2278,64 @@ function validateProof(astArray) {
         };
       }
     }
+
+    if (operationType === 'common_denominator_operation') {
+      if (hasTrigProfileChanged(beforeExpr, afterExpr)) {
+        return {
+          isValid: false,
+          errorStepIndex: stepIndex,
+          errorCode: 'ERROR_COMMON_DENOMINATOR_RULE',
+          suggestions: [],
+        };
+      }
+    }
+  }
+
+  const transformSteps = getTransformSteps(astArray);
+  for (let i = 1; i < transformSteps.length; i++) {
+    const prevStepData = transformSteps[i - 1] || {};
+    const currentStepData = transformSteps[i] || {};
+    const currentStepIndex = Number.isFinite(currentStepData.step) ? currentStepData.step : i + 1;
+
+    const prevAfterExpr = typeof prevStepData.after === 'string' ? prevStepData.after.trim() : '';
+    const currentBeforeExpr = typeof currentStepData.before === 'string' ? currentStepData.before.trim() : '';
+
+    if (!prevAfterExpr || !currentBeforeExpr) {
+      return {
+        isValid: false,
+        errorStepIndex: currentStepIndex,
+        errorCode: 'ERROR_CHAIN_EMPTY_INPUT',
+        suggestions: [],
+      };
+    }
+
+    const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
+    if (!chainCheck.ok) {
+      if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
+        return {
+          isValid: false,
+          errorStepIndex: currentStepIndex,
+          errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO',
+          suggestions: [],
+        };
+      }
+
+      if (chainCheck.reason === 'mismatch') {
+        return {
+          isValid: false,
+          errorStepIndex: currentStepIndex,
+          errorCode: 'ERROR_CHAIN_MISMATCH',
+          suggestions: [],
+        };
+      }
+
+      return {
+        isValid: false,
+        errorStepIndex: currentStepIndex,
+        errorCode: 'ERROR_CHAIN_EVALUATION',
+        suggestions: [],
+      };
+    }
   }
 
   for (let i = 1; i < astArray.length; i++) {
@@ -2061,6 +2397,47 @@ function validateProof(astArray) {
       errorCode: 'ERROR_NO_CONCLUSION',
       suggestions: [],
     };
+  }
+
+  const expectedFinalExpr = getExpectedConclusionExpression(problemData);
+  if (expectedFinalExpr) {
+    const actualFinalExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
+    if (!actualFinalExpr) {
+      return {
+        isValid: false,
+        errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
+        errorCode: 'ERROR_FINAL_EMPTY',
+        suggestions: [],
+      };
+    }
+
+    const finalCheck = evaluateEquivalence(actualFinalExpr, expectedFinalExpr);
+    if (!finalCheck.ok) {
+      if (finalCheck.reason === 'non-finite' || finalCheck.reason === 'division-by-zero') {
+        return {
+          isValid: false,
+          errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
+          errorCode: 'ERROR_FINAL_DIVISION_BY_ZERO',
+          suggestions: [],
+        };
+      }
+
+      if (finalCheck.reason === 'mismatch') {
+        return {
+          isValid: false,
+          errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
+          errorCode: 'ERROR_FINAL_MISMATCH',
+          suggestions: [],
+        };
+      }
+
+      return {
+        isValid: false,
+        errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
+        errorCode: 'ERROR_FINAL_EVALUATION',
+        suggestions: [],
+      };
+    }
   }
 
   return {
@@ -2162,6 +2539,19 @@ function setupEventListeners() {
     const ast = parseBlocksToAST(workspace);
     console.log('Parsed AST:', ast);
 
+    const requiredFormulaIds = getRequiredFormulaIdsForProblem(currentProblemData);
+    if (requiredFormulaIds.length > 0) {
+      const usedFormulaIds = collectAppliedFormulaIdsFromAST(ast);
+      const missingFormulaIds = requiredFormulaIds
+        .filter((formulaId) => isSupportedFormulaId(formulaId))
+        .filter((formulaId) => !usedFormulaIds.has(formulaId));
+      if (missingFormulaIds.length > 0) {
+        const labels = missingFormulaIds.map((formulaId) => formulaIdToLabel(formulaId)).join('、');
+        showToast(`<span style='color:#ff4b4b'>必要な公式が不足しています: ${labels}</span>`);
+        return;
+      }
+    }
+
     const requiredConcepts = getRequiredConceptsForProblem(currentProblemData);
     if (requiredConcepts.length > 0) {
       const achievedConcepts = collectAchievedConceptsFromAST(ast);
@@ -2183,7 +2573,7 @@ function setupEventListeners() {
       }
     }
 
-    const validation = validateProof(ast);
+    const validation = validateProof(ast, currentProblemData);
     if (validation.isValid) {
       if (!currentStageSolved) {
         currentStreak += 1;
