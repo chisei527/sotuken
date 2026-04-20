@@ -180,3 +180,64 @@
     }
   }
 }
+{
+  "_system_directive": {
+    "role": "Lead Architect & Refactoring Expert",
+    "rules": [
+      "Wait for the user to specify a Task ID.",
+      "Your goal is to eradicate brittle string manipulation and decouple business logic from presentation.",
+      "Never break existing functionality. When replacing manual string parsing with math.js AST parsing, ensure backward compatibility with existing problem JSONs.",
+      "Propose targeted, clean modifications rather than rewriting the entire file at once."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Functional validation, but relies on brittle manual string parsing and tightly coupled UI error messages.",
+    "future_state": "A bulletproof mathematical engine that uses math.js AST (`math.parse`) for analyzing equations, and returns pure Error Codes instead of UI strings."
+  },
+  "tasks": {
+    "T-Refactor-04": {
+      "name": "Eradicate_Manual_String_Parsing",
+      "target_file": "main.js",
+      "architectural_intent": "Stop treating math equations as raw strings. Use `math.parse(expr)` to safely extract trigonometric arguments and identify equation structures.",
+      "future_considerations": "This enables support for complex nested arguments like `sin(x + pi/2)` without writing insane Regex or manual loop parsers.",
+      "logic_requirements": [
+        "1. Remove or completely rewrite `stripOuterParens`, `extractTrigArguments`, and `deriveHalfAngleCandidate`.",
+        "2. Implement a new helper `extractThetaCandidates(exprString)` that uses `math.parse(exprString)`. Traverse the resulting MathNode tree.",
+        "3. Find all FunctionNodes (e.g., `sin`, `cos`, `tan`). Extract their argument nodes, compile them back to strings, and add them to a Set.",
+        "4. Update `verifyFormulaApplication` to use this new, robust `extractThetaCandidates` instead of the old brittle string parsers."
+      ],
+      "edge_cases": [
+        "If `math.parse` fails due to syntax error, catch the exception and safely return an empty Set.",
+        "Ensure we still capture half-angle candidates properly (e.g., if we find `2 * x`, we must test `x` as a candidate)."
+      ]
+    },
+    "T-Refactor-05": {
+      "name": "Decouple_Validator_From_UI",
+      "target_file": "main.js",
+      "architectural_intent": "The `validateProof` function must return machine-readable Error Codes, not human-readable Japanese strings.",
+      "future_considerations": "This is mandatory for internationalization (i18n) and for triggering specific UI animations (like shaking a block) based on the exact error type.",
+      "logic_requirements": [
+        "1. In `validateProof`, replace all literal `message: '...'` strings with `errorCode: 'ERROR_EMPTY_INPUT'`, `'ERROR_DIVISION_BY_ZERO'`, `'ERROR_EQUATION_MISMATCH'`, `'ERROR_FORMULA_MISMATCH'`, `'ERROR_NO_CONCLUSION'`, etc.",
+        "2. Create a new presentation function `getErrorMessage(errorCode, stepIndex, suggestions)` that translates these codes into the Japanese strings.",
+        "3. In the `#btn-submit` click listener, receive the `errorCode`, pass it to `getErrorMessage`, and display the resulting string in the Toast."
+      ],
+      "edge_cases": [
+        "Formula mismatch currently provides 'suggestions' (candidates). Make sure the new architecture passes this dynamic data along with the Error Code."
+      ]
+    },
+    "T-Refactor-06": {
+      "name": "Eliminate_SetTimeout_Layouts",
+      "target_file": "main.js",
+      "architectural_intent": "Remove race conditions caused by arbitrary `setTimeout` delays when rendering UI.",
+      "future_considerations": "Ensures the app is snappy and bug-free on slower devices where 50ms isn't enough time to render.",
+      "logic_requirements": [
+        "1. In `arrangeBlocks()`, remove the `setTimeout(..., 50)` wrapper.",
+        "2. In `loadStage()`, make sure `arrangeBlocks()` is called only after `Blockly.serialization.workspaces.load()` has fully completed and the workspace has fired its render events.",
+        "3. Alternatively, force a synchronous SVG update using `workspace.render()` before calling `arrangeBlocks()`."
+      ],
+      "edge_cases": [
+        "If blocks pile up on top of each other after removing setTimeout, ensure Zelos renderer metrics are forcibly updated before calculating bounding boxes."
+      ]
+    }
+  }
+}

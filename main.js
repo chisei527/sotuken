@@ -614,61 +614,68 @@ function applyPendingSkipClearIfNeeded() {
   pendingSkipChallenge = null;
 }
 
+function forceWorkspaceLayoutSync() {
+  if (typeof workspace.render === 'function') {
+    workspace.render();
+  }
+  if (typeof Blockly.svgResize === 'function') {
+    Blockly.svgResize(workspace);
+  }
+}
+
 // トップブロックを左から順に並べる
 function arrangeBlocks() {
-  setTimeout(() => {
-    let topBlocks = workspace.getTopBlocks(false);
-    if (!topBlocks || topBlocks.length === 0) return;
-    // 証明ブロック(proof_step)を一番左に
-    topBlocks = topBlocks.slice(); // 破壊的変更防止
-    const proofIdx = topBlocks.findIndex(b => b.type === 'proof_step');
-    if (proofIdx > 0) {
-      const [proofBlock] = topBlocks.splice(proofIdx, 1);
-      topBlocks.unshift(proofBlock);
-    }
+  let topBlocks = workspace.getTopBlocks(false);
+  if (!topBlocks || topBlocks.length === 0) return;
+  // 証明ブロック(proof_step)を一番左に
+  topBlocks = topBlocks.slice(); // 破壊的変更防止
+  const proofIdx = topBlocks.findIndex((b) => b.type === 'proof_step');
+  if (proofIdx > 0) {
+    const [proofBlock] = topBlocks.splice(proofIdx, 1);
+    topBlocks.unshift(proofBlock);
+  }
 
-    // ツールボックス/フライアウトを避けつつ、アスペクト比に応じて中央寄りへ配置する
-    const metrics = typeof workspace.getMetrics === 'function' ? workspace.getMetrics() : null;
-    const toolboxWidthFromApi = workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getWidth ? workspace.getToolbox().getWidth() : 0;
-    const toolboxDiv = document.querySelector('#l .blocklyToolboxDiv');
-    const flyoutSvg = document.querySelector('#l .blocklyFlyout');
-    const parentRect = workspace.getParentSvg() ? workspace.getParentSvg().getBoundingClientRect() : null;
+  // ツールボックス/フライアウトを避けつつ、アスペクト比に応じて中央寄りへ配置する
+  const metrics = typeof workspace.getMetrics === 'function' ? workspace.getMetrics() : null;
+  const toolboxWidthFromApi = workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getWidth ? workspace.getToolbox().getWidth() : 0;
+  const toolboxDiv = document.querySelector('#l .blocklyToolboxDiv');
+  const flyoutSvg = document.querySelector('#l .blocklyFlyout');
+  const parentRect = workspace.getParentSvg() ? workspace.getParentSvg().getBoundingClientRect() : null;
 
-    const toolboxWidth = Math.max(metrics?.toolboxWidth || 0, toolboxWidthFromApi || 0, toolboxDiv ? toolboxDiv.getBoundingClientRect().width : 0);
-    const flyoutWidth = Math.max(metrics?.flyoutWidth || 0, flyoutSvg ? flyoutSvg.getBoundingClientRect().width : 0);
-    const leftInset = Math.ceil(toolboxWidth + flyoutWidth + 24);
+  const toolboxWidth = Math.max(metrics?.toolboxWidth || 0, toolboxWidthFromApi || 0, toolboxDiv ? toolboxDiv.getBoundingClientRect().width : 0);
+  const flyoutWidth = Math.max(metrics?.flyoutWidth || 0, flyoutSvg ? flyoutSvg.getBoundingClientRect().width : 0);
+  const leftInset = Math.ceil(toolboxWidth + flyoutWidth + 24);
 
-    const viewportWidth = Math.max(metrics?.viewWidth || 0, parentRect ? parentRect.width : 0);
-    const viewportHeight = Math.max(metrics?.viewHeight || 0, parentRect ? parentRect.height : 0);
-    const aspectRatio = viewportHeight > 0 ? viewportWidth / viewportHeight : 1;
+  const viewportWidth = Math.max(metrics?.viewWidth || 0, parentRect ? parentRect.width : 0);
+  const viewportHeight = Math.max(metrics?.viewHeight || 0, parentRect ? parentRect.height : 0);
+  const aspectRatio = viewportHeight > 0 ? viewportWidth / viewportHeight : 1;
 
-    const gap = aspectRatio < 1 ? 24 : 32;
-    const sizes = topBlocks.map((block) => block.getHeightWidth());
-    const totalWidth = sizes.reduce((sum, size) => sum + (size?.width || 0), 0) + gap * (topBlocks.length - 1);
-    const maxHeight = sizes.reduce((max, size) => Math.max(max, size?.height || 0), 0);
+  const gap = aspectRatio < 1 ? 24 : 32;
+  const sizes = topBlocks.map((block) => block.getHeightWidth());
+  const totalWidth = sizes.reduce((sum, size) => sum + (size?.width || 0), 0) + gap * (topBlocks.length - 1);
+  const maxHeight = sizes.reduce((max, size) => Math.max(max, size?.height || 0), 0);
 
-    const availableWidth = Math.max(120, viewportWidth - leftInset - 24);
-    const centeredX = leftInset + Math.max(0, Math.floor((availableWidth - totalWidth) / 2));
-    const nudgeLeft = Math.min(220, Math.max(60, Math.floor(availableWidth * 0.25)));
-    const rightSafeX = Math.max(leftInset, viewportWidth - totalWidth - 12);
-    let currentX = Math.min(Math.max(leftInset, centeredX - nudgeLeft), rightSafeX);
+  const availableWidth = Math.max(120, viewportWidth - leftInset - 24);
+  const centeredX = leftInset + Math.max(0, Math.floor((availableWidth - totalWidth) / 2));
+  const nudgeLeft = Math.min(220, Math.max(60, Math.floor(availableWidth * 0.25)));
+  const rightSafeX = Math.max(leftInset, viewportWidth - totalWidth - 12);
+  let currentX = Math.min(Math.max(leftInset, centeredX - nudgeLeft), rightSafeX);
 
-    let startY;
-    if (aspectRatio < 0.9) {
-      // 縦長画面は上寄りの中央に置いて、下方向の作業スペースを確保
-      startY = Math.max(20, Math.floor(viewportHeight * 0.14));
-    } else {
-      // 横長〜標準画面は中央付近
-      startY = Math.max(20, Math.floor((viewportHeight - maxHeight) / 2) - 90);
-    }
+  let startY;
+  if (aspectRatio < 0.9) {
+    // 縦長画面は上寄りの中央に置いて、下方向の作業スペースを確保
+    startY = Math.max(20, Math.floor(viewportHeight * 0.14));
+  } else {
+    // 横長〜標準画面は中央付近
+    startY = Math.max(20, Math.floor((viewportHeight - maxHeight) / 2) - 90);
+  }
 
-    topBlocks.forEach((block) => {
-      const xy = block.getRelativeToSurfaceXY();
-      block.moveBy(currentX - xy.x, startY - xy.y);
-      const blockSize = block.getHeightWidth();
-      currentX += blockSize.width + gap;
-    });
-  }, 50);
+  topBlocks.forEach((block) => {
+    const xy = block.getRelativeToSurfaceXY();
+    block.moveBy(currentX - xy.x, startY - xy.y);
+    const blockSize = block.getHeightWidth();
+    currentX += blockSize.width + gap;
+  });
 }
 
 // 画面切替の認知負荷を下げるカーテントランジション
@@ -1385,6 +1392,7 @@ async function loadStage(stageNumber) {
       }
     }
 
+    forceWorkspaceLayoutSync();
     arrangeBlocks(); // 最後に整列
 
     const submitBtn = document.getElementById('btn-submit');
@@ -1593,52 +1601,94 @@ function evaluateEquivalence(leftExpr, rightExpr) {
   return { ok: true };
 }
 
-function stripOuterParens(expr) {
-  let s = String(expr || '').trim();
-  while (s.startsWith('(') && s.endsWith(')')) {
-    let depth = 0;
-    let wrapsWhole = true;
-    for (let i = 0; i < s.length; i++) {
-      const ch = s[i];
-      if (ch === '(') depth += 1;
-      else if (ch === ')') depth -= 1;
-      if (depth === 0 && i < s.length - 1) {
-        wrapsWhole = false;
-        break;
-      }
-    }
-    if (!wrapsWhole) break;
-    s = s.slice(1, -1).trim();
+function tryParseMathNode(expr) {
+  const text = String(expr || '').trim();
+  if (!text) return null;
+  try {
+    return math.parse(text);
+  } catch (error) {
+    return null;
   }
-  return s;
+}
+
+function unwrapParenthesisNode(node) {
+  let current = node || null;
+  while (current && current.type === 'ParenthesisNode') {
+    current = current.content;
+  }
+  return current;
+}
+
+function nodeToExpression(node) {
+  const unwrapped = unwrapParenthesisNode(node);
+  if (!unwrapped || typeof unwrapped.toString !== 'function') return '';
+  return unwrapped.toString({ parenthesis: 'auto' }).trim();
+}
+
+function getFunctionNodeName(node) {
+  if (!node || node.type !== 'FunctionNode') return '';
+  if (typeof node.name === 'string' && node.name) return node.name;
+  const fnNode = node.fn;
+  if (fnNode && fnNode.type === 'SymbolNode' && typeof fnNode.name === 'string') {
+    return fnNode.name;
+  }
+  return '';
+}
+
+function isNumericConstantNode(node, expectedValue) {
+  const target = unwrapParenthesisNode(node);
+  if (!target || target.type !== 'ConstantNode') return false;
+  const numericValue = Number(target.value);
+  if (!Number.isFinite(numericValue)) return false;
+  return Math.abs(numericValue - expectedValue) <= Number.EPSILON;
+}
+
+function stripOuterParens(expr) {
+  const parsed = tryParseMathNode(expr);
+  if (!parsed) return String(expr || '').trim();
+  return nodeToExpression(parsed);
 }
 
 function extractTrigArguments(expr) {
-  const source = String(expr || '');
+  const parsed = tryParseMathNode(expr);
+  if (!parsed) return [];
+
   const args = [];
-  for (let i = 0; i < source.length; i++) {
-    const fn = source.slice(i, i + 4);
-    if (fn !== 'sin(' && fn !== 'cos(' && fn !== 'tan(') continue;
-    let start = i + 4;
-    let depth = 1;
-    let end = start;
-    while (end < source.length && depth > 0) {
-      if (source[end] === '(') depth += 1;
-      else if (source[end] === ')') depth -= 1;
-      end += 1;
+  parsed.traverse((node) => {
+    if (!node || node.type !== 'FunctionNode') return;
+
+    const functionName = getFunctionNodeName(node);
+    if (functionName !== 'sin' && functionName !== 'cos' && functionName !== 'tan') return;
+
+    const argNode = Array.isArray(node.args) ? node.args[0] : null;
+    const argExpr = nodeToExpression(argNode);
+    if (argExpr) {
+      args.push(argExpr);
     }
-    if (depth === 0) {
-      args.push(source.slice(start, end - 1).trim());
-      i = end - 1;
-    }
-  }
+  });
+
   return args;
 }
 
 function deriveHalfAngleCandidate(expr) {
-  const text = stripOuterParens(expr);
-  const doubled = text.match(/^2\s*\*\s*(.+)$/);
-  if (doubled && doubled[1]) return stripOuterParens(doubled[1]);
+  const parsed = tryParseMathNode(expr);
+  if (!parsed) return null;
+
+  const normalizedNode = unwrapParenthesisNode(parsed);
+  if (!normalizedNode || normalizedNode.type !== 'OperatorNode') return null;
+  if (normalizedNode.op !== '*' || !Array.isArray(normalizedNode.args) || normalizedNode.args.length !== 2) return null;
+
+  const leftNode = normalizedNode.args[0];
+  const rightNode = normalizedNode.args[1];
+
+  if (isNumericConstantNode(leftNode, 2)) {
+    return nodeToExpression(rightNode) || null;
+  }
+
+  if (isNumericConstantNode(rightNode, 2)) {
+    return nodeToExpression(leftNode) || null;
+  }
+
   return null;
 }
 
@@ -1679,12 +1729,51 @@ function detectMatchingFormulaIds(beforeExpr, afterExpr) {
   return allFormulaIds.filter((formulaId) => verifyFormulaApplication(formulaId, beforeExpr, afterExpr));
 }
 
+function getErrorMessage(errorCode, stepIndex, suggestions) {
+  const stepPrefix = stepIndex == null ? '' : `${stepIndex}段目: `;
+  const suggestionText = Array.isArray(suggestions) && suggestions.length > 0
+    ? ` 候補: ${suggestions.join(' / ')}`
+    : '';
+
+  switch (errorCode) {
+    case 'ERROR_NO_PROOF_BLOCK':
+      return '証明ブロックが見つかりません。まず「証明」ブロックを配置してください。';
+    case 'ERROR_EMPTY_INPUT':
+      return `${stepPrefix}「式」または「変形後」の入力が空です。ブロックを接続して式を完成させてください。`;
+    case 'ERROR_DIVISION_BY_ZERO':
+      return `${stepPrefix}計算結果が無効です（0 除算の可能性があります）。分母が 0 になっていないか確認してください。`;
+    case 'ERROR_EQUATION_MISMATCH':
+      return `${stepPrefix}変形前と変形後が一致しません。使用した公式と置き換え先の式を見直してください。`;
+    case 'ERROR_EVALUATION':
+      return `${stepPrefix}式を評価できません。未接続ブロックや不正な式がないか確認してください。`;
+    case 'ERROR_FORMULA_REQUIRED':
+      return `${stepPrefix}置き換え操作には公式ブロックが必要です。`;
+    case 'ERROR_UNSUPPORTED_FORMULA':
+      return `${stepPrefix}この公式は判定対象外です。公式ブロックを確認してください。`;
+    case 'ERROR_FORMULA_MISMATCH':
+      return `${stepPrefix}選択した公式と変形内容が一致していません。${suggestionText}`.trim();
+    case 'ERROR_CHAIN_EMPTY_INPUT':
+      return `${stepPrefix}前段とのつながりを確認できません。この段の「式」を入力してください。`;
+    case 'ERROR_CHAIN_DIVISION_BY_ZERO':
+      return `${stepPrefix}前段との接続確認中に無効な値が発生しました。前段の「変形後」とこの段の「式」を見直してください。`;
+    case 'ERROR_CHAIN_MISMATCH':
+      return `${stepPrefix}前段とのつながりが不一致です。前段の「変形後」とこの段の「式」を一致させてください。`;
+    case 'ERROR_CHAIN_EVALUATION':
+      return `${stepPrefix}前段との接続確認で式を評価できません。未接続ブロックや不正な式がないか確認してください。`;
+    case 'ERROR_NO_CONCLUSION':
+      return '最後の行を「よって ... となる（結論）」ブロックで締めてください。';
+    default:
+      return '不明なエラーが発生しました。ブロックの接続と式を確認してください。';
+  }
+}
+
 function validateProof(astArray) {
   if (!Array.isArray(astArray) || astArray.length === 0) {
     return {
       isValid: false,
       errorStepIndex: null,
-      message: '証明ブロックが見つかりません。まず「証明」ブロックを配置してください。',
+      errorCode: 'ERROR_NO_PROOF_BLOCK',
+      suggestions: [],
     };
   }
 
@@ -1705,7 +1794,8 @@ function validateProof(astArray) {
       return {
         isValid: false,
         errorStepIndex: stepIndex,
-        message: `${stepIndex}段目: 「式」または「変形後」の入力が空です。ブロックを接続して式を完成させてください。`,
+        errorCode: 'ERROR_EMPTY_INPUT',
+        suggestions: [],
       };
     }
 
@@ -1715,7 +1805,8 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: stepIndex,
-          message: `${stepIndex}段目: 計算結果が無効です（0 除算の可能性があります）。分母が 0 になっていないか確認してください。`,
+          errorCode: 'ERROR_DIVISION_BY_ZERO',
+          suggestions: [],
         };
       }
 
@@ -1723,14 +1814,16 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: stepIndex,
-          message: `${stepIndex}段目: 変形前と変形後が一致しません。使用した公式と置き換え先の式を見直してください。`,
+          errorCode: 'ERROR_EQUATION_MISMATCH',
+          suggestions: [],
         };
       }
 
       return {
         isValid: false,
         errorStepIndex: stepIndex,
-        message: `${stepIndex}段目: 式を評価できません。未接続ブロックや不正な式がないか確認してください。`,
+        errorCode: 'ERROR_EVALUATION',
+        suggestions: [],
       };
     }
 
@@ -1739,7 +1832,8 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: stepIndex,
-          message: `${stepIndex}段目: 置き換え操作には公式ブロックが必要です。`,
+          errorCode: 'ERROR_FORMULA_REQUIRED',
+          suggestions: [],
         };
       }
 
@@ -1748,7 +1842,8 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: stepIndex,
-          message: `${stepIndex}段目: この公式は判定対象外です。公式ブロックを確認してください。`,
+          errorCode: 'ERROR_UNSUPPORTED_FORMULA',
+          suggestions: [],
         };
       }
 
@@ -1757,13 +1852,11 @@ function validateProof(astArray) {
         const candidates = detectMatchingFormulaIds(beforeExpr, afterExpr)
           .filter((candidate) => candidate !== formulaId)
           .map((candidate) => formulaIdToLabel(candidate));
-        const suggestion = candidates.length > 0
-          ? ` 候補: ${candidates.join(' / ')}`
-          : '';
         return {
           isValid: false,
           errorStepIndex: stepIndex,
-          message: `${stepIndex}段目: 選択した公式と変形内容が一致していません。${suggestion}`,
+          errorCode: 'ERROR_FORMULA_MISMATCH',
+          suggestions: candidates,
         };
       }
     }
@@ -1786,7 +1879,8 @@ function validateProof(astArray) {
       return {
         isValid: false,
         errorStepIndex: currentStepIndex,
-        message: `${currentStepIndex}段目: 前段とのつながりを確認できません。${currentStepIndex}段目の「式」を入力してください。`,
+        errorCode: 'ERROR_CHAIN_EMPTY_INPUT',
+        suggestions: [],
       };
     }
 
@@ -1796,7 +1890,8 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: currentStepIndex,
-          message: `${currentStepIndex}段目: 前段との接続確認中に無効な値が発生しました。${prevStepIndex}段目の「変形後」と${currentStepIndex}段目の「式」を見直してください。`,
+          errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO',
+          suggestions: [],
         };
       }
 
@@ -1804,14 +1899,16 @@ function validateProof(astArray) {
         return {
           isValid: false,
           errorStepIndex: currentStepIndex,
-          message: `${currentStepIndex}段目: 前段とのつながりが不一致です。${prevStepIndex}段目の「変形後」と${currentStepIndex}段目の「式」を一致させてください。`,
+          errorCode: 'ERROR_CHAIN_MISMATCH',
+          suggestions: [],
         };
       }
 
       return {
         isValid: false,
         errorStepIndex: currentStepIndex,
-        message: `${currentStepIndex}段目: 前段との接続確認で式を評価できません。未接続ブロックや不正な式がないか確認してください。`,
+        errorCode: 'ERROR_CHAIN_EVALUATION',
+        suggestions: [],
       };
     }
   }
@@ -1821,14 +1918,16 @@ function validateProof(astArray) {
     return {
       isValid: false,
       errorStepIndex: lastStep && Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
-      message: '最後の行を「よって ... となる（結論）」ブロックで締めてください。',
+      errorCode: 'ERROR_NO_CONCLUSION',
+      suggestions: [],
     };
   }
 
   return {
     isValid: true,
     errorStepIndex: null,
-    message: '証明は正しいです。',
+    errorCode: null,
+    suggestions: [],
   };
 }
 
@@ -1865,6 +1964,7 @@ function setupEventListeners() {
     if (!currentProblemData?.answerState) return showToast('解答はありません', false);
     workspace.clear();
     Blockly.serialization.workspaces.load(currentProblemData.answerState, workspace);
+    forceWorkspaceLayoutSync();
     arrangeBlocks();
     showToast('解答を表示しました');
   });
@@ -1981,8 +2081,12 @@ function setupEventListeners() {
     } else {
       currentStreak = 0;
       updateStreakCounter(false);
-      const stepLabel = validation.errorStepIndex == null ? '' : `（エラー箇所: ${validation.errorStepIndex}段目）`;
-      showToast(`<span style='color:#ff4b4b'>不正解。${validation.message} ${stepLabel}</span>`);
+      const userMessage = getErrorMessage(
+        validation.errorCode,
+        validation.errorStepIndex,
+        validation.suggestions,
+      );
+      showToast(`<span style='color:#ff4b4b'>不正解。${userMessage}</span>`);
       return;
     }
   });
