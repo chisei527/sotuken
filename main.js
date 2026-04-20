@@ -33,56 +33,56 @@ const FORMULA_REGISTRY = {
     text: 'sin(x)^2+cos(x)^2=1',
     label: '公式①',
     concept: 'pythagorean_identity',
-    getSides: (t) => [`sin(${t})^2 + cos(${t})^2`, '1'],
+    getSides: (thetaExpr = 'theta') => [`sin(${thetaExpr})^2 + cos(${thetaExpr})^2`, '1'],
   },
   formula_2: {
     id: 'formula_2',
     text: 'tan(x)=sin(x)/cos(x)',
     label: '公式②',
     concept: 'tan_as_sin_over_cos',
-    getSides: (t) => [`tan(${t})`, `(sin(${t}) / cos(${t}))`],
+    getSides: (thetaExpr = 'theta') => [`tan(${thetaExpr})`, `(sin(${thetaExpr}) / cos(${thetaExpr}))`],
   },
   formula_3: {
     id: 'formula_3',
     text: '1+tan(x)^2=1/cos(x)^2',
     label: '公式③',
     concept: 'tan_pythagorean_relation',
-    getSides: (t) => [`1 + tan(${t})^2`, `(1 / cos(${t})^2)`],
+    getSides: (thetaExpr = 'theta') => [`1 + tan(${thetaExpr})^2`, `(1 / cos(${thetaExpr})^2)`],
   },
   formula_4: {
     id: 'formula_4',
     text: 'sin(2*x)=2*sin(x)*cos(x)',
     label: '公式④',
     concept: 'double_angle_sin',
-    getSides: (t) => [`sin(2 * ${t})`, `(2 * sin(${t}) * cos(${t}))`],
+    getSides: (thetaExpr = 'theta') => [`sin(2 * ${thetaExpr})`, `(2 * sin(${thetaExpr}) * cos(${thetaExpr}))`],
   },
   formula_5: {
     id: 'formula_5',
     text: 'sin(x)^2=(1-cos(2*x))/2',
     label: '公式⑤',
     concept: 'half_angle_sin_square',
-    getSides: (t) => [`sin(${t})^2`, `((1 - cos(2 * ${t})) / 2)`],
+    getSides: (thetaExpr = 'theta') => [`sin(${thetaExpr})^2`, `((1 - cos(2 * ${thetaExpr})) / 2)`],
   },
   formula_6: {
     id: 'formula_6',
     text: 'cos(x)^2=(1+cos(2*x))/2',
     label: '公式⑥',
     concept: 'half_angle_cos_square',
-    getSides: (t) => [`cos(${t})^2`, `((1 + cos(2 * ${t})) / 2)`],
+    getSides: (thetaExpr = 'theta') => [`cos(${thetaExpr})^2`, `((1 + cos(2 * ${thetaExpr})) / 2)`],
   },
   formula_7: {
     id: 'formula_7',
     text: 'tan(x)=sin(2*x)/(1+cos(2*x))',
     label: '公式⑦',
     concept: 'double_angle_tan',
-    getSides: (t) => [`tan(${t})`, `(sin(2 * ${t}) / (1 + cos(2 * ${t})))`],
+    getSides: (thetaExpr = 'theta') => [`tan(${thetaExpr})`, `(sin(2 * ${thetaExpr}) / (1 + cos(2 * ${thetaExpr})))`],
   },
   formula_8: {
     id: 'formula_8',
     text: 'tan(x)^2=(1-cos(2*x))/(1+cos(2*x))',
     label: '公式⑧',
     concept: 'tan_square_with_cos2',
-    getSides: (t) => [`tan(${t})^2`, `((1 - cos(2 * ${t})) / (1 + cos(2 * ${t})))`],
+    getSides: (thetaExpr = 'theta') => [`tan(${thetaExpr})^2`, `((1 - cos(2 * ${thetaExpr})) / (1 + cos(2 * ${thetaExpr})))`],
   },
 };
 
@@ -523,6 +523,126 @@ function ensureInitialOperationBlocksPlaced(targetWorkspace, problemData) {
   });
 }
 
+function isProofOrOperationBlockType(blockType) {
+  return ['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(blockType);
+}
+
+function getTopLevelMathBlocksSortedByY(targetWorkspace) {
+  if (!targetWorkspace) return [];
+  return targetWorkspace
+    .getTopBlocks(false)
+    .filter((block) => block && block.outputConnection && !isProofOrOperationBlockType(block.type))
+    .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
+}
+
+function getOrCreateProofStep(targetWorkspace) {
+  let proofStep = targetWorkspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
+  if (proofStep) return proofStep;
+
+  proofStep = targetWorkspace.newBlock('proof_step');
+  proofStep.initSvg();
+  proofStep.render();
+  return proofStep;
+}
+
+function getOperationChain(proofStep) {
+  const operations = [];
+  let currentOp = proofStep?.getInputTargetBlock('OPERATIONS') || null;
+  while (currentOp) {
+    operations.push(currentOp);
+    currentOp = currentOp.getNextBlock();
+  }
+  return operations;
+}
+
+function createOperationBlock(targetWorkspace, operationType) {
+  const operation = targetWorkspace.newBlock(operationType);
+  operation.initSvg();
+  operation.render();
+  return operation;
+}
+
+function ensureStatementConnected(statementInputConnection, operationBlock) {
+  if (!statementInputConnection || !operationBlock?.previousConnection) return;
+  const currentTarget = statementInputConnection.targetBlock();
+  if (currentTarget === operationBlock) return;
+
+  if (currentTarget) {
+    currentTarget.unplug(true);
+  }
+
+  statementInputConnection.connect(operationBlock.previousConnection);
+}
+
+function connectMathToInputIfEmpty(operationBlock, inputName, mathBlock) {
+  if (!operationBlock || !mathBlock || !mathBlock.outputConnection) return;
+  const inputConnection = operationBlock.getInput(inputName)?.connection;
+  if (!inputConnection || inputConnection.targetBlock()) return;
+  inputConnection.connect(mathBlock.outputConnection);
+}
+
+function applyConditionalInitialStateGeneration(targetWorkspace) {
+  if (!targetWorkspace) return;
+
+  const overwriteButton = document.getElementById('btn-overwrite-permission');
+  const isOverwriteOn = !!overwriteButton && !overwriteButton.classList.contains('off');
+
+  const proofStep = getOrCreateProofStep(targetWorkspace);
+  const operationInputConnection = proofStep.getInput('OPERATIONS')?.connection;
+  if (!operationInputConnection) return;
+
+  const mathBlocks = getTopLevelMathBlocksSortedByY(targetWorkspace);
+  const leftExpressionBlock = mathBlocks[0] || null;
+  const rightExpressionBlock = mathBlocks.length >= 2 ? mathBlocks[mathBlocks.length - 1] : mathBlocks[0] || null;
+
+  const operations = getOperationChain(proofStep);
+
+  if (isOverwriteOn) {
+    let replaceOp = operations.find((op) => op.type === 'replace_operation') || null;
+    let conclusionOp = operations.find((op) => op.type === 'conclusion_operation') || null;
+
+    if (!replaceOp) {
+      replaceOp = createOperationBlock(targetWorkspace, 'replace_operation');
+      ensureStatementConnected(operationInputConnection, replaceOp);
+    }
+
+    if (!conclusionOp) {
+      conclusionOp = createOperationBlock(targetWorkspace, 'conclusion_operation');
+      if (replaceOp.nextConnection) {
+        const existingAfterReplace = replaceOp.nextConnection.targetBlock();
+        if (existingAfterReplace && existingAfterReplace !== conclusionOp) {
+          existingAfterReplace.unplug(true);
+        }
+        replaceOp.nextConnection.connect(conclusionOp.previousConnection);
+      }
+    }
+
+    connectMathToInputIfEmpty(replaceOp, 'VALUE', leftExpressionBlock);
+    connectMathToInputIfEmpty(conclusionOp, 'VALUE', rightExpressionBlock);
+    return;
+  }
+
+  let conclusionOp = operations.find((op) => op.type === 'conclusion_operation') || null;
+  if (!conclusionOp) {
+    conclusionOp = createOperationBlock(targetWorkspace, 'conclusion_operation');
+  }
+
+  // OFF時は結論ブロックだけを証明チェーンに残す。
+  ensureStatementConnected(operationInputConnection, conclusionOp);
+
+  const refreshedOperations = getOperationChain(proofStep);
+  refreshedOperations.forEach((op) => {
+    if (op === conclusionOp) return;
+    op.dispose(true);
+  });
+
+  if (conclusionOp.nextConnection?.targetBlock()) {
+    conclusionOp.nextConnection.targetBlock().unplug(true);
+  }
+
+  connectMathToInputIfEmpty(conclusionOp, 'VALUE', rightExpressionBlock);
+}
+
 // ===== UIヘルパー =====
 function switchScreen(screenId) {
   document.querySelectorAll('.a').forEach((screen) => screen.classList.remove('b'));
@@ -625,6 +745,10 @@ function forceWorkspaceLayoutSync() {
 
 // トップブロックを左から順に並べる
 function arrangeBlocks() {
+  if (typeof Blockly.svgResize === 'function') {
+    Blockly.svgResize(workspace);
+  }
+
   let topBlocks = workspace.getTopBlocks(false);
   if (!topBlocks || topBlocks.length === 0) return;
   // 証明ブロック(proof_step)を一番左に
@@ -644,7 +768,7 @@ function arrangeBlocks() {
 
   const toolboxWidth = Math.max(metrics?.toolboxWidth || 0, toolboxWidthFromApi || 0, toolboxDiv ? toolboxDiv.getBoundingClientRect().width : 0);
   const flyoutWidth = Math.max(metrics?.flyoutWidth || 0, flyoutSvg ? flyoutSvg.getBoundingClientRect().width : 0);
-  const leftInset = Math.ceil(toolboxWidth + flyoutWidth + 24);
+  const leftInset = Math.max(250, Math.ceil(toolboxWidth + flyoutWidth + 24));
 
   const viewportWidth = Math.max(metrics?.viewWidth || 0, parentRect ? parentRect.width : 0);
   const viewportHeight = Math.max(metrics?.viewHeight || 0, parentRect ? parentRect.height : 0);
@@ -1354,43 +1478,7 @@ async function loadStage(stageNumber) {
     workspace.clear();
   Blockly.serialization.workspaces.load(currentProblemData.initialState, workspace);
 
-    const scaffoldMode = getProofScaffoldMode();
-
-    if (scaffoldMode === 'guided') {
-      // 初期表示データに登録された操作ブロック不足分を補完する
-      ensureInitialOperationBlocksPlaced(workspace, currentProblemData);
-
-      // 答えデータに登録された操作ブロック（結論を含む）を空入力のまま初期配置する
-      ensureAnswerOperationBlocksPlaced(workspace, currentProblemData);
-
-      // 答えデータに登録された緑ブロックを初期配置する
-      ensureAnswerGreenBlocksPlaced(workspace, currentProblemData);
-    }
-
-    // 2. 初期式の自動接続（同期実行で確実に行う）
-    const proofStep = workspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
-    if (proofStep && scaffoldMode === 'guided') {
-      const firstOp = proofStep.getInputTargetBlock('OPERATIONS');
-      if (firstOp && firstOp.type === 'replace_operation') {
-        const valueInput = firstOp.getInput('VALUE');
-        // 入力が完全に空であることを確認
-        if (valueInput && valueInput.connection && !valueInput.connection.targetBlock()) {
-          // インライン表示のときは、複雑な式を自動接続すると表示が崩れやすいため除外する
-          const isInlineLayout = typeof firstOp.getInputsInline === 'function' ? firstOp.getInputsInline() : false;
-          const disallowedInlineDockTypes = ['math_add', 'math_fraction', 'math_multiply', 'math_square'];
-
-          // 接続対象の式ブロック（Math出力あり、かつ操作系ではないもの）を 1 つだけ取得
-          const mathBlock = workspace.getTopBlocks(false).find((b) =>
-            b.outputConnection &&
-            !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(b.type) &&
-            (!isInlineLayout || !disallowedInlineDockTypes.includes(b.type)),
-          );
-          if (mathBlock) {
-            valueInput.connection.connect(mathBlock.outputConnection);
-          }
-        }
-      }
-    }
+    applyConditionalInitialStateGeneration(workspace);
 
     forceWorkspaceLayoutSync();
     arrangeBlocks(); // 最後に整列
@@ -1426,16 +1514,16 @@ mathGenerator.forBlock.custom_number = function (block) {
   return [String(block.getFieldValue('NUM')), 0];
 };
 mathGenerator.forBlock.term_sin = function () {
-  return ['sin(x)', 0];
+  return ['sin(theta)', 0];
 };
 mathGenerator.forBlock.term_cos = function () {
-  return ['cos(x)', 0];
+  return ['cos(theta)', 0];
 };
 mathGenerator.forBlock.term_sin2 = function () {
-  return ['sin(2 * x)', 0];
+  return ['sin(2 * theta)', 0];
 };
 mathGenerator.forBlock.term_cos2 = function () {
-  return ['cos(2 * x)', 0];
+  return ['cos(2 * theta)', 0];
 };
 mathGenerator.forBlock.term_pi = function () {
   return ['pi', 0];
@@ -1471,7 +1559,7 @@ mathGenerator.forBlock.term_sqrt3_half = function () {
   return ['(sqrt(3)/2)', 0];
 };
 mathGenerator.forBlock.term_tan = function () {
-  return ['tan(x)', 0];
+  return ['tan(theta)', 0];
 };
 mathGenerator.forBlock.term_sin_of = function (block) {
   return [`sin(${mathGenerator.valueToCode(block, 'ANGLE', 0) || '0'})`, 0];
@@ -1745,7 +1833,7 @@ function deriveHalfAngleCandidate(expr) {
 }
 
 function verifyFormulaApplication(formulaId, beforeExpr, afterExpr) {
-  const candidateSet = new Set(['x']);
+  const candidateSet = new Set(['theta']);
   const trigArgs = [
     ...extractTrigArguments(beforeExpr),
     ...extractTrigArguments(afterExpr),

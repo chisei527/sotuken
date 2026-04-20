@@ -298,3 +298,62 @@
     }
   }
 }
+{
+  "_system_directive": {
+    "role": "Lead UX Architect & Implementation Expert",
+    "rules": [
+      "Wait for the user to specify a Task ID.",
+      "Strictly follow the conditional logic based on the 'Overwrite Permission' (上書き許可) state.",
+      "You MUST delete the legacy 'disallowedInlineDockTypes' logic. We rely on CSS to handle overflow now.",
+      "Provide targeted, clean modifications to main.js."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Variable names mismatch (x vs theta), blocks overlap the toolbox, and auto-docking is either restricted or ignores the Overwrite UI state.",
+    "future_state": "Variables are uniformly 'theta'. Layout is safe from overlaps. Auto-docking is smart: Overwrite ON docks both start and goal; OFF docks only the goal, leaving the start expression floating."
+  },
+  "tasks": {
+    "T-Fix-01": {
+      "name": "Variable_Renaming_Completion",
+      "target_file": "main.js",
+      "architectural_intent": "Align the math.js AST generation with the UI display by replacing the hardcoded 'x' with 'theta'.",
+      "logic_requirements": [
+        "1. In all `mathGenerator.forBlock.term_*` functions (sin, cos, tan, sin2, cos2), change the output strings from 'x' to 'theta' (e.g., `return ['sin(theta)', 0];`).",
+        "2. In `verifyFormulaApplication` or anywhere a fallback Set is created for variables, change `'x'` to `'theta'`."
+      ]
+    },
+    "T-Fix-02": {
+      "name": "Fix_Workspace_Layout_Overlap",
+      "target_file": "main.js",
+      "architectural_intent": "Prevent blocks from hiding under the left toolbox by ensuring a strict minimum left-margin during layout.",
+      "logic_requirements": [
+        "1. In `arrangeBlocks()`, find the `leftInset` calculation.",
+        "2. Ensure `leftInset` has a hardcoded minimum fallback to account for the toolbox width. (e.g., `const leftInset = Math.max(250, toolboxWidth + flyoutWidth + 24);`).",
+        "3. Ensure `Blockly.svgResize(workspace)` is called before layout calculations to guarantee accurate metrics."
+      ]
+    },
+    "T-Fix-03": {
+      "name": "Eradicate_Inline_Docking_Restrictions",
+      "target_file": "main.js",
+      "architectural_intent": "Remove legacy code that prevented complex blocks (fractions, additions) from auto-docking.",
+      "logic_requirements": [
+        "1. Locate the auto-connection logic in `loadStage` (Section: '初期式の自動接続').",
+        "2. DELETE the `disallowedInlineDockTypes` array and the check `(!isInlineLayout || !disallowedInlineDockTypes.includes(b.type))` entirely.",
+        "3. Simplify the filter for `mathBlock` to accept ANY block that has an output connection and is NOT an operation/proof block."
+      ]
+    },
+    "T-Fix-04": {
+      "name": "Conditional_Initial_State_Generation",
+      "target_file": "main.js",
+      "architectural_intent": "Dynamically build the proof structure based on the user's Overwrite toggle setting at the time of stage load.",
+      "logic_requirements": [
+        "1. In `loadStage`, after loading the initial state into the workspace, check the 'Overwrite Permission' state (e.g., `const isOverwriteOn = !document.getElementById('btn-overwrite-permission').classList.contains('off');`).",
+        "2. Find the mathematical blocks on the workspace. Usually, there are two top-level math blocks (Left Expression and Right Expression). Sort them by Y coordinate to distinguish Top (Left) and Bottom (Right).",
+        "3. Locate or create the `proof_step` block.",
+        "4. If `isOverwriteOn` is TRUE: Create a `replace_operation` and a `conclusion_operation`. Connect the `replace_operation` to the proof block's `OPERATIONS`. Dock the Left Expression into the `replace_operation`. Dock the Right Expression into the `conclusion_operation` and connect it to the bottom.",
+        "5. If `isOverwriteOn` is FALSE: Create ONLY a `conclusion_operation`. Dock the Right Expression into it, and attach it to the `OPERATIONS` slot. The Left Expression MUST remain as a standalone, floating block.",
+        "6. Ensure no duplicate operations are created if they already exist in the JSON."
+      ]
+    }
+  }
+}
