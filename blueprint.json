@@ -119,3 +119,64 @@
     }
   }
 }
+
+{
+  "_system_directive": {
+    "role": "Lead Architect & Refactoring Expert",
+    "rules": [
+      "Wait for the user to specify a Task ID (e.g., T-Refactor-01).",
+      "Your primary goal in this phase is NOT to add new features, but to reduce Technical Debt, eliminate code duplication, and modularize giant functions.",
+      "Ensure that mathematical equivalency relies on 'math.evaluate' rather than brittle string manipulation whenever possible.",
+      "Never break existing functionality. Run mental checks on edge cases before modifying the code."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Functional but monolithic validation logic with scattered data dictionaries.",
+    "future_state": "A clean, modular architecture where adding a new trigonometric formula requires modifying exactly ONE configuration object."
+  },
+  "tasks": {
+    "T-Refactor-01": {
+      "name": "Centralize_Formula_Registry",
+      "target_file": "main.js",
+      "architectural_intent": "Eliminate the scattered dictionaries (FORMULA_TEXT_TO_ID, FORMULA_ID_LABEL, FORMULA_ID_TO_CONCEPT, buildFormulaSides) and consolidate them into a Single Source of Truth.",
+      "future_considerations": "When we add Inverse Trigonometric functions later, we only want to update this one registry.",
+      "logic_requirements": [
+        "1. Create a single `const FORMULA_REGISTRY = { formula_1: { id: 'formula_1', text: 'sin(x)^2+cos(x)^2=1', label: '公式①', concept: 'pythagorean_identity', getSides: (t) => ['sin('+t+')^2 + cos('+t+')^2', '1'] }, ... }` encompassing all 8 formulas.",
+        "2. Replace all usages of `FORMULA_TEXT_TO_ID`, `FORMULA_ID_LABEL`, and `FORMULA_ID_TO_CONCEPT` with lookups from `FORMULA_REGISTRY`.",
+        "3. Ensure the app still boots and runs correctly after this data structure swap."
+      ],
+      "edge_cases": [
+        "The `formulaTextToId` function normalizes strings. Ensure the `text` property in the registry matches the normalized format."
+      ]
+    },
+    "T-Refactor-02": {
+      "name": "Deconstruct_Monolithic_Validator",
+      "target_file": "main.js",
+      "architectural_intent": "Break down the 150+ line `validateProof` function into small, testable, pure functions at the file scope.",
+      "future_considerations": "Smaller functions allow us to write unit tests for the mathematical logic independently of the AST parsing.",
+      "logic_requirements": [
+        "1. Move `evaluateEquivalence` out of `validateProof` to the global/file scope.",
+        "2. Move `stripOuterParens`, `extractTrigArguments`, `deriveHalfAngleCandidate`, and `verifyFormulaApplication` to the global/file scope.",
+        "3. Update `verifyFormulaApplication` to use `FORMULA_REGISTRY[formulaId].getSides(thetaExpr)` instead of the old `buildFormulaSides`.",
+        "4. Clean up `validateProof` so it is only responsible for iterating the AST and coordinating these newly extracted helper functions."
+      ],
+      "edge_cases": [
+        "Variable scoping: Ensure none of the extracted functions rely on variables that were previously trapped inside `validateProof`'s closure."
+      ]
+    },
+    "T-Refactor-03": {
+      "name": "UI_State_Cleanup",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "Clean up duplicate UI elements and optimize DOM updates.",
+      "future_considerations": "Prevents memory leaks and erratic UI behavior when toggling modes.",
+      "logic_requirements": [
+        "1. HTML: Remove the duplicate `<button id='btn-overwrite-permission-menu'>` from the `#c` (Stage Selection) area if it exists, keeping only the one in `#h` (Header).",
+        "2. JS: Refactor `updateStreakCounter(shouldAnimate)` to use `requestAnimationFrame` instead of `void streakCounter.offsetWidth` to trigger the CSS animation cleanly.",
+        "3. JS: Ensure `setupEventListeners` does not bind the same events multiple times if called twice (e.g., use optional chaining `?.onclick = ` instead of `.addEventListener` for single-action buttons, or ensure it's only called once on boot)."
+      ],
+      "edge_cases": [
+        "If a user clicks a button very fast while an animation is playing, the animation should restart smoothly."
+      ]
+    }
+  }
+}

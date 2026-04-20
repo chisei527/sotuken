@@ -16,6 +16,7 @@ let currentStreak = 0;
 let currentStageSolved = false;
 let currentSkipOffer = null;
 let pendingSkipChallenge = null;
+let hasBoundEventListeners = false;
 
 const MAX_STAGE_NUMBER = 43;
 
@@ -26,37 +27,63 @@ const DIFFICULTY_THRESHOLDS = {
 
 const GREEN_OPERATION_TYPES = new Set(['replace_operation', 'common_denominator_operation']);
 
-const FORMULA_TEXT_TO_ID = {
-  'sin(x)^2+cos(x)^2=1': 'formula_1',
-  'tan(x)=sin(x)/cos(x)': 'formula_2',
-  '1+tan(x)^2=1/cos(x)^2': 'formula_3',
-  'sin(2*x)=2*sin(x)*cos(x)': 'formula_4',
-  'sin(x)^2=(1-cos(2*x))/2': 'formula_5',
-  'cos(x)^2=(1+cos(2*x))/2': 'formula_6',
-  'tan(x)=sin(2*x)/(1+cos(2*x))': 'formula_7',
-  'tan(x)^2=(1-cos(2*x))/(1+cos(2*x))': 'formula_8',
-};
-
-const FORMULA_ID_LABEL = {
-  formula_1: '公式①',
-  formula_2: '公式②',
-  formula_3: '公式③',
-  formula_4: '公式④',
-  formula_5: '公式⑤',
-  formula_6: '公式⑥',
-  formula_7: '公式⑦',
-  formula_8: '公式⑧',
-};
-
-const FORMULA_ID_TO_CONCEPT = {
-  formula_1: 'pythagorean_identity',
-  formula_2: 'tan_as_sin_over_cos',
-  formula_3: 'tan_pythagorean_relation',
-  formula_4: 'double_angle_sin',
-  formula_5: 'half_angle_sin_square',
-  formula_6: 'half_angle_cos_square',
-  formula_7: 'double_angle_tan',
-  formula_8: 'tan_square_with_cos2',
+const FORMULA_REGISTRY = {
+  formula_1: {
+    id: 'formula_1',
+    text: 'sin(x)^2+cos(x)^2=1',
+    label: '公式①',
+    concept: 'pythagorean_identity',
+    getSides: (t) => [`sin(${t})^2 + cos(${t})^2`, '1'],
+  },
+  formula_2: {
+    id: 'formula_2',
+    text: 'tan(x)=sin(x)/cos(x)',
+    label: '公式②',
+    concept: 'tan_as_sin_over_cos',
+    getSides: (t) => [`tan(${t})`, `(sin(${t}) / cos(${t}))`],
+  },
+  formula_3: {
+    id: 'formula_3',
+    text: '1+tan(x)^2=1/cos(x)^2',
+    label: '公式③',
+    concept: 'tan_pythagorean_relation',
+    getSides: (t) => [`1 + tan(${t})^2`, `(1 / cos(${t})^2)`],
+  },
+  formula_4: {
+    id: 'formula_4',
+    text: 'sin(2*x)=2*sin(x)*cos(x)',
+    label: '公式④',
+    concept: 'double_angle_sin',
+    getSides: (t) => [`sin(2 * ${t})`, `(2 * sin(${t}) * cos(${t}))`],
+  },
+  formula_5: {
+    id: 'formula_5',
+    text: 'sin(x)^2=(1-cos(2*x))/2',
+    label: '公式⑤',
+    concept: 'half_angle_sin_square',
+    getSides: (t) => [`sin(${t})^2`, `((1 - cos(2 * ${t})) / 2)`],
+  },
+  formula_6: {
+    id: 'formula_6',
+    text: 'cos(x)^2=(1+cos(2*x))/2',
+    label: '公式⑥',
+    concept: 'half_angle_cos_square',
+    getSides: (t) => [`cos(${t})^2`, `((1 + cos(2 * ${t})) / 2)`],
+  },
+  formula_7: {
+    id: 'formula_7',
+    text: 'tan(x)=sin(2*x)/(1+cos(2*x))',
+    label: '公式⑦',
+    concept: 'double_angle_tan',
+    getSides: (t) => [`tan(${t})`, `(sin(2 * ${t}) / (1 + cos(2 * ${t})))`],
+  },
+  formula_8: {
+    id: 'formula_8',
+    text: 'tan(x)^2=(1-cos(2*x))/(1+cos(2*x))',
+    label: '公式⑧',
+    concept: 'tan_square_with_cos2',
+    getSides: (t) => [`tan(${t})^2`, `((1 - cos(2 * ${t})) / (1 + cos(2 * ${t})))`],
+  },
 };
 
 const OPERATION_TO_CONCEPT = {
@@ -81,11 +108,12 @@ function normalizeFormulaText(text) {
 
 function formulaTextToId(formulaText) {
   const normalized = normalizeFormulaText(formulaText);
-  return FORMULA_TEXT_TO_ID[normalized] || null;
+  const matched = Object.values(FORMULA_REGISTRY).find((entry) => entry.text === normalized);
+  return matched ? matched.id : null;
 }
 
 function formulaIdToLabel(formulaId) {
-  return FORMULA_ID_LABEL[formulaId] || formulaId;
+  return FORMULA_REGISTRY[formulaId]?.label || formulaId;
 }
 
 function parseRequiredConcepts(requiredConcepts) {
@@ -118,7 +146,7 @@ function getRequiredConceptsForProblem(problemData) {
   const conceptSet = new Set();
   const answerFormulaTypes = getAnswerFormulaTypeSequence(problemData);
   answerFormulaTypes.forEach((formulaType) => {
-    const concept = FORMULA_ID_TO_CONCEPT[formulaType];
+    const concept = FORMULA_REGISTRY[formulaType]?.concept;
     if (concept) conceptSet.add(concept);
   });
 
@@ -141,7 +169,7 @@ function collectAchievedConceptsFromAST(astArray) {
     if (operationConcept) achieved.add(operationConcept);
 
     const formulaId = formulaTextToId(stepData?.formula);
-    const formulaConcept = FORMULA_ID_TO_CONCEPT[formulaId];
+    const formulaConcept = FORMULA_REGISTRY[formulaId]?.concept;
     if (formulaConcept) achieved.add(formulaConcept);
   });
 
@@ -530,12 +558,15 @@ function updateStreakCounter(shouldAnimate = false) {
   if (!streakCounter) return;
 
   streakCounter.textContent = `🔥 ${currentStreak}`;
+  streakCounter.classList.remove('streak-bounce');
   if (!shouldAnimate) return;
 
-  streakCounter.classList.remove('streak-bounce');
-  // Reflow to restart the same animation class reliably.
-  void streakCounter.offsetWidth;
-  streakCounter.classList.add('streak-bounce');
+  // Use rAF to restart animation without forcing synchronous layout.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      streakCounter.classList.add('streak-bounce');
+    });
+  });
 }
 
 function closeSkipChallengeModal() {
@@ -1536,124 +1567,119 @@ function parseBlocksToAST(targetWorkspace) {
   return ast;
 }
 
+const VALIDATION_EPSILON = 0.0001;
+const VALIDATION_SAMPLING_POINTS = [0.5, 1.2, 2.3];
+
+function evaluateEquivalence(leftExpr, rightExpr) {
+  for (const xValue of VALIDATION_SAMPLING_POINTS) {
+    try {
+      const leftValue = math.evaluate(leftExpr, { x: xValue });
+      const rightValue = math.evaluate(rightExpr, { x: xValue });
+
+      if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+        return { ok: false, reason: 'non-finite' };
+      }
+
+      if (Math.abs(leftValue - rightValue) > VALIDATION_EPSILON) {
+        return { ok: false, reason: 'mismatch' };
+      }
+    } catch (error) {
+      const rawMessage = error && error.message ? String(error.message) : '';
+      const isDivisionByZero = /division\s+by\s+zero|divide\s+by\s+zero|Infinity/i.test(rawMessage);
+      return { ok: false, reason: isDivisionByZero ? 'division-by-zero' : 'eval-error' };
+    }
+  }
+
+  return { ok: true };
+}
+
+function stripOuterParens(expr) {
+  let s = String(expr || '').trim();
+  while (s.startsWith('(') && s.endsWith(')')) {
+    let depth = 0;
+    let wrapsWhole = true;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === '(') depth += 1;
+      else if (ch === ')') depth -= 1;
+      if (depth === 0 && i < s.length - 1) {
+        wrapsWhole = false;
+        break;
+      }
+    }
+    if (!wrapsWhole) break;
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
+function extractTrigArguments(expr) {
+  const source = String(expr || '');
+  const args = [];
+  for (let i = 0; i < source.length; i++) {
+    const fn = source.slice(i, i + 4);
+    if (fn !== 'sin(' && fn !== 'cos(' && fn !== 'tan(') continue;
+    let start = i + 4;
+    let depth = 1;
+    let end = start;
+    while (end < source.length && depth > 0) {
+      if (source[end] === '(') depth += 1;
+      else if (source[end] === ')') depth -= 1;
+      end += 1;
+    }
+    if (depth === 0) {
+      args.push(source.slice(start, end - 1).trim());
+      i = end - 1;
+    }
+  }
+  return args;
+}
+
+function deriveHalfAngleCandidate(expr) {
+  const text = stripOuterParens(expr);
+  const doubled = text.match(/^2\s*\*\s*(.+)$/);
+  if (doubled && doubled[1]) return stripOuterParens(doubled[1]);
+  return null;
+}
+
+function verifyFormulaApplication(formulaId, beforeExpr, afterExpr) {
+  const candidateSet = new Set(['x']);
+  const trigArgs = [
+    ...extractTrigArguments(beforeExpr),
+    ...extractTrigArguments(afterExpr),
+  ];
+
+  trigArgs.forEach((arg) => {
+    const cleaned = stripOuterParens(arg);
+    if (cleaned) candidateSet.add(cleaned);
+    const half = deriveHalfAngleCandidate(cleaned);
+    if (half) candidateSet.add(half);
+  });
+
+  const formulaDef = FORMULA_REGISTRY[formulaId];
+  if (!formulaDef || typeof formulaDef.getSides !== 'function') return false;
+
+  for (const thetaExpr of candidateSet) {
+    const sides = formulaDef.getSides(`(${thetaExpr})`);
+    if (!sides) continue;
+    const [leftSide, rightSide] = sides;
+
+    const direct = evaluateEquivalence(beforeExpr, leftSide).ok && evaluateEquivalence(afterExpr, rightSide).ok;
+    if (direct) return true;
+
+    const reverse = evaluateEquivalence(beforeExpr, rightSide).ok && evaluateEquivalence(afterExpr, leftSide).ok;
+    if (reverse) return true;
+  }
+
+  return false;
+}
+
+function detectMatchingFormulaIds(beforeExpr, afterExpr) {
+  const allFormulaIds = Object.keys(FORMULA_REGISTRY);
+  return allFormulaIds.filter((formulaId) => verifyFormulaApplication(formulaId, beforeExpr, afterExpr));
+}
+
 function validateProof(astArray) {
-  const EPSILON = 0.0001;
-  const samplingPoints = [0.5, 1.2, 2.3];
-  const evaluateEquivalence = (leftExpr, rightExpr) => {
-    for (const xValue of samplingPoints) {
-      try {
-        const leftValue = math.evaluate(leftExpr, { x: xValue });
-        const rightValue = math.evaluate(rightExpr, { x: xValue });
-
-        if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
-          return { ok: false, reason: 'non-finite' };
-        }
-
-        if (Math.abs(leftValue - rightValue) > EPSILON) {
-          return { ok: false, reason: 'mismatch' };
-        }
-      } catch (error) {
-        const rawMessage = error && error.message ? String(error.message) : '';
-        const isDivisionByZero = /division\s+by\s+zero|divide\s+by\s+zero|Infinity/i.test(rawMessage);
-        return { ok: false, reason: isDivisionByZero ? 'division-by-zero' : 'eval-error' };
-      }
-    }
-
-    return { ok: true };
-  };
-  const stripOuterParens = (expr) => {
-    let s = String(expr || '').trim();
-    while (s.startsWith('(') && s.endsWith(')')) {
-      let depth = 0;
-      let wrapsWhole = true;
-      for (let i = 0; i < s.length; i++) {
-        const ch = s[i];
-        if (ch === '(') depth += 1;
-        else if (ch === ')') depth -= 1;
-        if (depth === 0 && i < s.length - 1) {
-          wrapsWhole = false;
-          break;
-        }
-      }
-      if (!wrapsWhole) break;
-      s = s.slice(1, -1).trim();
-    }
-    return s;
-  };
-  const extractTrigArguments = (expr) => {
-    const source = String(expr || '');
-    const args = [];
-    for (let i = 0; i < source.length; i++) {
-      const fn = source.slice(i, i + 4);
-      if (fn !== 'sin(' && fn !== 'cos(' && fn !== 'tan(') continue;
-      let start = i + 4;
-      let depth = 1;
-      let end = start;
-      while (end < source.length && depth > 0) {
-        if (source[end] === '(') depth += 1;
-        else if (source[end] === ')') depth -= 1;
-        end += 1;
-      }
-      if (depth === 0) {
-        args.push(source.slice(start, end - 1).trim());
-        i = end - 1;
-      }
-    }
-    return args;
-  };
-  const deriveHalfAngleCandidate = (expr) => {
-    const text = stripOuterParens(expr);
-    const doubled = text.match(/^2\s*\*\s*(.+)$/);
-    if (doubled && doubled[1]) return stripOuterParens(doubled[1]);
-    return null;
-  };
-  const buildFormulaSides = (formulaId, thetaExpr) => {
-    const t = `(${thetaExpr})`;
-    const sides = {
-      formula_1: [`sin${t}^2 + cos${t}^2`, '1'],
-      formula_2: [`tan${t}`, `(sin${t} / cos${t})`],
-      formula_3: [`1 + tan${t}^2`, `(1 / cos${t}^2)`],
-      formula_4: [`sin(2 * ${t})`, `(2 * sin${t} * cos${t})`],
-      formula_5: [`sin${t}^2`, `((1 - cos(2 * ${t})) / 2)`],
-      formula_6: [`cos${t}^2`, `((1 + cos(2 * ${t})) / 2)`],
-      formula_7: [`tan${t}`, `(sin(2 * ${t}) / (1 + cos(2 * ${t})))`],
-      formula_8: [`tan${t}^2`, `((1 - cos(2 * ${t})) / (1 + cos(2 * ${t})))`],
-    };
-    return sides[formulaId] || null;
-  };
-  const verifyFormulaApplication = (formulaId, beforeExpr, afterExpr) => {
-    const candidateSet = new Set(['x']);
-    const trigArgs = [
-      ...extractTrigArguments(beforeExpr),
-      ...extractTrigArguments(afterExpr),
-    ];
-
-    trigArgs.forEach((arg) => {
-      const cleaned = stripOuterParens(arg);
-      if (cleaned) candidateSet.add(cleaned);
-      const half = deriveHalfAngleCandidate(cleaned);
-      if (half) candidateSet.add(half);
-    });
-
-    for (const thetaExpr of candidateSet) {
-      const sides = buildFormulaSides(formulaId, thetaExpr);
-      if (!sides) continue;
-      const [leftSide, rightSide] = sides;
-
-      const direct = evaluateEquivalence(beforeExpr, leftSide).ok && evaluateEquivalence(afterExpr, rightSide).ok;
-      if (direct) return true;
-
-      const reverse = evaluateEquivalence(beforeExpr, rightSide).ok && evaluateEquivalence(afterExpr, leftSide).ok;
-      if (reverse) return true;
-    }
-
-    return false;
-  };
-  const detectMatchingFormulaIds = (beforeExpr, afterExpr) => {
-    const allFormulaIds = Object.keys(FORMULA_ID_TO_CONCEPT);
-    return allFormulaIds.filter((formulaId) => verifyFormulaApplication(formulaId, beforeExpr, afterExpr));
-  };
-
   if (!Array.isArray(astArray) || astArray.length === 0) {
     return {
       isValid: false,
@@ -1807,6 +1833,9 @@ function validateProof(astArray) {
 }
 
 function setupEventListeners() {
+  if (hasBoundEventListeners) return;
+  hasBoundEventListeners = true;
+
   document.getElementById('btn-overwrite-permission')?.addEventListener('click', () => {
     const currentMode = getProofScaffoldMode();
     const nextMode = currentMode === 'guided' ? 'standard' : 'guided';
