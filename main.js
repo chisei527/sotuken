@@ -1577,12 +1577,64 @@ function parseBlocksToAST(targetWorkspace) {
 
 const VALIDATION_EPSILON = 0.0001;
 const VALIDATION_SAMPLING_POINTS = [0.5, 1.2, 2.3];
+const RESERVED_MATH_SYMBOLS = new Set(['pi', 'e', 'i', 'Infinity', 'NaN']);
+
+function extractVariables(exprString) {
+  const parsed = tryParseMathNode(exprString);
+  if (!parsed) return [];
+
+  const variableSet = new Set();
+
+  parsed.traverse((node, _path, parent) => {
+    if (!node || node.type !== 'SymbolNode' || typeof node.name !== 'string') return;
+
+    // Function names are represented as SymbolNode in FunctionNode.fn, so exclude them.
+    const isFunctionName = !!(parent && parent.type === 'FunctionNode' && parent.fn === node);
+    if (isFunctionName) return;
+
+    if (RESERVED_MATH_SYMBOLS.has(node.name)) return;
+    variableSet.add(node.name);
+  });
+
+  return Array.from(variableSet);
+}
 
 function evaluateEquivalence(leftExpr, rightExpr) {
+  const variables = Array.from(new Set([
+    ...extractVariables(leftExpr),
+    ...extractVariables(rightExpr),
+  ]));
+
+  if (variables.length === 0) {
+    try {
+      const leftValue = math.evaluate(leftExpr);
+      const rightValue = math.evaluate(rightExpr);
+
+      if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+        return { ok: false, reason: 'non-finite' };
+      }
+
+      if (Math.abs(leftValue - rightValue) > VALIDATION_EPSILON) {
+        return { ok: false, reason: 'mismatch' };
+      }
+
+      return { ok: true };
+    } catch (error) {
+      const rawMessage = error && error.message ? String(error.message) : '';
+      const isDivisionByZero = /division\s+by\s+zero|divide\s+by\s+zero|Infinity/i.test(rawMessage);
+      return { ok: false, reason: isDivisionByZero ? 'division-by-zero' : 'eval-error' };
+    }
+  }
+
   for (const xValue of VALIDATION_SAMPLING_POINTS) {
     try {
-      const leftValue = math.evaluate(leftExpr, { x: xValue });
-      const rightValue = math.evaluate(rightExpr, { x: xValue });
+      const scope = {};
+      variables.forEach((varName) => {
+        scope[varName] = xValue;
+      });
+
+      const leftValue = math.evaluate(leftExpr, scope);
+      const rightValue = math.evaluate(rightExpr, scope);
 
       if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
         return { ok: false, reason: 'non-finite' };

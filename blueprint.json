@@ -241,3 +241,60 @@
     }
   }
 }
+{
+  "_system_directive": {
+    "role": "Lead Math-Engine Architect",
+    "rules": [
+      "Wait for the user to specify a Task ID.",
+      "Your objective is to make the math evaluation engine completely agnostic to variable names and robust against constant-only expressions.",
+      "Do not break existing functionality. Ensure fallback mechanisms exist if parsing fails."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Validation works, but relies on hardcoding the variable 'x' and struggles with expressions lacking variables.",
+    "future_state": "A dynamic evaluation engine that automatically detects variables in an AST, injects test points for all of them, and gracefully handles pure constant equations."
+  },
+  "tasks": {
+    "T-Refactor-07": {
+      "name": "Dynamic_Variable_Extraction",
+      "target_file": "main.js",
+      "architectural_intent": "Stop hardcoding `{ x: xValue }` in `evaluateEquivalence`. The engine must dynamically detect any variables used in the expressions (e.g., theta, alpha, y) and assign random test values to ALL of them.",
+      "future_considerations": "This is strictly required before we introduce multi-variable equations (like addition theorems: sin(a+b)).",
+      "logic_requirements": [
+        "1. Create a helper function `extractVariables(exprString)` that uses `math.parse` to find all `SymbolNode`s that are NOT functions (e.g., exclude 'sin', 'cos', 'pi'). Return an array of unique variable names.",
+        "2. Rewrite `evaluateEquivalence(leftExpr, rightExpr)` to extract variables from BOTH expressions.",
+        "3. If variables exist, loop through validation iterations. In each iteration, build a `scope` object where EVERY detected variable is assigned a test value (e.g., `scope[varName] = xValue`).",
+        "4. Pass this dynamic `scope` to `math.evaluate(expr, scope)`."
+      ],
+      "edge_cases": [
+        "Ignore mathematical constants like 'pi', 'e' when extracting variables. Math.js recognizes them, so do not override them in the scope."
+      ]
+    },
+    "T-Refactor-08": {
+      "name": "Constant_Expression_Handling",
+      "target_file": "main.js",
+      "architectural_intent": "Handle formulas that contain specific angles (e.g., pi/6) without throwing errors during scope assignment.",
+      "future_considerations": "Prepares the engine for Phase 3 where exact answers like '1/2' and 'sqrt(3)/2' are introduced.",
+      "logic_requirements": [
+        "1. Inside `evaluateEquivalence`, after `extractVariables`, check if the variable list is empty.",
+        "2. IF empty (pure constant expression), do NOT run the 3-iteration test loop. Simply evaluate `math.evaluate(leftExpr)` and `rightExpr` ONCE without a scope.",
+        "3. Compare the absolute difference against `VALIDATION_EPSILON`."
+      ],
+      "edge_cases": [
+        "Ensure division by zero is still caught gracefully even in constant expressions."
+      ]
+    },
+    "T-Refactor-09": {
+      "name": "Generator_Variable_Agnosticism",
+      "target_file": "main.js",
+      "architectural_intent": "Update Blockly generators to use a generalized variable like 'theta' instead of hardcoding 'x'.",
+      "logic_requirements": [
+        "1. Update the `mathGenerator` functions for `term_sin`, `term_cos`, `term_sin2`, `term_cos2`, `term_tan` to output 'theta' instead of 'x'.",
+        "2. Update `FORMULA_REGISTRY` to output strings using 'theta' instead of 'x' in `getSides`. (e.g., `sin(theta)^2 + cos(theta)^2`)."
+      ],
+      "edge_cases": [
+        "This is a sweeping change. Verify that `formulaTextToId` matching logic does not break because of the variable name change."
+      ]
+    }
+  }
+}
