@@ -20,6 +20,14 @@
         #h button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         #i { background-color: #e3f2fd; padding: 20px; margin: 10px; text-align: center; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         #l { flex-grow: 1; width: 100%; position: relative; }
+        #l .blocklyDiv,
+        #l .blocklySvg,
+        #l .blocklyWorkspace,
+        #l .blocklyHtmlCanvas {
+          width: 100% !important;
+          height: 100% !important;
+        }
+        #l .blocklySvg { background: transparent !important; }
         .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; font-weight: bold; text-align: center; font-size: 1.1em; transition: opacity 0.3s, transform 0.3s; }
         .toast.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
         .blocklyInputRow { padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important; line-height: 1 !important; }
@@ -87,24 +95,322 @@
           100% { transform: scale(1); }
         }
         @keyframes floatUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* PC-only progression map */
+        .screen { width: 100%; height: 100%; }
+        #stage-map-screen {
+          position: relative;
+          background:
+            radial-gradient(circle at 12% 18%, rgba(255,255,255,0.32), transparent 34%),
+            radial-gradient(circle at 84% 80%, rgba(255,255,255,0.22), transparent 36%),
+            linear-gradient(160deg, #0b3f82 0%, #0f64b5 52%, #1988cc 100%);
+          color: #e8f6ff;
+          overflow: hidden;
+          align-items: stretch;
+          justify-content: flex-start;
+        }
+        .map-topbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px 30px;
+          background: rgba(3, 24, 58, 0.35);
+          backdrop-filter: blur(4px);
+          border-bottom: 1px solid rgba(255,255,255,0.18);
+          z-index: 2;
+        }
+        .map-title-wrap h1 { margin: 0; font-size: 1.9rem; letter-spacing: 0.03em; }
+        .map-subtitle { margin: 6px 0 0; color: #c5ebff; font-weight: 700; font-size: 0.95rem; }
+        .map-controls { display: flex; gap: 10px; align-items: center; }
+        .map-control-btn {
+          border: none;
+          background: rgba(255,255,255,0.18);
+          color: #ffffff;
+          padding: 10px 14px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-weight: 700;
+          transition: transform 0.15s ease, background 0.2s ease;
+        }
+        .map-control-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.28); }
+        #map-progress { font-weight: 800; color: #fef08a; }
+
+        .map-canvas {
+          position: relative;
+          flex: 1;
+          overflow: auto;
+          padding: 28px 30px 36px;
+        }
+        #map-links {
+          position: absolute;
+          inset: 0;
+          width: 1600px;
+          height: 1100px;
+          pointer-events: none;
+          z-index: 0;
+        }
+        #map-links line {
+          stroke: rgba(186, 230, 253, 0.5);
+          stroke-width: 6;
+          stroke-linecap: round;
+        }
+        #map-nodes {
+          position: relative;
+          width: 1600px;
+          height: 1100px;
+          z-index: 1;
+        }
+        .map-node {
+          position: absolute;
+          width: 94px;
+          height: 94px;
+          border-radius: 50%;
+          border: 4px solid transparent;
+          font-size: 1.45rem;
+          font-weight: 900;
+          color: #ffffff;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+          transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+          user-select: none;
+        }
+        .map-node:hover { transform: scale(1.1); }
+        .map-node.cleared {
+          background: radial-gradient(circle at 30% 28%, #86efac, #16a34a 68%);
+          border-color: #dcfce7;
+        }
+        .map-node.unlocked {
+          background: radial-gradient(circle at 30% 28%, #fde68a, #f59e0b 72%);
+          border-color: #fef3c7;
+          animation: unlockedPulse 1.7s ease-in-out infinite;
+        }
+        .map-node.locked {
+          background: radial-gradient(circle at 30% 28%, #9ca3af, #4b5563 72%);
+          border-color: #cbd5e1;
+          cursor: not-allowed;
+          filter: saturate(0.3);
+        }
+        .map-node-icon {
+          position: absolute;
+          bottom: -8px;
+          right: -4px;
+          font-size: 1.05rem;
+        }
+        .map-node-label {
+          position: absolute;
+          top: 103px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 130px;
+          text-align: center;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #dbeafe;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+          pointer-events: none;
+        }
+        @keyframes unlockedPulse {
+          0% { box-shadow: 0 0 0 0 rgba(253, 224, 71, 0.4), 0 8px 20px rgba(0,0,0,0.28); }
+          70% { box-shadow: 0 0 0 16px rgba(253, 224, 71, 0), 0 8px 20px rgba(0,0,0,0.28); }
+          100% { box-shadow: 0 0 0 0 rgba(253, 224, 71, 0), 0 8px 20px rgba(0,0,0,0.28); }
+        }
+        .map-world-badge {
+          position: absolute;
+          left: 24px;
+          width: 280px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          background: rgba(2, 22, 52, 0.48);
+          border: 1px solid rgba(191, 219, 254, 0.5);
+          box-shadow: 0 8px 22px rgba(0,0,0,0.22);
+          color: #e0f2fe;
+          pointer-events: none;
+        }
+        .map-world-badge h4 { margin: 0 0 2px; font-size: 1rem; }
+        .map-world-badge p { margin: 0; color: #bfdbfe; font-size: 0.82rem; font-weight: 700; }
+        .map-link-lit {
+          stroke: #fef08a !important;
+          stroke-dasharray: 18 12;
+          animation: pathGlow 1.2s linear infinite;
+          filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.65));
+        }
+        @keyframes pathGlow {
+          0% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: -30; }
+        }
+        #map-node-tooltip {
+          position: absolute;
+          min-width: 260px;
+          max-width: 360px;
+          background: rgba(255, 255, 255, 0.96);
+          color: #0f172a;
+          border-radius: 12px;
+          box-shadow: 0 14px 28px rgba(0,0,0,0.25);
+          padding: 10px 12px;
+          pointer-events: none;
+          opacity: 0;
+          transform: translateY(8px);
+          transition: opacity 0.2s ease, transform 0.2s ease;
+          z-index: 2;
+          border: 1px solid #bfdbfe;
+        }
+        #map-node-tooltip.visible { opacity: 1; transform: translateY(0); }
+        #map-node-tooltip strong { color: #1d4ed8; }
+
+        /* Game entrance */
+        #game-entrance {
+          position: fixed;
+          inset: 0;
+          z-index: 2400;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background:
+            radial-gradient(circle at 8% 14%, rgba(255,255,255,0.4), transparent 28%),
+            radial-gradient(circle at 78% 82%, rgba(255,255,255,0.22), transparent 30%),
+            linear-gradient(132deg, #082f49 0%, #0c4a6e 36%, #0369a1 100%);
+          color: white;
+        }
+        #game-entrance.hidden { display: none; }
+        .entrance-card {
+          width: 920px;
+          border-radius: 24px;
+          padding: 34px;
+          background: rgba(2, 17, 39, 0.62);
+          border: 1px solid rgba(191, 219, 254, 0.35);
+          box-shadow: 0 28px 60px rgba(0,0,0,0.45);
+        }
+        .entrance-eyebrow {
+          color: #bae6fd;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          margin: 0 0 10px;
+          font-size: 0.82rem;
+        }
+        .entrance-title {
+          margin: 0;
+          font-size: 3rem;
+          line-height: 1.08;
+          text-shadow: 0 3px 14px rgba(0,0,0,0.35);
+        }
+        .entrance-subtitle {
+          margin: 12px 0 24px;
+          color: #e0f2fe;
+          font-size: 1.02rem;
+          font-weight: 700;
+        }
+        .entrance-choice-row { display: flex; gap: 16px; }
+        .entrance-choice {
+          flex: 1;
+          border: none;
+          border-radius: 18px;
+          padding: 22px;
+          cursor: pointer;
+          text-align: left;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+          box-shadow: 0 12px 26px rgba(0,0,0,0.24);
+        }
+        .entrance-choice:hover { transform: translateY(-2px) scale(1.01); filter: brightness(1.06); }
+        .entrance-choice h3 { margin: 0 0 8px; font-size: 1.2rem; }
+        .entrance-choice p { margin: 0; font-weight: 700; opacity: 0.92; line-height: 1.45; }
+        #btn-entry-tutorial { background: linear-gradient(145deg, #2563eb, #1d4ed8); color: white; }
+        #btn-entry-map { background: linear-gradient(145deg, #f59e0b, #d97706); color: #111827; }
+
+        /* Interactive tutorial overlay */
+        #tutorial-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 3500;
+          pointer-events: none;
+        }
+        #tutorial-overlay.hidden { display: none; }
+        #tutorial-overlay::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: rgba(2, 6, 23, 0.6);
+          pointer-events: none;
+        }
+        .tutorial-panel {
+          position: absolute;
+          right: 24px;
+          top: 198px;
+          width: 410px;
+          background: rgba(255,255,255,0.98);
+          border-radius: 16px;
+          box-shadow: 0 18px 45px rgba(0,0,0,0.3);
+          border: 1px solid #bfdbfe;
+          padding: 18px;
+          pointer-events: auto;
+          z-index: 1;
+        }
+        .tutorial-panel h3 { margin: 0 0 8px; color: #1d4ed8; }
+        .tutorial-progress {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        #tutorial-step-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: linear-gradient(145deg, #dbeafe, #bfdbfe);
+          color: #1d4ed8;
+          font-size: 0.8rem;
+          font-weight: 900;
+          letter-spacing: 0.04em;
+        }
+        #tutorial-step-hint {
+          color: #64748b;
+          font-size: 0.8rem;
+          font-weight: 800;
+        }
+        #tutorial-step-text { margin: 0; color: #1f2937; line-height: 1.62; font-weight: 700; min-height: 92px; }
+        .tutorial-actions { margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end; }
+        .tutorial-btn {
+          border: none;
+          border-radius: 10px;
+          padding: 10px 14px;
+          cursor: pointer;
+          font-weight: 800;
+          pointer-events: auto;
+        }
+        #btn-tutorial-next { background: #2563eb; color: #fff; }
+        #btn-tutorial-skip { background: #e5e7eb; color: #374151; }
+        .tutorial-focus-target {
+          position: relative;
+          z-index: 3600;
+          outline: 4px solid #facc15 !important;
+          outline-offset: 4px;
+          border-radius: 10px;
+          box-shadow: 0 0 0 10px rgba(250, 204, 21, 0.2);
+        }
     </style>
 </head>
 <body>
       <div id="transition-curtain" class="curtain hidden"></div>
-    <div id="start-screen" class="overlay-screen">
-      <div class="start-content">
-        <h1 class="app-title">MathBlock</h1>
-        <p class="app-subtitle">ブロックを繋いで、証明をハックしよう。</p>
-        <button id="btn-start-app" class="action-btn btn-primary" style="font-size:1.5rem; padding:15px 50px;">START</button>
-      </div>
-    </div>
-    <div id="tutorial-modal" class="overlay-screen hidden">
-      <div class="tutorial-card">
-        <h2>遊び方</h2>
-        <div class="step"><span class="step-num">1</span><p>左から<b>ブロックを引き出す</b></p></div>
-        <div class="step"><span class="step-num">2</span><p>数式と公式を繋いで<b>式を変形する</b></p></div>
-        <div class="step"><span class="step-num">3</span><p>下のボタンで<b>証明を判定する</b></p></div>
-        <button id="btn-close-tutorial" class="action-btn btn-primary" style="margin-top: 20px;">理解した</button>
+    <div id="game-entrance" class="hidden">
+      <div class="entrance-card">
+        <p class="entrance-eyebrow">MATH ADVENTURE GATE</p>
+        <h1 class="entrance-title">証明の旅を、<br>ここから選ぶ。</h1>
+        <p class="entrance-subtitle">チュートリアルで基礎を固めるか、今すぐステージマップへ飛び込むかを選択できます。</p>
+        <div class="entrance-choice-row">
+          <button id="btn-entry-tutorial" class="entrance-choice" type="button">
+            <h3>チュートリアルを始める</h3>
+            <p>Step A〜D の詳細ガイド付きで、公式の使い分けを丁寧に体験します。</p>
+          </button>
+          <button id="btn-entry-map" class="entrance-choice" type="button">
+            <h3>冒険に出る</h3>
+            <p>チュートリアルを完了扱いにして、ワールドマップから自由に挑戦を開始します。</p>
+          </button>
+        </div>
       </div>
     </div>
     <div id="skip-challenge-modal" class="overlay-screen hidden">
@@ -116,6 +422,26 @@
           <button id="btn-skip-challenge-cancel" class="action-btn btn-secondary">通常で進む</button>
           <button id="btn-skip-challenge-accept" class="action-btn btn-primary">スキップに挑戦</button>
         </div>
+      </div>
+    </div>
+
+    <div id="stage-map-screen" class="screen hidden a">
+      <div class="map-topbar">
+        <div class="map-title-wrap">
+          <h1>MathBlock Progression Map</h1>
+          <p class="map-subtitle">PC専用ステージマップ: ノードを選んで証明チャレンジへ</p>
+        </div>
+        <div class="map-controls">
+          <span id="map-progress">0 / 43 CLEAR</span>
+          <button class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
+          <button class="map-control-btn" onclick="resetSaveData()">セーブデータリセット</button>
+        </div>
+      </div>
+      <div class="map-canvas">
+        <svg id="map-links" viewBox="0 0 1600 1100" preserveAspectRatio="none"></svg>
+        <div id="map-worlds"></div>
+        <div id="map-nodes"></div>
+        <div id="map-node-tooltip"></div>
       </div>
     </div>
 
@@ -148,7 +474,23 @@
           <button id="btn-next" class="action-btn btn-primary">次へ進む</button>
         </div>
     </div>
+
+    <div id="tutorial-overlay" class="hidden">
+      <div class="tutorial-panel">
+        <h3>Tutorial Stage 0</h3>
+        <div class="tutorial-progress">
+          <span id="tutorial-step-pill">Step A</span>
+          <span id="tutorial-step-hint">1 / 4</span>
+        </div>
+        <p id="tutorial-step-text">ようこそ。最初の操作を始めましょう。</p>
+        <div class="tutorial-actions">
+          <button id="btn-tutorial-skip" class="tutorial-btn">Skip</button>
+          <button id="btn-tutorial-next" class="tutorial-btn">Next</button>
+        </div>
+      </div>
+    </div>
     
+    <script src="math-logic.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

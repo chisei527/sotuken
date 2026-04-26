@@ -357,3 +357,189 @@
     }
   }
 }
+
+{
+  "_system_directive": {
+    "role": "Software Architect & Refactoring Specialist",
+    "rules": [
+      "Wait for Task ID specification.",
+      "Focus on 'Separation of Concerns'. Move logic to separate files and use ES Modules if possible, or simple global scripts.",
+      "Clean up all debug 'txt' and redundant comments that clutter the code.",
+      "Ensure the app still functions perfectly after moving files."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Monolithic main.js containing logic, UI, and data, leading to poor readability.",
+    "future_state": "A clean, modular directory structure where problem data is externalized and logic is isolated."
+  },
+  "tasks": {
+    "T-Clean-01": {
+      "name": "Externalize_Problem_Data",
+      "target_file": ["main.js", "problems.json"],
+      "architectural_intent": "Stop hardcoding problem sets in JavaScript. Move all stage data to an external JSON file to prepare for 150-question expansion.",
+      "logic_requirements": [
+        "1. Create a new file `problems.json`. Move all current stage data (STAGE_DATA) from `main.js` into this file.",
+        "2. Refactor `loadStage` to use `fetch('problems.json')` to retrieve stage information.",
+        "3. Implement a simple caching mechanism so the JSON is only fetched once on app boot.",
+        "4. Remove the massive array declarations from `main.js`."
+      ]
+    },
+    "T-Clean-02": {
+      "name": "Isolate_Math_Engine",
+      "target_file": ["main.js", "math-logic.js"],
+      "architectural_intent": "Move pure mathematical functions to a dedicated file to reduce main.js size.",
+      "logic_requirements": [
+        "1. Create `math-logic.js`.",
+        "2. Move `parseBlocksToAST`, `validateProof`, `evaluateEquivalence`, and `extractVariables` to this new file.",
+        "3. Also move `FORMULA_REGISTRY` and related lookup functions.",
+        "4. Ensure `index.html` loads `math-logic.js` BEFORE `main.js` so the functions are available globally."
+      ]
+    },
+    "T-Clean-03": {
+      "name": "Standardize_Logging_and_Comments",
+      "target_file": ["main.js", "index.html"],
+      "architectural_intent": "Remove all 'junk' text, experimental console logs, and inconsistent comments added during development.",
+      "logic_requirements": [
+        "1. Scan for `console.log` statements used for debugging and remove them or wrap them in a `DEBUG` flag.",
+        "2. Reformat JSDoc comments for all major functions for better hover-tooltips in the IDE.",
+        "3. Ensure `index.html` CSS and HTML parts are indented correctly and free of unused test-elements."
+      ]
+    }
+  }
+}
+{
+  "_system_directive": {
+    "role": "Lead Desktop UI/UX Engineer",
+    "rules": [
+      "Wait for Task ID specification.",
+      "This repository is strictly for DESKTOP/PC environments. Do not write complex mobile media queries. Take advantage of large screen real estate.",
+      "Focus on visual gamification and intuitive onboarding.",
+      "Keep logic modular. Add UI components gracefully without breaking the core math-logic."
+    ]
+  },
+  "project_vision": {
+    "current_state": "A perfectly decoupled math engine with a barebones dropdown stage selector and no onboarding.",
+    "future_state": "A rich, desktop-optimized educational game featuring a visual 'Mario-style' progression map and a guided interactive tutorial."
+  },
+  "tasks": {
+    "T-PCUI-01": {
+      "name": "Desktop_Progression_Map",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "Replace the generic dropdown selector with an immersive, visual node-based progression map optimized for a wide desktop screen.",
+      "logic_requirements": [
+        "1. HTML: Create a full-screen overlay `<div id='stage-map-screen' class='screen hidden'>`.",
+        "2. CSS: Design a grid or flex layout where stages are represented as circular nodes connected by lines. Utilize hover effects (`:hover { transform: scale(1.1); }`) since this is PC-only.",
+        "3. JS: Create `renderStageMap()`. It should iterate over `STAGE_DATA` (from problems.json) and generate the HTML nodes.",
+        "4. UI States: Apply distinct CSS classes based on `clearedStages`: 'cleared' (green, checkmark), 'unlocked' (yellow, pulsating shadow), and 'locked' (gray, unclickable).",
+        "5. Flow: The app should boot into this Map Screen instead of immediately loading Stage 1 (unless the user hasn't seen the tutorial). Clicking an 'unlocked' or 'cleared' node calls `loadStage(id)` and switches to the puzzle screen."
+      ],
+      "edge_cases": [
+        "Ensure the 'Unlock All' button still functions and immediately re-renders the map to show all nodes as unlocked."
+      ]
+    },
+    "T-PCUI-02": {
+      "name": "Interactive_Tutorial_Stage",
+      "target_file": ["index.html", "main.js", "problems.json"],
+      "architectural_intent": "Provide a friction-free onboarding experience. Instead of just reading text, the user must physically drag a block to learn the UI.",
+      "logic_requirements": [
+        "1. JSON: Add a 'Stage 0' to `problems.json`. It should be extremely simple (e.g., `1 + 1 = 2` or `sin(theta)/cos(theta) = tan(theta)`).",
+        "2. HTML: Add an overlay container `<div id='tutorial-overlay' class='hidden'>` designed to show tooltips pointing to specific UI elements.",
+        "3. JS: Check `localStorage.getItem('tutorial_seen')`. If not seen, automatically load 'Stage 0' and show the `tutorial-overlay`.",
+        "4. Flow: Display a sequence of text boxes (e.g., Step 1: 'Welcome! Drag the tan(θ) block from the left.', Step 2: 'Snap it into the green proof block.', Step 3: 'Click the Submit button!').",
+        "5. JS: Once Stage 0 is successfully validated, set `tutorial_seen` to true, congratulate the user, and route them to the Progression Map (`renderStageMap`)."
+      ],
+      "edge_cases": [
+        "Allow users to manually skip the tutorial via a 'Skip' button, which immediately sets the localStorage flag and sends them to the Map."
+      ]
+    }
+  }
+}
+{
+  "_system_directive": {
+    "role": "Lead Game Designer & Frontend Architect",
+    "rules": [
+      "Wait for Task ID specification.",
+      "Design for PC/Desktop users. Use rich animations and hover states.",
+      "The Tutorial must be 'unskippable' if triggered, providing step-by-step UI highlights.",
+      "The Stage Map must feel like a world map with a clear progression path."
+    ]
+  },
+  "project_vision": {
+    "current_state": "Functional engine, basic UI, no immersive onboarding.",
+    "future_state": "A high-polish educational game starting with a clear choice, leading to either a deep-dive tutorial or a visual adventure map."
+  },
+  "tasks": {
+    "T-UI-01": {
+      "name": "Game_Entry_Gate",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "Create a landing experience that lets users decide their starting point.",
+      "logic_requirements": [
+        "1. HTML: Create a '#game-entrance' screen with high-impact titles and two large buttons: [チュートリアルを始める] (Start Tutorial) and [冒険に出る] (Go to Map).",
+        "2. JS: Logic to show this screen on first boot (if localStorage `tutorial_seen` is null).",
+        "3. JS: 'Start Tutorial' calls `loadStage(0)` and enables 'Tutorial Mode'. 'Go to Map' marks tutorial as seen and calls `renderStageMap()`."
+      ]
+    },
+    "T-UI-02": {
+      "name": "Immersive_Progression_Map",
+      "target_file": ["index.html", "main.js"],
+      "architectural_intent": "A visual path representing the learning journey, grouped by difficulty themes.",
+      "logic_requirements": [
+        "1. HTML/CSS: Implement a vertically or horizontally scrolling map using SVG paths to connect nodes.",
+        "2. UI Themes: Group stages into 'Worlds' (e.g., Stages 1-10: '相互関係の平原'). Add visual markers for these world boundaries.",
+        "3. Node Styling: Nodes should have a hover effect showing a preview or tooltip of the problem. Locked nodes should be dimmed with a lock icon.",
+        "4. Animation: When a stage is cleared, the path to the next node should 'draw' or light up visually."
+      ]
+    },
+    "T-UI-03": {
+      "name": "Deep_Dive_Tutorial_Stage_0",
+      "target_file": ["main.js", "problems.json"],
+      "architectural_intent": "A multi-step guided experience covering the three core formulas with detailed educational tooltips.",
+      "logic_requirements": [
+        "1. JSON: Configure 'Stage 0' with a complex target that requires all 3 formulas (e.g., transforming sin^2+cos^2 to tan, then to 1/cos^2).",
+        "2. Logic: Implement a 'Guidance Overlay' that darkens the screen and highlights the exact block the user needs to drag.",
+        "3. Interaction Steps: \n   - Step A: Drag 'tan' and apply Formula ② (tan = sin/cos). Show tooltip: 'tanはsinとcosに分解するのが基本の戦略です。'\n   - Step B: Use 'Common Denominator' block. Tooltip: '分数が複数あるときは通分して一つにまとめましょう。'\n   - Step C: Drag 'sin^2 + cos^2' and apply Formula ① (=1). Tooltip: 'この形を見つけたらラッキー！一気に式を簡略化できます。'\n   - Step D: Use Formula ③ (1+tan^2 = 1/cos^2) if applicable. Tooltip: '二乗の形は公式③への近道です。'",
+        "4. Completion: On solving, play an enhanced celebration effect and transition to the Stage Map."
+      ]
+    }
+  }
+}{
+  "_meta": {
+    "role": "Game System Architect",
+    "focus": "Visual Progression & Interactive Onboarding",
+    "platform": "Desktop Only"
+  },
+  "tasks": {
+    "T-UI-01": {
+      "name": "Entrance_Portal_Refinement",
+      "target": ["index.html", "main.js"],
+      "architectural_intent": "Implement a high-polish landing screen that forces a meaningful choice between learning (Tutorial) or playing (Map).",
+      "logic_requirements": [
+        "1. In `index.html`, refine `#start-screen` to have two distinct, large interactive cards: '修行を積む (Tutorial)' and '冒険に出る (Start Adventure)'.",
+        "2. Implement `showEntrance()` function to handle visibility. If `tutorial_seen` is false, this is the default screen.",
+        "3. Button Actions: 'Tutorial' triggers `startTutorialSequence()`. 'Adventure' sets `tutorial_seen: true` and calls `renderStageMap()`."
+      ]
+    },
+    "T-UI-02": {
+      "name": "World_Map_Path_System",
+      "target": ["index.html", "main.js"],
+      "architectural_intent": "Create a zig-zag progression path using SVG or CSS Flex/Grid that feels like a journey through 'Worlds'.",
+      "logic_requirements": [
+        "1. Refactor `renderStageMap()` to group stages into 'Worlds' (World 1: Stages 1-10, World 2: 11-20, etc.).",
+        "2. Add World Title Headers (e.g., 'World 1: 平原の相互関係') between stage groups.",
+        "3. Draw a 'Path' (dotted lines) connecting each node. Use CSS `:after` pseudoelements or a background SVG pattern to create the road effect.",
+        "4. Implement a 'Smooth Scroll' that focuses on the highest unlocked stage node upon entering the map."
+      ]
+    },
+    "T-UI-03": {
+      "name": "Guided_Tutorial_System",
+      "target": ["main.js", "index.html"],
+      "architectural_intent": "A state-driven tutorial that overlays the puzzle screen, preventing incorrect moves and guiding the user through the 3 core formulas.",
+      "logic_requirements": [
+        "1. Define `TUTORIAL_FLOW` in `main.js`: a sequence of steps including target block IDs and explanation text for Formulas 1, 2, and 3.",
+        "2. Implement `highlightTarget(blockId)`: Darken the workspace using a CSS overlay/mask, except for the specific block or slot the user needs to interact with.",
+        "3. Step Logic:\n   - Step 1: Force use of Formula ② (tan -> sin/cos). Explain: 'まずは基本の分解です。'\n   - Step 2: Force use of Formula ① (sin^2+cos^2 -> 1). Explain: '式を1にする快感を覚えましょう。'\n   - Step 3: Force use of Formula ③ (1+tan^2 -> 1/cos^2). Explain: '二乗の形はショートカットのサインです。'",
+        "4. Block standard 'Submit' button during tutorial until the final step is reached."
+      ]
+    }
+  }
+}
