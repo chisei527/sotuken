@@ -1,545 +1,604 @@
-{
-  "_system_directive": {
-    "role": "Lead Programmer (Implementation Expert)",
-    "rules": [
-      "Wait for the user to specify a Task ID (e.g., T-01). Do not execute multiple tasks at once.",
-      "Read the 'architectural_intent' and 'future_considerations' carefully before writing code. Design your functions to support these future needs.",
-      "You are responsible for writing elegant, idiomatic JavaScript. You decide the syntax, but you must satisfy all 'logic_requirements'.",
-      "Ensure robust error handling based on the provided 'edge_cases'."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Web-based MVP using Blockly and math.js.",
-    "future_state": "A comprehensive app exportable to Unity (C#) with advanced gamification, real-time error highlighting, and cross-platform cloud saves."
-  },
-  "tasks": {
-    "T-01": {
-      "name": "AST_Parser_Implementation",
-      "target_file": "main.js",
-      "architectural_intent": "Decouple the visual blocks (DOM) from the logical math evaluation. We need a pure data structure representing the proof steps.",
-      "future_considerations": "This AST will eventually be serialized to JSON and sent to Unity via WebGL messaging. It must contain pure strings and step indices, NO circular references or DOM elements.",
-      "logic_requirements": [
-        "Create `parseBlocksToAST(workspace)`.",
-        "Traverse `proof_step` -> `OPERATIONS`.",
-        "Extract step data using `mathGenerator`. Structure: `{ step: Number, type: String, before: String, formula: String|null, after: String|null }`.",
-        "Log the output in the `btn-submit` listener for the user to verify."
-      ],
-      "edge_cases": [
-        "Handle cases where a block is attached but its internal inputs (VALUE/REPLACEMENT) are empty (return empty strings or null safely).",
-        "Handle cases where no `proof_step` exists on the workspace."
-      ]
+﻿[
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Programmer (Implementation Expert)",
+                                  "rules":  [
+                                                "Wait for the user to specify a Task ID (e.g., T-01). Do not execute multiple tasks at once.",
+                                                "Read the \u0027architectural_intent\u0027 and \u0027future_considerations\u0027 carefully before writing code. Design your functions to support these future needs.",
+                                                "You are responsible for writing elegant, idiomatic JavaScript. You decide the syntax, but you must satisfy all \u0027logic_requirements\u0027.",
+                                                "Ensure robust error handling based on the provided \u0027edge_cases\u0027."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Web-based MVP using Blockly and math.js.",
+                               "future_state":  "A comprehensive app exportable to Unity (C#) with advanced gamification, real-time error highlighting, and cross-platform cloud saves."
+                           },
+        "tasks":  {
+                      "T-01":  {
+                                   "name":  "AST_Parser_Implementation",
+                                   "target_file":  "main.js",
+                                   "architectural_intent":  "Decouple the visual blocks (DOM) from the logical math evaluation. We need a pure data structure representing the proof steps.",
+                                   "future_considerations":  "This AST will eventually be serialized to JSON and sent to Unity via WebGL messaging. It must contain pure strings and step indices, NO circular references or DOM elements.",
+                                   "logic_requirements":  [
+                                                              "Create `parseBlocksToAST(workspace)`.",
+                                                              "Traverse `proof_step` -\u003e `OPERATIONS`.",
+                                                              "Extract step data using `mathGenerator`. Structure: `{ step: Number, type: String, before: String, formula: String|null, after: String|null }`.",
+                                                              "Log the output in the `btn-submit` listener for the user to verify."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "Handle cases where a block is attached but its internal inputs (VALUE/REPLACEMENT) are empty (return empty strings or null safely).",
+                                                      "Handle cases where no `proof_step` exists on the workspace."
+                                                  ]
+                               },
+                      "T-02":  {
+                                   "name":  "Validator_Decoupling",
+                                   "target_file":  "main.js",
+                                   "architectural_intent":  "Move all math validation out of UI event listeners into a pure, testable function.",
+                                   "future_considerations":  "In the future, this validator will not just return true/false, but will identify *which specific step* failed, enabling a \u0027Red Highlight\u0027 feature for incorrect blocks.",
+                                   "logic_requirements":  [
+                                                              "Create `validateProof(astArray)` returning `{ isValid: boolean, errorStepIndex: Number | null, message: String }`.",
+                                                              "Iterate the AST. Use `math.evaluate` with test points (e.g., x = 0.5, 1.2, 2.3) to verify `before` equals `after`.",
+                                                              "Verify the final step is a conclusion.",
+                                                              "Refactor `btn-submit` to rely entirely on this function."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "User divides by zero in their math logic (catch evaluation errors and return a clean failure message).",
+                                                      "Math.js rounding errors (use an epsilon/tolerance like 0.0001 for floating-point comparisons)."
+                                                  ]
+                               },
+                      "T-03":  {
+                                   "name":  "Streak_System",
+                                   "target_file":  [
+                                                       "main.js",
+                                                       "index.html"
+                                                   ],
+                                   "architectural_intent":  "Introduce basic session-based gamification to increase retention.",
+                                   "future_considerations":  "This `currentStreak` variable will later be tied to an XP multiplier and a global user level system stored in Firebase.",
+                                   "logic_requirements":  [
+                                                              "Add global state `currentStreak = 0`.",
+                                                              "Increment on correct proof, reset to 0 on incorrect proof or \u0027Reset\u0027 button click.",
+                                                              "Add UI in the header (`#streak-counter`) to display `streak_count`.",
+                                                              "Trigger a brief CSS animation (e.g., a scale bounce) when the streak increases."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "Ensure the streak does not increment if the user spam-clicks the submit button on an already solved puzzle."
+                                                  ]
+                               },
+                      "T-04":  {
+                                   "name":  "Step_Up_Skip_Challenge",
+                                   "target_file":  [
+                                                       "main.js",
+                                                       "index.html"
+                                                   ],
+                                   "architectural_intent":  "Reward high-performing users by letting them bypass tedious basic questions.",
+                                   "future_considerations":  "Needs to gracefully update the `clearedStages` array so the future UI \u0027Stage Map\u0027 displays the skipped levels as completed.",
+                                   "logic_requirements":  [
+                                                              "If `isValid` is true AND `currentStreak === 5`, intercept the normal \u0027Next\u0027 flow.",
+                                                              "Show a custom HTML modal offering a \u0027Skip Challenge\u0027.",
+                                                              "If accepted, load `currentStageNumber + 3`. If solved, mark all bypassed stages as cleared in `localStorage`."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "Prevent skipping past the maximum available stage (e.g., if max is 33 and current is 31, do not jump to 34)."
+                                                  ]
+                               },
+                      "T-05":  {
+                                   "name":  "Radian_and_Special_Angles",
+                                   "target_file":  "main.js",
+                                   "architectural_intent":  "Expand the problem domain from generic `theta` to specific, calculable radian angles.",
+                                   "future_considerations":  "Future exact-match validation will require treating `pi` as a symbol in math.js, not just a floating-point number. Generator output must reflect this.",
+                                   "logic_requirements":  [
+                                                              "Define new Blockly terms: `term_pi`, `term_pi_half`, `term_sqrt3_half`.",
+                                                              "Add them to `toolboxConfig`.",
+                                                              "Map `mathGenerator` to output math.js strings: \u0027pi\u0027, \u0027(pi/2)\u0027, \u0027(sqrt(3)/2)\u0027."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "Ensure the visual rendering in the block (MathJax or Unicode) correctly displays `pi` and fractions without breaking the block height."
+                                                  ]
+                               },
+                      "T-06":  {
+                                   "name":  "Interactive_Unit_Circle",
+                                   "target_file":  [
+                                                       "index.html",
+                                                       "main.js"
+                                                   ],
+                                   "architectural_intent":  "Provide a visual mental model tool for users struggling with abstract math.",
+                                   "future_considerations":  "This function must be modular. In the future, tapping a specific `term_pi` block might automatically open this visualizer preset to that angle.",
+                                   "logic_requirements":  [
+                                                              "Create a modal with a `\u003ccanvas id=\u0027unit-circle\u0027\u003e` and `\u003cinput type=\u0027range\u0027\u003e` (0-360 deg).",
+                                                              "Implement `drawUnitCircle(angle)`. Draw the circle, radius, sin (vertical), cos (horizontal), and tan.",
+                                                              "Bind the range input to update the canvas in real-time."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "Handle the visual representation when angle is exactly 90 or 270 degrees (tangent approaches infinity, prevent drawing lines off-screen)."
+                                                  ]
+                               },
+                      "T-07":  {
+                                   "name":  "Firebase_Persistence",
+                                   "target_file":  [
+                                                       "index.html",
+                                                       "main.js"
+                                                   ],
+                                   "architectural_intent":  "Move data from local storage to the cloud, preparing for cross-device play and native app release.",
+                                   "future_considerations":  "The data schema should be extensible. Currently it\u0027s just `clearedStages`, but prepare it to eventually store `totalXP` and `userSettings`.",
+                                   "logic_requirements":  [
+                                                              "Import Firebase v9 SDK via CDN.",
+                                                              "Implement Anonymous Auth. On auth success, load data from Firestore `users/{uid}`.",
+                                                              "Create `syncProgressToCloud()` to write the `clearedStages` array.",
+                                                              "Refactor the app boot sequence to wait for Firebase init before rendering stages."
+                                                          ],
+                                   "edge_cases":  [
+                                                      "User opens the app without internet connection: Fallback gracefully to read/write `localStorage` and sync later."
+                                                  ]
+                               }
+                  },
+        "blueprint_id":  "bp-1"
     },
-    "T-02": {
-      "name": "Validator_Decoupling",
-      "target_file": "main.js",
-      "architectural_intent": "Move all math validation out of UI event listeners into a pure, testable function.",
-      "future_considerations": "In the future, this validator will not just return true/false, but will identify *which specific step* failed, enabling a 'Red Highlight' feature for incorrect blocks.",
-      "logic_requirements": [
-        "Create `validateProof(astArray)` returning `{ isValid: boolean, errorStepIndex: Number | null, message: String }`.",
-        "Iterate the AST. Use `math.evaluate` with test points (e.g., x = 0.5, 1.2, 2.3) to verify `before` equals `after`.",
-        "Verify the final step is a conclusion.",
-        "Refactor `btn-submit` to rely entirely on this function."
-      ],
-      "edge_cases": [
-        "User divides by zero in their math logic (catch evaluation errors and return a clean failure message).",
-        "Math.js rounding errors (use an epsilon/tolerance like 0.0001 for floating-point comparisons)."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Architect \u0026 Refactoring Expert",
+                                  "rules":  [
+                                                "Wait for the user to specify a Task ID (e.g., T-Refactor-01).",
+                                                "Your primary goal in this phase is NOT to add new features, but to reduce Technical Debt, eliminate code duplication, and modularize giant functions.",
+                                                "Ensure that mathematical equivalency relies on \u0027math.evaluate\u0027 rather than brittle string manipulation whenever possible.",
+                                                "Never break existing functionality. Run mental checks on edge cases before modifying the code."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Functional but monolithic validation logic with scattered data dictionaries.",
+                               "future_state":  "A clean, modular architecture where adding a new trigonometric formula requires modifying exactly ONE configuration object."
+                           },
+        "tasks":  {
+                      "T-Refactor-01":  {
+                                            "name":  "Centralize_Formula_Registry",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Eliminate the scattered dictionaries (FORMULA_TEXT_TO_ID, FORMULA_ID_LABEL, FORMULA_ID_TO_CONCEPT, buildFormulaSides) and consolidate them into a Single Source of Truth.",
+                                            "future_considerations":  "When we add Inverse Trigonometric functions later, we only want to update this one registry.",
+                                            "logic_requirements":  [
+                                                                       "1. Create a single `const FORMULA_REGISTRY = { formula_1: { id: \u0027formula_1\u0027, text: \u0027sin(x)^2+cos(x)^2=1\u0027, label: \u0027蜈ｬ蠑鞘蔵\u0027, concept: \u0027pythagorean_identity\u0027, getSides: (t) =\u003e [\u0027sin(\u0027+t+\u0027)^2 + cos(\u0027+t+\u0027)^2\u0027, \u00271\u0027] }, ... }` encompassing all 8 formulas.",
+                                                                       "2. Replace all usages of `FORMULA_TEXT_TO_ID`, `FORMULA_ID_LABEL`, and `FORMULA_ID_TO_CONCEPT` with lookups from `FORMULA_REGISTRY`.",
+                                                                       "3. Ensure the app still boots and runs correctly after this data structure swap."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "The `formulaTextToId` function normalizes strings. Ensure the `text` property in the registry matches the normalized format."
+                                                           ]
+                                        },
+                      "T-Refactor-02":  {
+                                            "name":  "Deconstruct_Monolithic_Validator",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Break down the 150+ line `validateProof` function into small, testable, pure functions at the file scope.",
+                                            "future_considerations":  "Smaller functions allow us to write unit tests for the mathematical logic independently of the AST parsing.",
+                                            "logic_requirements":  [
+                                                                       "1. Move `evaluateEquivalence` out of `validateProof` to the global/file scope.",
+                                                                       "2. Move `stripOuterParens`, `extractTrigArguments`, `deriveHalfAngleCandidate`, and `verifyFormulaApplication` to the global/file scope.",
+                                                                       "3. Update `verifyFormulaApplication` to use `FORMULA_REGISTRY[formulaId].getSides(thetaExpr)` instead of the old `buildFormulaSides`.",
+                                                                       "4. Clean up `validateProof` so it is only responsible for iterating the AST and coordinating these newly extracted helper functions."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "Variable scoping: Ensure none of the extracted functions rely on variables that were previously trapped inside `validateProof`\u0027s closure."
+                                                           ]
+                                        },
+                      "T-Refactor-03":  {
+                                            "name":  "UI_State_Cleanup",
+                                            "target_file":  [
+                                                                "index.html",
+                                                                "main.js"
+                                                            ],
+                                            "architectural_intent":  "Clean up duplicate UI elements and optimize DOM updates.",
+                                            "future_considerations":  "Prevents memory leaks and erratic UI behavior when toggling modes.",
+                                            "logic_requirements":  [
+                                                                       "1. HTML: Remove the duplicate `\u003cbutton id=\u0027btn-overwrite-permission-menu\u0027\u003e` from the `#c` (Stage Selection) area if it exists, keeping only the one in `#h` (Header).",
+                                                                       "2. JS: Refactor `updateStreakCounter(shouldAnimate)` to use `requestAnimationFrame` instead of `void streakCounter.offsetWidth` to trigger the CSS animation cleanly.",
+                                                                       "3. JS: Ensure `setupEventListeners` does not bind the same events multiple times if called twice (e.g., use optional chaining `?.onclick = ` instead of `.addEventListener` for single-action buttons, or ensure it\u0027s only called once on boot)."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "If a user clicks a button very fast while an animation is playing, the animation should restart smoothly."
+                                                           ]
+                                        }
+                  },
+        "blueprint_id":  "bp-2"
     },
-    "T-03": {
-      "name": "Streak_System",
-      "target_file": ["main.js", "index.html"],
-      "architectural_intent": "Introduce basic session-based gamification to increase retention.",
-      "future_considerations": "This `currentStreak` variable will later be tied to an XP multiplier and a global user level system stored in Firebase.",
-      "logic_requirements": [
-        "Add global state `currentStreak = 0`.",
-        "Increment on correct proof, reset to 0 on incorrect proof or 'Reset' button click.",
-        "Add UI in the header (`#streak-counter`) to display '🔥 [streak_count]'.",
-        "Trigger a brief CSS animation (e.g., a scale bounce) when the streak increases."
-      ],
-      "edge_cases": [
-        "Ensure the streak does not increment if the user spam-clicks the submit button on an already solved puzzle."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Architect \u0026 Refactoring Expert",
+                                  "rules":  [
+                                                "Wait for the user to specify a Task ID.",
+                                                "Your goal is to eradicate brittle string manipulation and decouple business logic from presentation.",
+                                                "Never break existing functionality. When replacing manual string parsing with math.js AST parsing, ensure backward compatibility with existing problem JSONs.",
+                                                "Propose targeted, clean modifications rather than rewriting the entire file at once."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Functional validation, but relies on brittle manual string parsing and tightly coupled UI error messages.",
+                               "future_state":  "A bulletproof mathematical engine that uses math.js AST (`math.parse`) for analyzing equations, and returns pure Error Codes instead of UI strings."
+                           },
+        "tasks":  {
+                      "T-Refactor-04":  {
+                                            "name":  "Eradicate_Manual_String_Parsing",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Stop treating math equations as raw strings. Use `math.parse(expr)` to safely extract trigonometric arguments and identify equation structures.",
+                                            "future_considerations":  "This enables support for complex nested arguments like `sin(x + pi/2)` without writing insane Regex or manual loop parsers.",
+                                            "logic_requirements":  [
+                                                                       "1. Remove or completely rewrite `stripOuterParens`, `extractTrigArguments`, and `deriveHalfAngleCandidate`.",
+                                                                       "2. Implement a new helper `extractThetaCandidates(exprString)` that uses `math.parse(exprString)`. Traverse the resulting MathNode tree.",
+                                                                       "3. Find all FunctionNodes (e.g., `sin`, `cos`, `tan`). Extract their argument nodes, compile them back to strings, and add them to a Set.",
+                                                                       "4. Update `verifyFormulaApplication` to use this new, robust `extractThetaCandidates` instead of the old brittle string parsers."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "If `math.parse` fails due to syntax error, catch the exception and safely return an empty Set.",
+                                                               "Ensure we still capture half-angle candidates properly (e.g., if we find `2 * x`, we must test `x` as a candidate)."
+                                                           ]
+                                        },
+                      "T-Refactor-05":  {
+                                            "name":  "Decouple_Validator_From_UI",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "The `validateProof` function must return machine-readable Error Codes, not human-readable Japanese strings.",
+                                            "future_considerations":  "This is mandatory for internationalization (i18n) and for triggering specific UI animations (like shaking a block) based on the exact error type.",
+                                            "logic_requirements":  [
+                                                                       "1. In `validateProof`, replace all literal `message: \u0027...\u0027` strings with `errorCode: \u0027ERROR_EMPTY_INPUT\u0027`, `\u0027ERROR_DIVISION_BY_ZERO\u0027`, `\u0027ERROR_EQUATION_MISMATCH\u0027`, `\u0027ERROR_FORMULA_MISMATCH\u0027`, `\u0027ERROR_NO_CONCLUSION\u0027`, etc.",
+                                                                       "2. Create a new presentation function `getErrorMessage(errorCode, stepIndex, suggestions)` that translates these codes into the Japanese strings.",
+                                                                       "3. In the `#btn-submit` click listener, receive the `errorCode`, pass it to `getErrorMessage`, and display the resulting string in the Toast."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "Formula mismatch currently provides \u0027suggestions\u0027 (candidates). Make sure the new architecture passes this dynamic data along with the Error Code."
+                                                           ]
+                                        },
+                      "T-Refactor-06":  {
+                                            "name":  "Eliminate_SetTimeout_Layouts",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Remove race conditions caused by arbitrary `setTimeout` delays when rendering UI.",
+                                            "future_considerations":  "Ensures the app is snappy and bug-free on slower devices where 50ms isn\u0027t enough time to render.",
+                                            "logic_requirements":  [
+                                                                       "1. In `arrangeBlocks()`, remove the `setTimeout(..., 50)` wrapper.",
+                                                                       "2. In `loadStage()`, make sure `arrangeBlocks()` is called only after `Blockly.serialization.workspaces.load()` has fully completed and the workspace has fired its render events.",
+                                                                       "3. Alternatively, force a synchronous SVG update using `workspace.render()` before calling `arrangeBlocks()`."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "If blocks pile up on top of each other after removing setTimeout, ensure Zelos renderer metrics are forcibly updated before calculating bounding boxes."
+                                                           ]
+                                        }
+                  },
+        "blueprint_id":  "bp-3"
     },
-    "T-04": {
-      "name": "Step_Up_Skip_Challenge",
-      "target_file": ["main.js", "index.html"],
-      "architectural_intent": "Reward high-performing users by letting them bypass tedious basic questions.",
-      "future_considerations": "Needs to gracefully update the `clearedStages` array so the future UI 'Stage Map' displays the skipped levels as completed.",
-      "logic_requirements": [
-        "If `isValid` is true AND `currentStreak === 5`, intercept the normal 'Next' flow.",
-        "Show a custom HTML modal offering a 'Skip Challenge'.",
-        "If accepted, load `currentStageNumber + 3`. If solved, mark all bypassed stages as cleared in `localStorage`."
-      ],
-      "edge_cases": [
-        "Prevent skipping past the maximum available stage (e.g., if max is 33 and current is 31, do not jump to 34)."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Math-Engine Architect",
+                                  "rules":  [
+                                                "Wait for the user to specify a Task ID.",
+                                                "Your objective is to make the math evaluation engine completely agnostic to variable names and robust against constant-only expressions.",
+                                                "Do not break existing functionality. Ensure fallback mechanisms exist if parsing fails."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Validation works, but relies on hardcoding the variable \u0027x\u0027 and struggles with expressions lacking variables.",
+                               "future_state":  "A dynamic evaluation engine that automatically detects variables in an AST, injects test points for all of them, and gracefully handles pure constant equations."
+                           },
+        "tasks":  {
+                      "T-Refactor-07":  {
+                                            "name":  "Dynamic_Variable_Extraction",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Stop hardcoding `{ x: xValue }` in `evaluateEquivalence`. The engine must dynamically detect any variables used in the expressions (e.g., theta, alpha, y) and assign random test values to ALL of them.",
+                                            "future_considerations":  "This is strictly required before we introduce multi-variable equations (like addition theorems: sin(a+b)).",
+                                            "logic_requirements":  [
+                                                                       "1. Create a helper function `extractVariables(exprString)` that uses `math.parse` to find all `SymbolNode`s that are NOT functions (e.g., exclude \u0027sin\u0027, \u0027cos\u0027, \u0027pi\u0027). Return an array of unique variable names.",
+                                                                       "2. Rewrite `evaluateEquivalence(leftExpr, rightExpr)` to extract variables from BOTH expressions.",
+                                                                       "3. If variables exist, loop through validation iterations. In each iteration, build a `scope` object where EVERY detected variable is assigned a test value (e.g., `scope[varName] = xValue`).",
+                                                                       "4. Pass this dynamic `scope` to `math.evaluate(expr, scope)`."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "Ignore mathematical constants like \u0027pi\u0027, \u0027e\u0027 when extracting variables. Math.js recognizes them, so do not override them in the scope."
+                                                           ]
+                                        },
+                      "T-Refactor-08":  {
+                                            "name":  "Constant_Expression_Handling",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Handle formulas that contain specific angles (e.g., pi/6) without throwing errors during scope assignment.",
+                                            "future_considerations":  "Prepares the engine for Phase 3 where exact answers like \u00271/2\u0027 and \u0027sqrt(3)/2\u0027 are introduced.",
+                                            "logic_requirements":  [
+                                                                       "1. Inside `evaluateEquivalence`, after `extractVariables`, check if the variable list is empty.",
+                                                                       "2. IF empty (pure constant expression), do NOT run the 3-iteration test loop. Simply evaluate `math.evaluate(leftExpr)` and `rightExpr` ONCE without a scope.",
+                                                                       "3. Compare the absolute difference against `VALIDATION_EPSILON`."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "Ensure division by zero is still caught gracefully even in constant expressions."
+                                                           ]
+                                        },
+                      "T-Refactor-09":  {
+                                            "name":  "Generator_Variable_Agnosticism",
+                                            "target_file":  "main.js",
+                                            "architectural_intent":  "Update Blockly generators to use a generalized variable like \u0027theta\u0027 instead of hardcoding \u0027x\u0027.",
+                                            "logic_requirements":  [
+                                                                       "1. Update the `mathGenerator` functions for `term_sin`, `term_cos`, `term_sin2`, `term_cos2`, `term_tan` to output \u0027theta\u0027 instead of \u0027x\u0027.",
+                                                                       "2. Update `FORMULA_REGISTRY` to output strings using \u0027theta\u0027 instead of \u0027x\u0027 in `getSides`. (e.g., `sin(theta)^2 + cos(theta)^2`)."
+                                                                   ],
+                                            "edge_cases":  [
+                                                               "This is a sweeping change. Verify that `formulaTextToId` matching logic does not break because of the variable name change."
+                                                           ]
+                                        }
+                  },
+        "blueprint_id":  "bp-4"
     },
-    "T-05": {
-      "name": "Radian_and_Special_Angles",
-      "target_file": "main.js",
-      "architectural_intent": "Expand the problem domain from generic 'θ' to specific, calculable radian angles.",
-      "future_considerations": "Future exact-match validation will require treating 'π' as a symbol in math.js, not just a floating-point number. Generator output must reflect this.",
-      "logic_requirements": [
-        "Define new Blockly terms: `term_pi`, `term_pi_half`, `term_sqrt3_half`.",
-        "Add them to `toolboxConfig`.",
-        "Map `mathGenerator` to output math.js strings: 'pi', '(pi/2)', '(sqrt(3)/2)'."
-      ],
-      "edge_cases": [
-        "Ensure the visual rendering in the block (MathJax or Unicode) correctly displays 'π' and fractions without breaking the block height."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Lead UX Architect \u0026 Implementation Expert",
+                                  "rules":  [
+                                                "Wait for the user to specify a Task ID.",
+                                                "Strictly follow the conditional logic based on the 'Overwrite Permission' state.",
+                                                "You MUST delete the legacy \u0027disallowedInlineDockTypes\u0027 logic. We rely on CSS to handle overflow now.",
+                                                "Provide targeted, clean modifications to main.js."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Variable names mismatch (x vs theta), blocks overlap the toolbox, and auto-docking is either restricted or ignores the Overwrite UI state.",
+                               "future_state":  "Variables are uniformly \u0027theta\u0027. Layout is safe from overlaps. Auto-docking is smart: Overwrite ON docks both start and goal; OFF docks only the goal, leaving the start expression floating."
+                           },
+        "tasks":  {
+                      "T-Fix-01":  {
+                                       "name":  "Variable_Renaming_Completion",
+                                       "target_file":  "main.js",
+                                       "architectural_intent":  "Align the math.js AST generation with the UI display by replacing the hardcoded \u0027x\u0027 with \u0027theta\u0027.",
+                                       "logic_requirements":  [
+                                                                  "1. In all `mathGenerator.forBlock.term_*` functions (sin, cos, tan, sin2, cos2), change the output strings from \u0027x\u0027 to \u0027theta\u0027 (e.g., `return [\u0027sin(theta)\u0027, 0];`).",
+                                                                  "2. In `verifyFormulaApplication` or anywhere a fallback Set is created for variables, change `\u0027x\u0027` to `\u0027theta\u0027`."
+                                                              ]
+                                   },
+                      "T-Fix-02":  {
+                                       "name":  "Fix_Workspace_Layout_Overlap",
+                                       "target_file":  "main.js",
+                                       "architectural_intent":  "Prevent blocks from hiding under the left toolbox by ensuring a strict minimum left-margin during layout.",
+                                       "logic_requirements":  [
+                                                                  "1. In `arrangeBlocks()`, find the `leftInset` calculation.",
+                                                                  "2. Ensure `leftInset` has a hardcoded minimum fallback to account for the toolbox width. (e.g., `const leftInset = Math.max(250, toolboxWidth + flyoutWidth + 24);`).",
+                                                                  "3. Ensure `Blockly.svgResize(workspace)` is called before layout calculations to guarantee accurate metrics."
+                                                              ]
+                                   },
+                      "T-Fix-03":  {
+                                       "name":  "Eradicate_Inline_Docking_Restrictions",
+                                       "target_file":  "main.js",
+                                       "architectural_intent":  "Remove legacy code that prevented complex blocks (fractions, additions) from auto-docking.",
+                                       "logic_requirements":  [
+                                                                  "1. Locate the auto-connection logic in `loadStage` (Section: \u0027蛻晄悄蠑上・閾ｪ蜍墓磁邯・).",
+                                                                  "2. DELETE the `disallowedInlineDockTypes` array and the check `(!isInlineLayout || !disallowedInlineDockTypes.includes(b.type))` entirely.",
+                                                                  "3. Simplify the filter for `mathBlock` to accept ANY block that has an output connection and is NOT an operation/proof block."
+                                                              ]
+                                   },
+                      "T-Fix-04":  {
+                                       "name":  "Conditional_Initial_State_Generation",
+                                       "target_file":  "main.js",
+                                       "architectural_intent":  "Dynamically build the proof structure based on the user\u0027s Overwrite toggle setting at the time of stage load.",
+                                       "logic_requirements":  [
+                                                                  "1. In `loadStage`, after loading the initial state into the workspace, check the \u0027Overwrite Permission\u0027 state (e.g., `const isOverwriteOn = !document.getElementById(\u0027btn-overwrite-permission\u0027).classList.contains(\u0027off\u0027);`).",
+                                                                  "2. Find the mathematical blocks on the workspace. Usually, there are two top-level math blocks (Left Expression and Right Expression). Sort them by Y coordinate to distinguish Top (Left) and Bottom (Right).",
+                                                                  "3. Locate or create the `proof_step` block.",
+                                                                  "4. If `isOverwriteOn` is TRUE: Create a `replace_operation` and a `conclusion_operation`. Connect the `replace_operation` to the proof block\u0027s `OPERATIONS`. Dock the Left Expression into the `replace_operation`. Dock the Right Expression into the `conclusion_operation` and connect it to the bottom.",
+                                                                  "5. If `isOverwriteOn` is FALSE: Create ONLY a `conclusion_operation`. Dock the Right Expression into it, and attach it to the `OPERATIONS` slot. The Left Expression MUST remain as a standalone, floating block.",
+                                                                  "6. Ensure no duplicate operations are created if they already exist in the JSON."
+                                                              ]
+                                   }
+                  },
+        "blueprint_id":  "bp-5"
     },
-    "T-06": {
-      "name": "Interactive_Unit_Circle",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "Provide a visual mental model tool for users struggling with abstract math.",
-      "future_considerations": "This function must be modular. In the future, tapping a specific `term_pi` block might automatically open this visualizer preset to that angle.",
-      "logic_requirements": [
-        "Create a modal with a `<canvas id='unit-circle'>` and `<input type='range'>` (0-360 deg).",
-        "Implement `drawUnitCircle(angle)`. Draw the circle, radius, sin (vertical), cos (horizontal), and tan.",
-        "Bind the range input to update the canvas in real-time."
-      ],
-      "edge_cases": [
-        "Handle the visual representation when angle is exactly 90 or 270 degrees (tangent approaches infinity, prevent drawing lines off-screen)."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Software Architect \u0026 Refactoring Specialist",
+                                  "rules":  [
+                                                "Wait for Task ID specification.",
+                                                "Focus on \u0027Separation of Concerns\u0027. Move logic to separate files and use ES Modules if possible, or simple global scripts.",
+                                                "Clean up all debug \u0027txt\u0027 and redundant comments that clutter the code.",
+                                                "Ensure the app still functions perfectly after moving files."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Monolithic main.js containing logic, UI, and data, leading to poor readability.",
+                               "future_state":  "A clean, modular directory structure where problem data is externalized and logic is isolated."
+                           },
+        "tasks":  {
+                      "T-Clean-01":  {
+                                         "name":  "Externalize_Problem_Data",
+                                         "target_file":  [
+                                                             "main.js",
+                                                             "problems.json"
+                                                         ],
+                                         "architectural_intent":  "Stop hardcoding problem sets in JavaScript. Move all stage data to an external JSON file to prepare for 150-question expansion.",
+                                         "logic_requirements":  [
+                                                                    "1. Create a new file `problems.json`. Move all current stage data (STAGE_DATA) from `main.js` into this file.",
+                                                                    "2. Refactor `loadStage` to use `fetch(\u0027problems.json\u0027)` to retrieve stage information.",
+                                                                    "3. Implement a simple caching mechanism so the JSON is only fetched once on app boot.",
+                                                                    "4. Remove the massive array declarations from `main.js`."
+                                                                ]
+                                     },
+                      "T-Clean-02":  {
+                                         "name":  "Isolate_Math_Engine",
+                                         "target_file":  [
+                                                             "main.js",
+                                                             "math-logic.js"
+                                                         ],
+                                         "architectural_intent":  "Move pure mathematical functions to a dedicated file to reduce main.js size.",
+                                         "logic_requirements":  [
+                                                                    "1. Create `math-logic.js`.",
+                                                                    "2. Move `parseBlocksToAST`, `validateProof`, `evaluateEquivalence`, and `extractVariables` to this new file.",
+                                                                    "3. Also move `FORMULA_REGISTRY` and related lookup functions.",
+                                                                    "4. Ensure `index.html` loads `math-logic.js` BEFORE `main.js` so the functions are available globally."
+                                                                ]
+                                     },
+                      "T-Clean-03":  {
+                                         "name":  "Standardize_Logging_and_Comments",
+                                         "target_file":  [
+                                                             "main.js",
+                                                             "index.html"
+                                                         ],
+                                         "architectural_intent":  "Remove all \u0027junk\u0027 text, experimental console logs, and inconsistent comments added during development.",
+                                         "logic_requirements":  [
+                                                                    "1. Scan for `console.log` statements used for debugging and remove them or wrap them in a `DEBUG` flag.",
+                                                                    "2. Reformat JSDoc comments for all major functions for better hover-tooltips in the IDE.",
+                                                                    "3. Ensure `index.html` CSS and HTML parts are indented correctly and free of unused test-elements."
+                                                                ]
+                                     }
+                  },
+        "blueprint_id":  "bp-6"
     },
-    "T-07": {
-      "name": "Firebase_Persistence",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "Move data from local storage to the cloud, preparing for cross-device play and native app release.",
-      "future_considerations": "The data schema should be extensible. Currently it's just `clearedStages`, but prepare it to eventually store `totalXP` and `userSettings`.",
-      "logic_requirements": [
-        "Import Firebase v9 SDK via CDN.",
-        "Implement Anonymous Auth. On auth success, load data from Firestore `users/{uid}`.",
-        "Create `syncProgressToCloud()` to write the `clearedStages` array.",
-        "Refactor the app boot sequence to wait for Firebase init before rendering stages."
-      ],
-      "edge_cases": [
-        "User opens the app without internet connection: Fallback gracefully to read/write `localStorage` and sync later."
-      ]
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Desktop UI/UX Engineer",
+                                  "rules":  [
+                                                "Wait for Task ID specification.",
+                                                "This repository is strictly for DESKTOP/PC environments. Do not write complex mobile media queries. Take advantage of large screen real estate.",
+                                                "Focus on visual gamification and intuitive onboarding.",
+                                                "Keep logic modular. Add UI components gracefully without breaking the core math-logic."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "A perfectly decoupled math engine with a barebones dropdown stage selector and no onboarding.",
+                               "future_state":  "A rich, desktop-optimized educational game featuring a visual \u0027Mario-style\u0027 progression map and a guided interactive tutorial."
+                           },
+        "tasks":  {
+                      "T-PCUI-01":  {
+                                        "name":  "Desktop_Progression_Map",
+                                        "target_file":  [
+                                                            "index.html",
+                                                            "main.js"
+                                                        ],
+                                        "architectural_intent":  "Replace the generic dropdown selector with an immersive, visual node-based progression map optimized for a wide desktop screen.",
+                                        "logic_requirements":  [
+                                                                   "1. HTML: Create a full-screen overlay `\u003cdiv id=\u0027stage-map-screen\u0027 class=\u0027screen hidden\u0027\u003e`.",
+                                                                   "2. CSS: Design a grid or flex layout where stages are represented as circular nodes connected by lines. Utilize hover effects (`:hover { transform: scale(1.1); }`) since this is PC-only.",
+                                                                   "3. JS: Create `renderStageMap()`. It should iterate over `STAGE_DATA` (from problems.json) and generate the HTML nodes.",
+                                                                   "4. UI States: Apply distinct CSS classes based on `clearedStages`: \u0027cleared\u0027 (green, checkmark), \u0027unlocked\u0027 (yellow, pulsating shadow), and \u0027locked\u0027 (gray, unclickable).",
+                                                                   "5. Flow: The app should boot into this Map Screen instead of immediately loading Stage 1 (unless the user hasn\u0027t seen the tutorial). Clicking an \u0027unlocked\u0027 or \u0027cleared\u0027 node calls `loadStage(id)` and switches to the puzzle screen."
+                                                               ],
+                                        "edge_cases":  [
+                                                           "Ensure the \u0027Unlock All\u0027 button still functions and immediately re-renders the map to show all nodes as unlocked."
+                                                       ]
+                                    },
+                      "T-PCUI-02":  {
+                                        "name":  "Interactive_Tutorial_Stage",
+                                        "target_file":  [
+                                                            "index.html",
+                                                            "main.js",
+                                                            "problems.json"
+                                                        ],
+                                        "architectural_intent":  "Provide a friction-free onboarding experience. Instead of just reading text, the user must physically drag a block to learn the UI.",
+                                        "logic_requirements":  [
+                                                                   "1. JSON: Add a \u0027Stage 0\u0027 to `problems.json`. It should be extremely simple (e.g., `1 + 1 = 2` or `sin(theta)/cos(theta) = tan(theta)`).",
+                                                                   "2. HTML: Add an overlay container `\u003cdiv id=\u0027tutorial-overlay\u0027 class=\u0027hidden\u0027\u003e` designed to show tooltips pointing to specific UI elements.",
+                                                                   "3. JS: Check `localStorage.getItem(\u0027tutorial_seen\u0027)`. If not seen, automatically load \u0027Stage 0\u0027 and show the `tutorial-overlay`.",
+                                                                 "4. Flow: Display a sequence of text boxes (e.g., Step 1: 'Welcome! Drag the tan(theta) block from the left.', Step 2: 'Snap it into the green proof block.', Step 3: 'Click the Submit button!').",
+                                                                   "5. JS: Once Stage 0 is successfully validated, set `tutorial_seen` to true, congratulate the user, and route them to the Progression Map (`renderStageMap`)."
+                                                               ],
+                                        "edge_cases":  [
+                                                           "Allow users to manually skip the tutorial via a \u0027Skip\u0027 button, which immediately sets the localStorage flag and sends them to the Map."
+                                                       ]
+                                    }
+                  },
+        "blueprint_id":  "bp-7"
+    },
+    {
+        "_system_directive":  {
+                                  "role":  "Lead Game Designer \u0026 Frontend Architect",
+                                  "rules":  [
+                                                "Wait for Task ID specification.",
+                                                "Design for PC/Desktop users. Use rich animations and hover states.",
+                                                "The Tutorial must be \u0027unskippable\u0027 if triggered, providing step-by-step UI highlights.",
+                                                "The Stage Map must feel like a world map with a clear progression path."
+                                            ]
+                              },
+        "project_vision":  {
+                               "current_state":  "Functional engine, basic UI, no immersive onboarding.",
+                               "future_state":  "A high-polish educational game starting with a clear choice, leading to either a deep-dive tutorial or a visual adventure map."
+                           },
+        "tasks":  {
+                      "T-UI-01":  {
+                                      "name":  "Game_Entry_Gate",
+                                      "target_file":  [
+                                                          "index.html",
+                                                          "main.js"
+                                                      ],
+                                      "architectural_intent":  "Create a landing experience that lets users decide their starting point.",
+                                      "logic_requirements":  [
+                                                                 "1. HTML: Create a '#game-entrance' screen with high-impact titles and two large buttons: [Start Tutorial] and [Go to Map].",
+                                                                 "2. JS: Logic to show this screen on first boot (if localStorage `tutorial_seen` is null).",
+                                                                 "3. JS: \u0027Start Tutorial\u0027 calls `loadStage(0)` and enables \u0027Tutorial Mode\u0027. \u0027Go to Map\u0027 marks tutorial as seen and calls `renderStageMap()`."
+                                                             ]
+                                  },
+                      "T-UI-02":  {
+                                      "name":  "Immersive_Progression_Map",
+                                      "target_file":  [
+                                                          "index.html",
+                                                          "main.js"
+                                                      ],
+                                      "architectural_intent":  "A visual path representing the learning journey, grouped by difficulty themes.",
+                                      "logic_requirements":  [
+                                                                 "1. HTML/CSS: Implement a vertically or horizontally scrolling map using SVG paths to connect nodes.",
+                                                                 "2. UI Themes: Group stages into 'Worlds' (e.g., Stages 1-10: 'Foundational Route'). Add visual markers for these world boundaries.",
+                                                                 "3. Node Styling: Nodes should have a hover effect showing a preview or tooltip of the problem. Locked nodes should be dimmed with a lock icon.",
+                                                                 "4. Animation: When a stage is cleared, the path to the next node should \u0027draw\u0027 or light up visually."
+                                                             ]
+                                  },
+                      "T-UI-03":  {
+                                      "name":  "Deep_Dive_Tutorial_Stage_0",
+                                      "target_file":  [
+                                                          "main.js",
+                                                          "problems.json"
+                                                      ],
+                                      "architectural_intent":  "A multi-step guided experience covering the three core formulas with detailed educational tooltips.",
+                                      "logic_requirements":  [
+                                                                 "1. JSON: Configure \u0027Stage 0\u0027 with a complex target that requires all 3 formulas (e.g., transforming sin^2+cos^2 to tan, then to 1/cos^2).",
+                                                                 "2. Logic: Implement a \u0027Guidance Overlay\u0027 that darkens the screen and highlights the exact block the user needs to drag.",
+                                                                 "3. Interaction Steps: \n   - Step A: Drag `tan` and apply Formula 2 (tan = sin/cos). Tooltip: 'Start by decomposing tan into sin and cos.'\n   - Step B: Use `Common Denominator` block. Tooltip: 'When fractions increase, combine them with a common denominator.'\n   - Step C: Drag `sin^2 + cos^2` and apply Formula 1 (=1). Tooltip: 'If you find this pattern, simplify it immediately.'\n   - Step D: Use Formula 3 (1+tan^2 = 1/cos^2) if applicable. Tooltip: 'Squared tan patterns often map to Formula 3.'",
+                                                                 "4. Completion: On solving, play an enhanced celebration effect and transition to the Stage Map."
+                                                             ]
+                                  }
+                  },
+        "blueprint_id":  "bp-8"
+    },
+    {
+        "_meta":  {
+                      "role":  "Game System Architect",
+                      "focus":  "Visual Progression \u0026 Interactive Onboarding",
+                      "platform":  "Desktop Only"
+                  },
+        "tasks":  {
+                      "T-UI-01":  {
+                                      "name":  "Entrance_Portal_Refinement",
+                                      "target_file":  [
+                                                     "index.html",
+                                                     "main.js"
+                                                 ],
+                                      "architectural_intent":  "Implement a high-polish landing screen that forces a meaningful choice between learning (Tutorial) or playing (Map).",
+                                      "logic_requirements":  [
+                                                                 "1. In `index.html`, refine `#start-screen` to have two distinct, large interactive cards: 'Tutorial' and 'Start Adventure'.",
+                                                                 "2. Implement `showEntrance()` function to handle visibility. If `tutorial_seen` is false, this is the default screen.",
+                                                                 "3. Button Actions: \u0027Tutorial\u0027 triggers `startTutorialSequence()`. \u0027Adventure\u0027 sets `tutorial_seen: true` and calls `renderStageMap()`."
+                                                             ]
+                                  },
+                      "T-UI-02":  {
+                                      "name":  "World_Map_Path_System",
+                                      "target_file":  [
+                                                     "index.html",
+                                                     "main.js"
+                                                 ],
+                                      "architectural_intent":  "Create a zig-zag progression path using SVG or CSS Flex/Grid that feels like a journey through \u0027Worlds\u0027.",
+                                      "logic_requirements":  [
+                                                                 "1. Refactor `renderStageMap()` to group stages into \u0027Worlds\u0027 (World 1: Stages 1-10, World 2: 11-20, etc.).",
+                                                                 "2. Add World Title Headers (e.g., 'World 1: Fundamentals') between stage groups.",
+                                                                 "3. Draw a \u0027Path\u0027 (dotted lines) connecting each node. Use CSS `:after` pseudoelements or a background SVG pattern to create the road effect.",
+                                                                 "4. Implement a \u0027Smooth Scroll\u0027 that focuses on the highest unlocked stage node upon entering the map."
+                                                             ]
+                                  },
+                      "T-UI-03":  {
+                                      "name":  "Guided_Tutorial_System",
+                                      "target_file":  [
+                                                     "main.js",
+                                                     "index.html"
+                                                 ],
+                                      "architectural_intent":  "A state-driven tutorial that overlays the puzzle screen, preventing incorrect moves and guiding the user through the 3 core formulas.",
+                                      "logic_requirements":  [
+                                                                 "1. Define `TUTORIAL_FLOW` in `main.js`: a sequence of steps including target block IDs and explanation text for Formulas 1, 2, and 3.",
+                                                                 "2. Implement `highlightTarget(blockId)`: Darken the workspace using a CSS overlay/mask, except for the specific block or slot the user needs to interact with.",
+                                                                 "3. Step Logic:\n   - Step 1: Force use of Formula 2 (tan -> sin/cos). Explain: 'Begin with the basic decomposition.'\n   - Step 2: Force use of Formula 1 (sin^2+cos^2 -> 1). Explain: 'Turning this into 1 is a major simplification.'\n   - Step 3: Force use of Formula 3 (1+tan^2 -> 1/cos^2). Explain: 'Squared tan forms are a shortcut signal.'",
+                                                                 "4. Block standard \u0027Submit\u0027 button during tutorial until the final step is reached."
+                                                             ]
+                                  }
+                  },
+        "blueprint_id":  "bp-9"
     }
-  }
-}
-
-{
-  "_system_directive": {
-    "role": "Lead Architect & Refactoring Expert",
-    "rules": [
-      "Wait for the user to specify a Task ID (e.g., T-Refactor-01).",
-      "Your primary goal in this phase is NOT to add new features, but to reduce Technical Debt, eliminate code duplication, and modularize giant functions.",
-      "Ensure that mathematical equivalency relies on 'math.evaluate' rather than brittle string manipulation whenever possible.",
-      "Never break existing functionality. Run mental checks on edge cases before modifying the code."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Functional but monolithic validation logic with scattered data dictionaries.",
-    "future_state": "A clean, modular architecture where adding a new trigonometric formula requires modifying exactly ONE configuration object."
-  },
-  "tasks": {
-    "T-Refactor-01": {
-      "name": "Centralize_Formula_Registry",
-      "target_file": "main.js",
-      "architectural_intent": "Eliminate the scattered dictionaries (FORMULA_TEXT_TO_ID, FORMULA_ID_LABEL, FORMULA_ID_TO_CONCEPT, buildFormulaSides) and consolidate them into a Single Source of Truth.",
-      "future_considerations": "When we add Inverse Trigonometric functions later, we only want to update this one registry.",
-      "logic_requirements": [
-        "1. Create a single `const FORMULA_REGISTRY = { formula_1: { id: 'formula_1', text: 'sin(x)^2+cos(x)^2=1', label: '公式①', concept: 'pythagorean_identity', getSides: (t) => ['sin('+t+')^2 + cos('+t+')^2', '1'] }, ... }` encompassing all 8 formulas.",
-        "2. Replace all usages of `FORMULA_TEXT_TO_ID`, `FORMULA_ID_LABEL`, and `FORMULA_ID_TO_CONCEPT` with lookups from `FORMULA_REGISTRY`.",
-        "3. Ensure the app still boots and runs correctly after this data structure swap."
-      ],
-      "edge_cases": [
-        "The `formulaTextToId` function normalizes strings. Ensure the `text` property in the registry matches the normalized format."
-      ]
-    },
-    "T-Refactor-02": {
-      "name": "Deconstruct_Monolithic_Validator",
-      "target_file": "main.js",
-      "architectural_intent": "Break down the 150+ line `validateProof` function into small, testable, pure functions at the file scope.",
-      "future_considerations": "Smaller functions allow us to write unit tests for the mathematical logic independently of the AST parsing.",
-      "logic_requirements": [
-        "1. Move `evaluateEquivalence` out of `validateProof` to the global/file scope.",
-        "2. Move `stripOuterParens`, `extractTrigArguments`, `deriveHalfAngleCandidate`, and `verifyFormulaApplication` to the global/file scope.",
-        "3. Update `verifyFormulaApplication` to use `FORMULA_REGISTRY[formulaId].getSides(thetaExpr)` instead of the old `buildFormulaSides`.",
-        "4. Clean up `validateProof` so it is only responsible for iterating the AST and coordinating these newly extracted helper functions."
-      ],
-      "edge_cases": [
-        "Variable scoping: Ensure none of the extracted functions rely on variables that were previously trapped inside `validateProof`'s closure."
-      ]
-    },
-    "T-Refactor-03": {
-      "name": "UI_State_Cleanup",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "Clean up duplicate UI elements and optimize DOM updates.",
-      "future_considerations": "Prevents memory leaks and erratic UI behavior when toggling modes.",
-      "logic_requirements": [
-        "1. HTML: Remove the duplicate `<button id='btn-overwrite-permission-menu'>` from the `#c` (Stage Selection) area if it exists, keeping only the one in `#h` (Header).",
-        "2. JS: Refactor `updateStreakCounter(shouldAnimate)` to use `requestAnimationFrame` instead of `void streakCounter.offsetWidth` to trigger the CSS animation cleanly.",
-        "3. JS: Ensure `setupEventListeners` does not bind the same events multiple times if called twice (e.g., use optional chaining `?.onclick = ` instead of `.addEventListener` for single-action buttons, or ensure it's only called once on boot)."
-      ],
-      "edge_cases": [
-        "If a user clicks a button very fast while an animation is playing, the animation should restart smoothly."
-      ]
-    }
-  }
-}
-{
-  "_system_directive": {
-    "role": "Lead Architect & Refactoring Expert",
-    "rules": [
-      "Wait for the user to specify a Task ID.",
-      "Your goal is to eradicate brittle string manipulation and decouple business logic from presentation.",
-      "Never break existing functionality. When replacing manual string parsing with math.js AST parsing, ensure backward compatibility with existing problem JSONs.",
-      "Propose targeted, clean modifications rather than rewriting the entire file at once."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Functional validation, but relies on brittle manual string parsing and tightly coupled UI error messages.",
-    "future_state": "A bulletproof mathematical engine that uses math.js AST (`math.parse`) for analyzing equations, and returns pure Error Codes instead of UI strings."
-  },
-  "tasks": {
-    "T-Refactor-04": {
-      "name": "Eradicate_Manual_String_Parsing",
-      "target_file": "main.js",
-      "architectural_intent": "Stop treating math equations as raw strings. Use `math.parse(expr)` to safely extract trigonometric arguments and identify equation structures.",
-      "future_considerations": "This enables support for complex nested arguments like `sin(x + pi/2)` without writing insane Regex or manual loop parsers.",
-      "logic_requirements": [
-        "1. Remove or completely rewrite `stripOuterParens`, `extractTrigArguments`, and `deriveHalfAngleCandidate`.",
-        "2. Implement a new helper `extractThetaCandidates(exprString)` that uses `math.parse(exprString)`. Traverse the resulting MathNode tree.",
-        "3. Find all FunctionNodes (e.g., `sin`, `cos`, `tan`). Extract their argument nodes, compile them back to strings, and add them to a Set.",
-        "4. Update `verifyFormulaApplication` to use this new, robust `extractThetaCandidates` instead of the old brittle string parsers."
-      ],
-      "edge_cases": [
-        "If `math.parse` fails due to syntax error, catch the exception and safely return an empty Set.",
-        "Ensure we still capture half-angle candidates properly (e.g., if we find `2 * x`, we must test `x` as a candidate)."
-      ]
-    },
-    "T-Refactor-05": {
-      "name": "Decouple_Validator_From_UI",
-      "target_file": "main.js",
-      "architectural_intent": "The `validateProof` function must return machine-readable Error Codes, not human-readable Japanese strings.",
-      "future_considerations": "This is mandatory for internationalization (i18n) and for triggering specific UI animations (like shaking a block) based on the exact error type.",
-      "logic_requirements": [
-        "1. In `validateProof`, replace all literal `message: '...'` strings with `errorCode: 'ERROR_EMPTY_INPUT'`, `'ERROR_DIVISION_BY_ZERO'`, `'ERROR_EQUATION_MISMATCH'`, `'ERROR_FORMULA_MISMATCH'`, `'ERROR_NO_CONCLUSION'`, etc.",
-        "2. Create a new presentation function `getErrorMessage(errorCode, stepIndex, suggestions)` that translates these codes into the Japanese strings.",
-        "3. In the `#btn-submit` click listener, receive the `errorCode`, pass it to `getErrorMessage`, and display the resulting string in the Toast."
-      ],
-      "edge_cases": [
-        "Formula mismatch currently provides 'suggestions' (candidates). Make sure the new architecture passes this dynamic data along with the Error Code."
-      ]
-    },
-    "T-Refactor-06": {
-      "name": "Eliminate_SetTimeout_Layouts",
-      "target_file": "main.js",
-      "architectural_intent": "Remove race conditions caused by arbitrary `setTimeout` delays when rendering UI.",
-      "future_considerations": "Ensures the app is snappy and bug-free on slower devices where 50ms isn't enough time to render.",
-      "logic_requirements": [
-        "1. In `arrangeBlocks()`, remove the `setTimeout(..., 50)` wrapper.",
-        "2. In `loadStage()`, make sure `arrangeBlocks()` is called only after `Blockly.serialization.workspaces.load()` has fully completed and the workspace has fired its render events.",
-        "3. Alternatively, force a synchronous SVG update using `workspace.render()` before calling `arrangeBlocks()`."
-      ],
-      "edge_cases": [
-        "If blocks pile up on top of each other after removing setTimeout, ensure Zelos renderer metrics are forcibly updated before calculating bounding boxes."
-      ]
-    }
-  }
-}
-{
-  "_system_directive": {
-    "role": "Lead Math-Engine Architect",
-    "rules": [
-      "Wait for the user to specify a Task ID.",
-      "Your objective is to make the math evaluation engine completely agnostic to variable names and robust against constant-only expressions.",
-      "Do not break existing functionality. Ensure fallback mechanisms exist if parsing fails."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Validation works, but relies on hardcoding the variable 'x' and struggles with expressions lacking variables.",
-    "future_state": "A dynamic evaluation engine that automatically detects variables in an AST, injects test points for all of them, and gracefully handles pure constant equations."
-  },
-  "tasks": {
-    "T-Refactor-07": {
-      "name": "Dynamic_Variable_Extraction",
-      "target_file": "main.js",
-      "architectural_intent": "Stop hardcoding `{ x: xValue }` in `evaluateEquivalence`. The engine must dynamically detect any variables used in the expressions (e.g., theta, alpha, y) and assign random test values to ALL of them.",
-      "future_considerations": "This is strictly required before we introduce multi-variable equations (like addition theorems: sin(a+b)).",
-      "logic_requirements": [
-        "1. Create a helper function `extractVariables(exprString)` that uses `math.parse` to find all `SymbolNode`s that are NOT functions (e.g., exclude 'sin', 'cos', 'pi'). Return an array of unique variable names.",
-        "2. Rewrite `evaluateEquivalence(leftExpr, rightExpr)` to extract variables from BOTH expressions.",
-        "3. If variables exist, loop through validation iterations. In each iteration, build a `scope` object where EVERY detected variable is assigned a test value (e.g., `scope[varName] = xValue`).",
-        "4. Pass this dynamic `scope` to `math.evaluate(expr, scope)`."
-      ],
-      "edge_cases": [
-        "Ignore mathematical constants like 'pi', 'e' when extracting variables. Math.js recognizes them, so do not override them in the scope."
-      ]
-    },
-    "T-Refactor-08": {
-      "name": "Constant_Expression_Handling",
-      "target_file": "main.js",
-      "architectural_intent": "Handle formulas that contain specific angles (e.g., pi/6) without throwing errors during scope assignment.",
-      "future_considerations": "Prepares the engine for Phase 3 where exact answers like '1/2' and 'sqrt(3)/2' are introduced.",
-      "logic_requirements": [
-        "1. Inside `evaluateEquivalence`, after `extractVariables`, check if the variable list is empty.",
-        "2. IF empty (pure constant expression), do NOT run the 3-iteration test loop. Simply evaluate `math.evaluate(leftExpr)` and `rightExpr` ONCE without a scope.",
-        "3. Compare the absolute difference against `VALIDATION_EPSILON`."
-      ],
-      "edge_cases": [
-        "Ensure division by zero is still caught gracefully even in constant expressions."
-      ]
-    },
-    "T-Refactor-09": {
-      "name": "Generator_Variable_Agnosticism",
-      "target_file": "main.js",
-      "architectural_intent": "Update Blockly generators to use a generalized variable like 'theta' instead of hardcoding 'x'.",
-      "logic_requirements": [
-        "1. Update the `mathGenerator` functions for `term_sin`, `term_cos`, `term_sin2`, `term_cos2`, `term_tan` to output 'theta' instead of 'x'.",
-        "2. Update `FORMULA_REGISTRY` to output strings using 'theta' instead of 'x' in `getSides`. (e.g., `sin(theta)^2 + cos(theta)^2`)."
-      ],
-      "edge_cases": [
-        "This is a sweeping change. Verify that `formulaTextToId` matching logic does not break because of the variable name change."
-      ]
-    }
-  }
-}
-{
-  "_system_directive": {
-    "role": "Lead UX Architect & Implementation Expert",
-    "rules": [
-      "Wait for the user to specify a Task ID.",
-      "Strictly follow the conditional logic based on the 'Overwrite Permission' (上書き許可) state.",
-      "You MUST delete the legacy 'disallowedInlineDockTypes' logic. We rely on CSS to handle overflow now.",
-      "Provide targeted, clean modifications to main.js."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Variable names mismatch (x vs theta), blocks overlap the toolbox, and auto-docking is either restricted or ignores the Overwrite UI state.",
-    "future_state": "Variables are uniformly 'theta'. Layout is safe from overlaps. Auto-docking is smart: Overwrite ON docks both start and goal; OFF docks only the goal, leaving the start expression floating."
-  },
-  "tasks": {
-    "T-Fix-01": {
-      "name": "Variable_Renaming_Completion",
-      "target_file": "main.js",
-      "architectural_intent": "Align the math.js AST generation with the UI display by replacing the hardcoded 'x' with 'theta'.",
-      "logic_requirements": [
-        "1. In all `mathGenerator.forBlock.term_*` functions (sin, cos, tan, sin2, cos2), change the output strings from 'x' to 'theta' (e.g., `return ['sin(theta)', 0];`).",
-        "2. In `verifyFormulaApplication` or anywhere a fallback Set is created for variables, change `'x'` to `'theta'`."
-      ]
-    },
-    "T-Fix-02": {
-      "name": "Fix_Workspace_Layout_Overlap",
-      "target_file": "main.js",
-      "architectural_intent": "Prevent blocks from hiding under the left toolbox by ensuring a strict minimum left-margin during layout.",
-      "logic_requirements": [
-        "1. In `arrangeBlocks()`, find the `leftInset` calculation.",
-        "2. Ensure `leftInset` has a hardcoded minimum fallback to account for the toolbox width. (e.g., `const leftInset = Math.max(250, toolboxWidth + flyoutWidth + 24);`).",
-        "3. Ensure `Blockly.svgResize(workspace)` is called before layout calculations to guarantee accurate metrics."
-      ]
-    },
-    "T-Fix-03": {
-      "name": "Eradicate_Inline_Docking_Restrictions",
-      "target_file": "main.js",
-      "architectural_intent": "Remove legacy code that prevented complex blocks (fractions, additions) from auto-docking.",
-      "logic_requirements": [
-        "1. Locate the auto-connection logic in `loadStage` (Section: '初期式の自動接続').",
-        "2. DELETE the `disallowedInlineDockTypes` array and the check `(!isInlineLayout || !disallowedInlineDockTypes.includes(b.type))` entirely.",
-        "3. Simplify the filter for `mathBlock` to accept ANY block that has an output connection and is NOT an operation/proof block."
-      ]
-    },
-    "T-Fix-04": {
-      "name": "Conditional_Initial_State_Generation",
-      "target_file": "main.js",
-      "architectural_intent": "Dynamically build the proof structure based on the user's Overwrite toggle setting at the time of stage load.",
-      "logic_requirements": [
-        "1. In `loadStage`, after loading the initial state into the workspace, check the 'Overwrite Permission' state (e.g., `const isOverwriteOn = !document.getElementById('btn-overwrite-permission').classList.contains('off');`).",
-        "2. Find the mathematical blocks on the workspace. Usually, there are two top-level math blocks (Left Expression and Right Expression). Sort them by Y coordinate to distinguish Top (Left) and Bottom (Right).",
-        "3. Locate or create the `proof_step` block.",
-        "4. If `isOverwriteOn` is TRUE: Create a `replace_operation` and a `conclusion_operation`. Connect the `replace_operation` to the proof block's `OPERATIONS`. Dock the Left Expression into the `replace_operation`. Dock the Right Expression into the `conclusion_operation` and connect it to the bottom.",
-        "5. If `isOverwriteOn` is FALSE: Create ONLY a `conclusion_operation`. Dock the Right Expression into it, and attach it to the `OPERATIONS` slot. The Left Expression MUST remain as a standalone, floating block.",
-        "6. Ensure no duplicate operations are created if they already exist in the JSON."
-      ]
-    }
-  }
-}
-
-{
-  "_system_directive": {
-    "role": "Software Architect & Refactoring Specialist",
-    "rules": [
-      "Wait for Task ID specification.",
-      "Focus on 'Separation of Concerns'. Move logic to separate files and use ES Modules if possible, or simple global scripts.",
-      "Clean up all debug 'txt' and redundant comments that clutter the code.",
-      "Ensure the app still functions perfectly after moving files."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Monolithic main.js containing logic, UI, and data, leading to poor readability.",
-    "future_state": "A clean, modular directory structure where problem data is externalized and logic is isolated."
-  },
-  "tasks": {
-    "T-Clean-01": {
-      "name": "Externalize_Problem_Data",
-      "target_file": ["main.js", "problems.json"],
-      "architectural_intent": "Stop hardcoding problem sets in JavaScript. Move all stage data to an external JSON file to prepare for 150-question expansion.",
-      "logic_requirements": [
-        "1. Create a new file `problems.json`. Move all current stage data (STAGE_DATA) from `main.js` into this file.",
-        "2. Refactor `loadStage` to use `fetch('problems.json')` to retrieve stage information.",
-        "3. Implement a simple caching mechanism so the JSON is only fetched once on app boot.",
-        "4. Remove the massive array declarations from `main.js`."
-      ]
-    },
-    "T-Clean-02": {
-      "name": "Isolate_Math_Engine",
-      "target_file": ["main.js", "math-logic.js"],
-      "architectural_intent": "Move pure mathematical functions to a dedicated file to reduce main.js size.",
-      "logic_requirements": [
-        "1. Create `math-logic.js`.",
-        "2. Move `parseBlocksToAST`, `validateProof`, `evaluateEquivalence`, and `extractVariables` to this new file.",
-        "3. Also move `FORMULA_REGISTRY` and related lookup functions.",
-        "4. Ensure `index.html` loads `math-logic.js` BEFORE `main.js` so the functions are available globally."
-      ]
-    },
-    "T-Clean-03": {
-      "name": "Standardize_Logging_and_Comments",
-      "target_file": ["main.js", "index.html"],
-      "architectural_intent": "Remove all 'junk' text, experimental console logs, and inconsistent comments added during development.",
-      "logic_requirements": [
-        "1. Scan for `console.log` statements used for debugging and remove them or wrap them in a `DEBUG` flag.",
-        "2. Reformat JSDoc comments for all major functions for better hover-tooltips in the IDE.",
-        "3. Ensure `index.html` CSS and HTML parts are indented correctly and free of unused test-elements."
-      ]
-    }
-  }
-}
-{
-  "_system_directive": {
-    "role": "Lead Desktop UI/UX Engineer",
-    "rules": [
-      "Wait for Task ID specification.",
-      "This repository is strictly for DESKTOP/PC environments. Do not write complex mobile media queries. Take advantage of large screen real estate.",
-      "Focus on visual gamification and intuitive onboarding.",
-      "Keep logic modular. Add UI components gracefully without breaking the core math-logic."
-    ]
-  },
-  "project_vision": {
-    "current_state": "A perfectly decoupled math engine with a barebones dropdown stage selector and no onboarding.",
-    "future_state": "A rich, desktop-optimized educational game featuring a visual 'Mario-style' progression map and a guided interactive tutorial."
-  },
-  "tasks": {
-    "T-PCUI-01": {
-      "name": "Desktop_Progression_Map",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "Replace the generic dropdown selector with an immersive, visual node-based progression map optimized for a wide desktop screen.",
-      "logic_requirements": [
-        "1. HTML: Create a full-screen overlay `<div id='stage-map-screen' class='screen hidden'>`.",
-        "2. CSS: Design a grid or flex layout where stages are represented as circular nodes connected by lines. Utilize hover effects (`:hover { transform: scale(1.1); }`) since this is PC-only.",
-        "3. JS: Create `renderStageMap()`. It should iterate over `STAGE_DATA` (from problems.json) and generate the HTML nodes.",
-        "4. UI States: Apply distinct CSS classes based on `clearedStages`: 'cleared' (green, checkmark), 'unlocked' (yellow, pulsating shadow), and 'locked' (gray, unclickable).",
-        "5. Flow: The app should boot into this Map Screen instead of immediately loading Stage 1 (unless the user hasn't seen the tutorial). Clicking an 'unlocked' or 'cleared' node calls `loadStage(id)` and switches to the puzzle screen."
-      ],
-      "edge_cases": [
-        "Ensure the 'Unlock All' button still functions and immediately re-renders the map to show all nodes as unlocked."
-      ]
-    },
-    "T-PCUI-02": {
-      "name": "Interactive_Tutorial_Stage",
-      "target_file": ["index.html", "main.js", "problems.json"],
-      "architectural_intent": "Provide a friction-free onboarding experience. Instead of just reading text, the user must physically drag a block to learn the UI.",
-      "logic_requirements": [
-        "1. JSON: Add a 'Stage 0' to `problems.json`. It should be extremely simple (e.g., `1 + 1 = 2` or `sin(theta)/cos(theta) = tan(theta)`).",
-        "2. HTML: Add an overlay container `<div id='tutorial-overlay' class='hidden'>` designed to show tooltips pointing to specific UI elements.",
-        "3. JS: Check `localStorage.getItem('tutorial_seen')`. If not seen, automatically load 'Stage 0' and show the `tutorial-overlay`.",
-        "4. Flow: Display a sequence of text boxes (e.g., Step 1: 'Welcome! Drag the tan(θ) block from the left.', Step 2: 'Snap it into the green proof block.', Step 3: 'Click the Submit button!').",
-        "5. JS: Once Stage 0 is successfully validated, set `tutorial_seen` to true, congratulate the user, and route them to the Progression Map (`renderStageMap`)."
-      ],
-      "edge_cases": [
-        "Allow users to manually skip the tutorial via a 'Skip' button, which immediately sets the localStorage flag and sends them to the Map."
-      ]
-    }
-  }
-}
-{
-  "_system_directive": {
-    "role": "Lead Game Designer & Frontend Architect",
-    "rules": [
-      "Wait for Task ID specification.",
-      "Design for PC/Desktop users. Use rich animations and hover states.",
-      "The Tutorial must be 'unskippable' if triggered, providing step-by-step UI highlights.",
-      "The Stage Map must feel like a world map with a clear progression path."
-    ]
-  },
-  "project_vision": {
-    "current_state": "Functional engine, basic UI, no immersive onboarding.",
-    "future_state": "A high-polish educational game starting with a clear choice, leading to either a deep-dive tutorial or a visual adventure map."
-  },
-  "tasks": {
-    "T-UI-01": {
-      "name": "Game_Entry_Gate",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "Create a landing experience that lets users decide their starting point.",
-      "logic_requirements": [
-        "1. HTML: Create a '#game-entrance' screen with high-impact titles and two large buttons: [チュートリアルを始める] (Start Tutorial) and [冒険に出る] (Go to Map).",
-        "2. JS: Logic to show this screen on first boot (if localStorage `tutorial_seen` is null).",
-        "3. JS: 'Start Tutorial' calls `loadStage(0)` and enables 'Tutorial Mode'. 'Go to Map' marks tutorial as seen and calls `renderStageMap()`."
-      ]
-    },
-    "T-UI-02": {
-      "name": "Immersive_Progression_Map",
-      "target_file": ["index.html", "main.js"],
-      "architectural_intent": "A visual path representing the learning journey, grouped by difficulty themes.",
-      "logic_requirements": [
-        "1. HTML/CSS: Implement a vertically or horizontally scrolling map using SVG paths to connect nodes.",
-        "2. UI Themes: Group stages into 'Worlds' (e.g., Stages 1-10: '相互関係の平原'). Add visual markers for these world boundaries.",
-        "3. Node Styling: Nodes should have a hover effect showing a preview or tooltip of the problem. Locked nodes should be dimmed with a lock icon.",
-        "4. Animation: When a stage is cleared, the path to the next node should 'draw' or light up visually."
-      ]
-    },
-    "T-UI-03": {
-      "name": "Deep_Dive_Tutorial_Stage_0",
-      "target_file": ["main.js", "problems.json"],
-      "architectural_intent": "A multi-step guided experience covering the three core formulas with detailed educational tooltips.",
-      "logic_requirements": [
-        "1. JSON: Configure 'Stage 0' with a complex target that requires all 3 formulas (e.g., transforming sin^2+cos^2 to tan, then to 1/cos^2).",
-        "2. Logic: Implement a 'Guidance Overlay' that darkens the screen and highlights the exact block the user needs to drag.",
-        "3. Interaction Steps: \n   - Step A: Drag 'tan' and apply Formula ② (tan = sin/cos). Show tooltip: 'tanはsinとcosに分解するのが基本の戦略です。'\n   - Step B: Use 'Common Denominator' block. Tooltip: '分数が複数あるときは通分して一つにまとめましょう。'\n   - Step C: Drag 'sin^2 + cos^2' and apply Formula ① (=1). Tooltip: 'この形を見つけたらラッキー！一気に式を簡略化できます。'\n   - Step D: Use Formula ③ (1+tan^2 = 1/cos^2) if applicable. Tooltip: '二乗の形は公式③への近道です。'",
-        "4. Completion: On solving, play an enhanced celebration effect and transition to the Stage Map."
-      ]
-    }
-  }
-}{
-  "_meta": {
-    "role": "Game System Architect",
-    "focus": "Visual Progression & Interactive Onboarding",
-    "platform": "Desktop Only"
-  },
-  "tasks": {
-    "T-UI-01": {
-      "name": "Entrance_Portal_Refinement",
-      "target": ["index.html", "main.js"],
-      "architectural_intent": "Implement a high-polish landing screen that forces a meaningful choice between learning (Tutorial) or playing (Map).",
-      "logic_requirements": [
-        "1. In `index.html`, refine `#start-screen` to have two distinct, large interactive cards: '修行を積む (Tutorial)' and '冒険に出る (Start Adventure)'.",
-        "2. Implement `showEntrance()` function to handle visibility. If `tutorial_seen` is false, this is the default screen.",
-        "3. Button Actions: 'Tutorial' triggers `startTutorialSequence()`. 'Adventure' sets `tutorial_seen: true` and calls `renderStageMap()`."
-      ]
-    },
-    "T-UI-02": {
-      "name": "World_Map_Path_System",
-      "target": ["index.html", "main.js"],
-      "architectural_intent": "Create a zig-zag progression path using SVG or CSS Flex/Grid that feels like a journey through 'Worlds'.",
-      "logic_requirements": [
-        "1. Refactor `renderStageMap()` to group stages into 'Worlds' (World 1: Stages 1-10, World 2: 11-20, etc.).",
-        "2. Add World Title Headers (e.g., 'World 1: 平原の相互関係') between stage groups.",
-        "3. Draw a 'Path' (dotted lines) connecting each node. Use CSS `:after` pseudoelements or a background SVG pattern to create the road effect.",
-        "4. Implement a 'Smooth Scroll' that focuses on the highest unlocked stage node upon entering the map."
-      ]
-    },
-    "T-UI-03": {
-      "name": "Guided_Tutorial_System",
-      "target": ["main.js", "index.html"],
-      "architectural_intent": "A state-driven tutorial that overlays the puzzle screen, preventing incorrect moves and guiding the user through the 3 core formulas.",
-      "logic_requirements": [
-        "1. Define `TUTORIAL_FLOW` in `main.js`: a sequence of steps including target block IDs and explanation text for Formulas 1, 2, and 3.",
-        "2. Implement `highlightTarget(blockId)`: Darken the workspace using a CSS overlay/mask, except for the specific block or slot the user needs to interact with.",
-        "3. Step Logic:\n   - Step 1: Force use of Formula ② (tan -> sin/cos). Explain: 'まずは基本の分解です。'\n   - Step 2: Force use of Formula ① (sin^2+cos^2 -> 1). Explain: '式を1にする快感を覚えましょう。'\n   - Step 3: Force use of Formula ③ (1+tan^2 -> 1/cos^2). Explain: '二乗の形はショートカットのサインです。'",
-        "4. Block standard 'Submit' button during tutorial until the final step is reached."
-      ]
-    }
-  }
-}
+]

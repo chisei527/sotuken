@@ -27,8 +27,11 @@ let tutorialFlowProblems = [];
 let tutorialFlowIndex = 0;
 
 const MAX_STAGE_NUMBER = 43;
-const TUTORIAL_STAGE_NUMBER = 0;
+const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6'];
 const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode'];
+const MAP_WORLD_MIN_WIDTH = 3600;
+const MAP_WORLD_MIN_HEIGHT = 2400;
+const MAP_NODE_SIZE = 94;
 
 const TUTORIAL_STEPS = [
   {
@@ -57,6 +60,160 @@ const WORLD_SEGMENTS = [
   { start: 21, end: 30, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
   { start: 31, end: 43, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
 ];
+
+function isTutorialStageId(stageId) {
+  return TUTORIAL_STAGE_IDS.includes(String(stageId));
+}
+
+function getTutorialStageIndex(stageId) {
+  return TUTORIAL_STAGE_IDS.indexOf(String(stageId));
+}
+
+function getNextTutorialStageId(stageId) {
+  const index = getTutorialStageIndex(stageId);
+  if (index === -1) return null;
+  return TUTORIAL_STAGE_IDS[index + 1] || null;
+}
+
+function getTutorialBannerText(stageId) {
+  const stage = String(stageId);
+  if (stage === '0-1') return 'まずは tan を動かして公式②を入れよう。';
+  if (stage === '0-2') return '次は sin^2+cos^2 を公式①でまとめよう。';
+  if (stage === '0-3') return '最後は 1+tan^2 に公式③をつなげよう。';
+  if (stage === '0-4') return 'ここからは少し難しめ。証明ブロックは自分で引き出してつなげよう。';
+  if (stage === '0-5') return '同じく自力で構築。左の「証明」カテゴリから必要ブロックを取り出そう。';
+  if (stage === '0-6') return '仕上げ問題。公式①と③を順に使う2段構成を試そう。';
+  return '';
+}
+
+function isTutorialPullModeStage(stageId) {
+  const stage = String(stageId);
+  return stage === '0-4' || stage === '0-5';
+}
+
+function updateTutorialProgress(stageId) {
+  const shell = document.getElementById('tutorial-progress-shell');
+  const fill = document.getElementById('tutorial-progress-fill');
+  const label = document.getElementById('tutorial-progress-label');
+  const rate = document.getElementById('tutorial-progress-rate');
+  if (!shell || !fill || !label || !rate) return;
+
+  if (!isTutorialStageId(stageId)) {
+    shell.classList.remove('visible');
+    fill.style.width = '0%';
+    label.textContent = 'チュートリアル';
+    rate.textContent = '0%';
+    return;
+  }
+
+  const index = getTutorialStageIndex(stageId);
+  const step = Math.max(1, index + 1);
+  const percent = Math.round((step / TUTORIAL_STAGE_IDS.length) * 100);
+
+  shell.classList.add('visible');
+  fill.style.width = `${percent}%`;
+  label.textContent = `TUTORIAL ${step}/${TUTORIAL_STAGE_IDS.length}`;
+  rate.textContent = `${percent}%`;
+}
+
+function getTutorialExpectedFormulaType(stageId) {
+  const stage = String(stageId);
+  if (stage === '0-1') return 'formula_2';
+  if (stage === '0-2') return 'formula_1';
+  if (stage === '0-3') return 'formula_3';
+  if (stage === '0-5') return 'formula_2';
+  return null;
+}
+
+function getTutorialExpectedFormulaLabel(stageId) {
+  const formulaType = getTutorialExpectedFormulaType(stageId);
+  if (formulaType === 'formula_1') return '公式①';
+  if (formulaType === 'formula_2') return '公式②';
+  if (formulaType === 'formula_3') return '公式③';
+  return '公式';
+}
+
+function findTutorialReplaceOperation() {
+  const proofStep = workspace?.getTopBlocks(false)?.find((block) => block.type === 'proof_step');
+  if (!proofStep) return null;
+  let current = proofStep.getInputTargetBlock('OPERATIONS');
+  while (current) {
+    if (current.type === 'replace_operation') return current;
+    current = current.getNextBlock();
+  }
+  return null;
+}
+
+function findTutorialConclusionOperation() {
+  const proofStep = workspace?.getTopBlocks(false)?.find((block) => block.type === 'proof_step');
+  if (!proofStep) return null;
+  let current = proofStep.getInputTargetBlock('OPERATIONS');
+  while (current) {
+    if (current.type === 'conclusion_operation') return current;
+    current = current.getNextBlock();
+  }
+  return null;
+}
+
+function updateTutorialDragAssist(stageId) {
+  const panel = document.getElementById('tutorial-drag-assist');
+  const list = document.getElementById('tutorial-drag-assist-list');
+  const coachText = document.getElementById('tutorial-coach-text');
+  if (!panel || !list || !coachText) return;
+
+  if (!isTutorialStageId(stageId)) {
+    panel.classList.remove('visible');
+    list.innerHTML = '';
+    coachText.textContent = '';
+    return;
+  }
+
+  const expectedFormulaType = getTutorialExpectedFormulaType(stageId);
+  const expectedFormulaLabel = getTutorialExpectedFormulaLabel(stageId);
+  const pullMode = isTutorialPullModeStage(stageId);
+  coachText.textContent = pullMode
+    ? `${getTutorialBannerText(stageId)} 置き換え・結論は左の「証明」カテゴリからドラッグ。`
+    : getTutorialBannerText(stageId);
+  const replaceOp = findTutorialReplaceOperation();
+  const conclusionOp = findTutorialConclusionOperation();
+  const connectedFormulaType = replaceOp?.getInputTargetBlock('FORMULA')?.type || null;
+  const hasAnyFormulaInReplace = !!connectedFormulaType;
+
+  const formulaItem = expectedFormulaType
+    ? {
+      text: `3) ${expectedFormulaLabel} ブロックを置き換えの公式スロットへドラッグ`,
+      done: connectedFormulaType === expectedFormulaType,
+    }
+    : {
+      text: '3) 必要な公式ブロックを置き換えの公式スロットへ接続',
+      done: hasAnyFormulaInReplace,
+    };
+
+  const items = [
+    {
+      text: pullMode
+        ? '1) 左の「証明」カテゴリから置き換えブロックを引き出す'
+        : '1) 置き換えブロックを「証明」の操作欄へドラッグ',
+      done: !!replaceOp,
+    },
+    {
+      text: pullMode
+        ? '2) 結論ブロックも引き出して、置き換えの下に接続'
+        : '2) 結論ブロックを置き換えの下に接続',
+      done: !!conclusionOp,
+    },
+    formulaItem,
+    {
+      text: '4) 変形前と変形後に式ブロックをつないで「判定する」を押す',
+      done: !!replaceOp?.getInputTargetBlock('VALUE') && !!replaceOp?.getInputTargetBlock('REPLACEMENT') && !!conclusionOp?.getInputTargetBlock('VALUE'),
+    },
+  ];
+
+  list.innerHTML = items
+    .map((item) => `<li class="${item.done ? 'done' : ''}">${item.done ? '✓ ' : ''}${item.text}</li>`)
+    .join('');
+  panel.classList.add('visible');
+}
 
 function resetAppStateForGoLiveIfNeeded() {
   const isLiveServerHost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
@@ -190,6 +347,7 @@ async function loadTutorialFlowProblem(index) {
   applyProblemDataToWorkspace(currentProblemData, `チュートリアル ${safeIndex + 1}/${tutorialFlowProblems.length}`);
   tutorialStepIndex = safeIndex;
   showTutorialStep();
+  queueTutorialAutoAdvanceCheck();
 }
 
 
@@ -269,6 +427,613 @@ function updateOverwritePermissionButton() {
   button.textContent = `上書き許可: ${isEnabled ? 'ON' : 'OFF'}`;
   button.classList.toggle('on', isEnabled);
   button.classList.toggle('off', !isEnabled);
+}
+
+// ===== Blockly 定義とワークスペース初期化 =====
+const FORMULA_BLOCK_DEFS = [
+  ['formula_1', '公式① sin(x)^2 + cos(x)^2 = 1'],
+  ['formula_2', '公式② tan(x) = sin(x) / cos(x)'],
+  ['formula_3', '公式③ 1 + tan(x)^2 = 1 / cos(x)^2'],
+  ['formula_4', '公式④ sin(2*x) = 2*sin(x)*cos(x)'],
+  ['formula_5', '公式⑤ sin(x)^2 = (1-cos(2*x))/2'],
+  ['formula_6', '公式⑥ cos(x)^2 = (1+cos(2*x))/2'],
+  ['formula_7', '公式⑦ tan(x) = sin(2*x)/(1+cos(2*x))'],
+  ['formula_8', '公式⑧ tan(x)^2 = (1-cos(2*x))/(1+cos(2*x))'],
+];
+
+function defineMathBlocks() {
+  Blockly.Blocks.custom_number = {
+    init() {
+      this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
+      this.setOutput(true, null);
+      this.setColour(225);
+    },
+  };
+
+  const basicTerms = [
+    ['term_sin', 'sinθ'],
+    ['term_cos', 'cosθ'],
+    ['term_tan', 'tanθ'],
+    ['term_sin2', 'sin2θ'],
+    ['term_cos2', 'cos2θ'],
+    ['term_pi', 'π'],
+    ['term_pi_sixth', 'π/6'],
+    ['term_pi_quarter', 'π/4'],
+    ['term_pi_third', 'π/3'],
+    ['term_pi_half', 'π/2'],
+    ['term_two_pi_thirds', '2π/3'],
+    ['term_three_pi_quarters', '3π/4'],
+    ['term_five_pi_sixths', '5π/6'],
+    ['term_half_value', '1/2'],
+    ['term_sqrt2_half', '√2/2'],
+    ['term_sqrt3_half', '√3/2'],
+  ];
+
+  basicTerms.forEach(([type, label]) => {
+    Blockly.Blocks[type] = {
+      init() {
+        this.appendDummyInput().appendField(label);
+        this.setOutput(true, null);
+        this.setColour(200);
+      },
+    };
+  });
+
+  const trigOfTerms = [
+    ['term_sin_of', 'sin'],
+    ['term_cos_of', 'cos'],
+    ['term_tan_of', 'tan'],
+  ];
+
+  trigOfTerms.forEach(([type, label]) => {
+    Blockly.Blocks[type] = {
+      init() {
+        this.appendValueInput('ANGLE').appendField(`${label}(`);
+        this.appendDummyInput().appendField(')');
+        this.setOutput(true, null);
+        this.setColour(200);
+      },
+    };
+  });
+
+  Blockly.Blocks.math_add = {
+    init() {
+      this.appendValueInput('A');
+      this.appendValueInput('B').appendField('+');
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
+  Blockly.Blocks.math_negate = {
+    init() {
+      this.appendValueInput('A').appendField('-(');
+      this.appendDummyInput().appendField(')');
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
+  Blockly.Blocks.math_multiply = {
+    init() {
+      this.appendValueInput('A');
+      this.appendValueInput('B').appendField('×');
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
+  Blockly.Blocks.math_fraction = {
+    init() {
+      this.appendValueInput('NUMERATOR').appendField('(');
+      this.appendDummyInput().appendField('/');
+      this.appendValueInput('DENOMINATOR').appendField(')');
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
+  Blockly.Blocks.math_square = {
+    init() {
+      this.appendValueInput('A');
+      this.appendDummyInput().appendField('^2');
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
+  FORMULA_BLOCK_DEFS.forEach(([type, label]) => {
+    Blockly.Blocks[type] = {
+      init() {
+        this.appendDummyInput().appendField(label);
+        this.setOutput(true, null);
+        this.setColour(260);
+      },
+    };
+  });
+
+  Blockly.Blocks.proof_step = {
+    init() {
+      this.appendDummyInput().appendField('証明');
+      this.appendStatementInput('OPERATIONS').appendField('操作');
+      this.setColour(210);
+      this.setMovable(true);
+      this.setDeletable(true);
+    },
+  };
+
+  Blockly.Blocks.replace_operation = {
+    init() {
+      this.appendValueInput('VALUE').appendField('置き換え 前');
+      this.appendValueInput('FORMULA').appendField('公式');
+      this.appendValueInput('REPLACEMENT').appendField('置き換え 後');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(120);
+    },
+  };
+
+  Blockly.Blocks.common_denominator_operation = {
+    init() {
+      this.appendValueInput('VALUE').appendField('通分 前');
+      this.appendValueInput('REPLACEMENT').appendField('通分 後');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(120);
+    },
+  };
+
+  Blockly.Blocks.conclusion_operation = {
+    init() {
+      this.appendValueInput('VALUE').appendField('よって');
+      this.appendDummyInput().appendField('となる');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(false);
+      this.setColour(20);
+    },
+  };
+}
+
+defineMathBlocks();
+
+const toolboxConfig = {
+  kind: 'categoryToolbox',
+  contents: [
+    {
+      kind: 'category',
+      name: '基本',
+      colour: '#3f51b5',
+      contents: [
+        { kind: 'block', type: 'custom_number' },
+        { kind: 'block', type: 'term_sin' },
+        { kind: 'block', type: 'term_cos' },
+        { kind: 'block', type: 'term_tan' },
+        { kind: 'block', type: 'term_sin2' },
+        { kind: 'block', type: 'term_cos2' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: '角度',
+      colour: '#00897b',
+      contents: [
+        { kind: 'block', type: 'term_pi' },
+        { kind: 'block', type: 'term_pi_sixth' },
+        { kind: 'block', type: 'term_pi_quarter' },
+        { kind: 'block', type: 'term_pi_third' },
+        { kind: 'block', type: 'term_pi_half' },
+        { kind: 'block', type: 'term_two_pi_thirds' },
+        { kind: 'block', type: 'term_three_pi_quarters' },
+        { kind: 'block', type: 'term_five_pi_sixths' },
+        { kind: 'block', type: 'term_half_value' },
+        { kind: 'block', type: 'term_sqrt2_half' },
+        { kind: 'block', type: 'term_sqrt3_half' },
+        { kind: 'block', type: 'term_sin_of' },
+        { kind: 'block', type: 'term_cos_of' },
+        { kind: 'block', type: 'term_tan_of' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: '演算',
+      colour: '#ef6c00',
+      contents: [
+        { kind: 'block', type: 'math_add' },
+        { kind: 'block', type: 'math_negate' },
+        { kind: 'block', type: 'math_multiply' },
+        { kind: 'block', type: 'math_fraction' },
+        { kind: 'block', type: 'math_square' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: '公式',
+      colour: '#8e24aa',
+      contents: FORMULA_BLOCK_DEFS.map(([type]) => ({ kind: 'block', type })),
+    },
+    {
+      kind: 'category',
+      name: '証明',
+      colour: '#2e7d32',
+      contents: [
+        { kind: 'block', type: 'proof_step' },
+        { kind: 'block', type: 'replace_operation' },
+        { kind: 'block', type: 'common_denominator_operation' },
+        { kind: 'block', type: 'conclusion_operation' },
+      ],
+    },
+  ],
+};
+
+const workspace = Blockly.inject('l', {
+  toolbox: toolboxConfig,
+  renderer: 'zelos',
+  trashcan: true,
+  move: { scrollbars: true, drag: true, wheel: true },
+  zoom: { controls: true, wheel: true, startScale: 1, maxScale: 2, minScale: 0.5, scaleSpeed: 1.1 },
+});
+window.workspace = workspace;
+
+function forceWorkspaceLayoutSync() {
+  if (!workspace) return;
+  Blockly.svgResize(workspace);
+  workspace.resizeContents();
+  workspace.render();
+}
+
+function arrangeBlocks() {
+  if (!workspace) return;
+
+  forceWorkspaceLayoutSync();
+  const metrics = workspace.getMetrics();
+  const toolboxWidth = Math.max(0, metrics?.toolboxWidth || 0);
+  const flyoutWidth = Math.max(0, metrics?.flyoutWidth || 0);
+  const absoluteLeft = Math.max(0, metrics?.absoluteMetrics?.left || 0);
+  const absoluteTop = Math.max(0, metrics?.absoluteMetrics?.top || 0);
+
+  // ツールボックスと重ならない最小マージンを保証する。
+  const leftInset = Math.max(250, absoluteLeft + toolboxWidth + flyoutWidth + 24);
+  const topInset = Math.max(absoluteTop + 24, 24);
+  const gap = 26;
+
+  const topBlocks = workspace.getTopBlocks(true);
+  let cursorY = topInset;
+  topBlocks.forEach((block) => {
+    const xy = block.getRelativeToSurfaceXY();
+    const size = block.getHeightWidth();
+    block.moveBy(leftInset - xy.x, cursorY - xy.y);
+    cursorY += Math.max(40, size.height) + gap;
+  });
+}
+
+// ===== 問題ロード/画面遷移 =====
+async function getProblemsData() {
+  if (problemsDataCache) return problemsDataCache;
+
+  try {
+    const response = await fetch('problems.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    problemsDataCache = await response.json();
+  } catch (_) {
+    problemsDataCache = { stages: {} };
+  }
+
+  return problemsDataCache;
+}
+
+function getUnlockLimit() {
+  if (unlockAll) return MAX_STAGE_NUMBER;
+  if (!Array.isArray(clearedStages) || clearedStages.length === 0) return 1;
+  return Math.min(MAX_STAGE_NUMBER, Math.max(1, ...clearedStages) + 1);
+}
+
+function openSkipChallengeModal(currentStage, desiredTargetStage) {
+  const safeTarget = Math.min(MAX_STAGE_NUMBER, Math.max(currentStage + 1, desiredTargetStage));
+  const bypassedStages = [];
+  for (let stage = currentStage + 1; stage < safeTarget; stage += 1) {
+    bypassedStages.push(stage);
+  }
+
+  currentSkipOffer = {
+    targetStage: safeTarget,
+    bypassedStages,
+  };
+
+  const modal = document.getElementById('skip-challenge-modal');
+  const message = document.getElementById('skip-challenge-message');
+  if (message) {
+    message.textContent = `連続正解ボーナス！ STAGE ${safeTarget} へ挑戦しますか？`;
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function applyPendingSkipClearIfNeeded() {
+  if (!pendingSkipChallenge) return;
+  if (currentStageNumber !== pendingSkipChallenge.targetStage) return;
+
+  pendingSkipChallenge.bypassedStages.forEach((stage) => {
+    if (!clearedStages.includes(stage)) {
+      clearedStages.push(stage);
+    }
+  });
+
+  localStorage.setItem('s', JSON.stringify(clearedStages));
+  pendingSkipChallenge = null;
+}
+
+async function transitionToStage(stageNumber) {
+  if (isTutorialStageId(stageNumber)) {
+    currentStageNumber = String(stageNumber);
+  } else {
+    currentStageNumber = Math.max(1, Math.min(MAX_STAGE_NUMBER, Number(stageNumber) || 1));
+  }
+  switchScreen('p');
+  await loadStage(currentStageNumber);
+}
+
+function buildStageNodePosition(index) {
+  const col = index % 8;
+  const row = Math.floor(index / 8);
+  const isOddRow = row % 2 === 1;
+  const x = isOddRow ? 1460 - col * 180 : 140 + col * 180;
+  const y = 120 + row * 170;
+  return { x, y };
+}
+
+function getCurrentMapFocusStage() {
+  const unlockedLimit = getUnlockLimit();
+  return Math.max(1, Math.min(MAX_STAGE_NUMBER, unlockedLimit));
+}
+
+function centerMapCameraOnStage(stageNumber, animate = true) {
+  const viewport = document.getElementById('map-viewport');
+  const world = document.getElementById('map-world');
+  if (!viewport || !world) return;
+
+  const targetNode = world.querySelector(`.map-node[data-stage="${stageNumber}"]`);
+  if (!targetNode) return;
+
+  const nodeCenterX = targetNode.offsetLeft + targetNode.offsetWidth / 2;
+  const nodeCenterY = targetNode.offsetTop + targetNode.offsetHeight / 2;
+
+  const maxX = Math.max(0, world.offsetWidth - viewport.clientWidth);
+  const maxY = Math.max(0, world.offsetHeight - viewport.clientHeight);
+
+  const targetX = Math.max(0, Math.min(maxX, nodeCenterX - viewport.clientWidth / 2));
+  const targetY = Math.max(0, Math.min(maxY, nodeCenterY - viewport.clientHeight / 2));
+
+  world.style.transition = animate ? 'transform 0.8s ease-out' : 'none';
+  world.style.transform = `translate(${-targetX}px, ${-targetY}px)`;
+}
+
+function centerMapCameraOnCurrentStage(animate = true) {
+  centerMapCameraOnStage(getCurrentMapFocusStage(), animate);
+}
+
+function drawMapLinks(svg, positions) {
+  if (!svg) return;
+  svg.innerHTML = '';
+
+  for (let i = 1; i < positions.length; i += 1) {
+    const prev = positions[i - 1];
+    const curr = positions[i];
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(prev.x + MAP_NODE_SIZE / 2));
+    line.setAttribute('y1', String(prev.y + MAP_NODE_SIZE / 2));
+    line.setAttribute('x2', String(curr.x + MAP_NODE_SIZE / 2));
+    line.setAttribute('y2', String(curr.y + MAP_NODE_SIZE / 2));
+    svg.appendChild(line);
+  }
+}
+
+async function renderStageMap() {
+  const nodeRoot = document.getElementById('map-nodes');
+  const links = document.getElementById('map-links');
+  const mapWorld = document.getElementById('map-world');
+  const progressLabel = document.getElementById('map-progress');
+  const overallBar = document.getElementById('overall-progress');
+  const progressText = document.getElementById('progress-text');
+  if (!nodeRoot || !links || !mapWorld) return;
+
+  const unlockedLimit = getUnlockLimit();
+  const positions = Array.from({ length: MAX_STAGE_NUMBER }, (_, i) => buildStageNodePosition(i));
+  const lastPosition = positions[positions.length - 1] || { x: 0, y: 0 };
+  const worldWidth = Math.max(MAP_WORLD_MIN_WIDTH, lastPosition.x + 700);
+  const worldHeight = Math.max(MAP_WORLD_MIN_HEIGHT, lastPosition.y + 520);
+
+  mapWorld.style.width = `${worldWidth}px`;
+  mapWorld.style.height = `${worldHeight}px`;
+  links.setAttribute('viewBox', `0 0 ${worldWidth} ${worldHeight}`);
+
+  drawMapLinks(links, positions);
+
+  nodeRoot.innerHTML = '';
+  positions.forEach(({ x, y }, idx) => {
+    const stage = idx + 1;
+    const isCleared = clearedStages.includes(stage);
+    const isUnlocked = unlockAll || stage <= unlockedLimit;
+
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    node.dataset.stage = String(stage);
+    node.textContent = String(stage);
+    if (isUnlocked) {
+      node.onclick = async () => {
+        currentStageNumber = stage;
+        switchScreen('p');
+        await loadStage(stage);
+      };
+    }
+
+    const label = document.createElement('div');
+    label.className = 'map-node-label';
+    label.textContent = `Stage ${stage}`;
+    node.appendChild(label);
+
+    nodeRoot.appendChild(node);
+  });
+
+  const clearCount = clearedStages.filter((stage) => stage >= 1 && stage <= MAX_STAGE_NUMBER).length;
+  if (progressLabel) progressLabel.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} CLEAR`;
+  if (overallBar) overallBar.style.width = `${(clearCount / MAX_STAGE_NUMBER) * 100}%`;
+  if (progressText) progressText.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} クリア`;
+
+  requestAnimationFrame(() => {
+    centerMapCameraOnCurrentStage(false);
+  });
+}
+
+function unlockAllStages() {
+  unlockAll = true;
+  localStorage.setItem('unlock_all', '1');
+  renderStageMap();
+}
+
+function resetSaveData() {
+  APP_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  localStorage.removeItem('unlock_all');
+  clearedStages = [];
+  unlockAll = false;
+  currentStreak = 0;
+  pendingSkipChallenge = null;
+  currentSkipOffer = null;
+  updateStreakCounter(false);
+  renderStageMap();
+}
+
+window.unlockAllStages = unlockAllStages;
+window.resetSaveData = resetSaveData;
+
+// ===== チュートリアル補助 =====
+function getTutorialCompletionState(astArray) {
+  const ast = Array.isArray(astArray) ? astArray : [];
+  const hasFormula2 = ast.some((step) => step?.type === 'replace_operation' && formulaTextToId(step?.formula) === 'formula_2');
+  const hasCommonDenominator = ast.some((step) => step?.type === 'common_denominator_operation');
+  const hasFormula1 = ast.some((step) => step?.type === 'replace_operation' && formulaTextToId(step?.formula) === 'formula_1');
+  const hasFormula3 = ast.some((step) => step?.type === 'replace_operation' && formulaTextToId(step?.formula) === 'formula_3');
+
+  let firstMissingIndex = 0;
+  if (hasFormula2) firstMissingIndex = 1;
+  if (hasFormula2 && hasCommonDenominator) firstMissingIndex = 2;
+  if (hasFormula2 && hasCommonDenominator && hasFormula1 && hasFormula3) {
+    firstMissingIndex = TUTORIAL_STEPS.length - 1;
+    return { isComplete: true, firstMissingIndex };
+  }
+
+  return { isComplete: false, firstMissingIndex };
+}
+
+function openInteractiveTutorialOverlay() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (!overlay) return;
+  tutorialModeActive = true;
+  tutorialStepIndex = 0;
+  overlay.classList.remove('hidden');
+  showTutorialStep();
+  queueTutorialAutoAdvanceCheck();
+}
+
+function skipInteractiveTutorial() {
+  localStorage.setItem('tutorial_seen', 'true');
+  hideTutorialOverlay();
+  routeToTarget();
+}
+
+async function completeTutorialAndOpenMap() {
+  localStorage.setItem('tutorial_seen', 'true');
+  hideTutorialOverlay();
+  await renderStageMap();
+  switchScreen('stage-map-screen');
+}
+
+// ===== インタラクティブ単位円 =====
+function drawUnitCircle(angleDeg) {
+  const canvas = document.getElementById('unit-circle');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = Math.min(width, height) * 0.34;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const px = cx + radius * Math.cos(angleRad);
+  const py = cy - radius * Math.sin(angleRad);
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(20, cy);
+  ctx.lineTo(width - 20, cy);
+  ctx.moveTo(cx, 20);
+  ctx.lineTo(cx, height - 20);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#0ea5e9';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 半径
+  ctx.strokeStyle = '#1d4ed8';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(px, py);
+  ctx.stroke();
+
+  // cos 成分（横）
+  ctx.strokeStyle = '#16a34a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(px, cy);
+  ctx.stroke();
+
+  // sin 成分（縦）
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, cy);
+  ctx.lineTo(px, py);
+  ctx.stroke();
+
+  // tan 線（90/270° 近傍は描画しない）
+  const cosValue = Math.cos(angleRad);
+  if (Math.abs(cosValue) > 0.03) {
+    const tanValue = Math.tan(angleRad);
+    const tanX = cx + radius;
+    const tanY = cy - radius * tanValue;
+    const safeY = Math.max(20, Math.min(height - 20, tanY));
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(tanX, safeY);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(`angle: ${angleDeg.toFixed(0)}°`, 12, 22);
+  ctx.fillText(`sin: ${Math.sin(angleRad).toFixed(4)}`, 12, 42);
+  ctx.fillText(`cos: ${Math.cos(angleRad).toFixed(4)}`, 12, 62);
+  if (Math.abs(cosValue) > 0.0001) {
+    ctx.fillText(`tan: ${Math.tan(angleRad).toFixed(4)}`, 12, 82);
+  } else {
+    ctx.fillText('tan: ∞', 12, 82);
+  }
 }
 
 // ===== Blockly カスタムフィールド =====
@@ -708,6 +1473,12 @@ function switchScreen(screenId) {
       forceWorkspaceLayoutSync();
     });
   }
+
+  if (screenId === 'stage-map-screen') {
+    requestAnimationFrame(() => {
+      centerMapCameraOnCurrentStage(true);
+    });
+  }
 }
 
 // toast-message がある場合はトースト表示。
@@ -752,6 +1523,11 @@ function updateStreakCounter(shouldAnimate = false) {
 function closeSkipChallengeModal() {
   const skipModal = document.getElementById('skip-challenge-modal');
   if (skipModal) skipModal.classList.add('hidden');
+}
+
+function updateTutorialBanner(stageId) {
+  updateTutorialProgress(stageId);
+  updateTutorialDragAssist(stageId);
 }
 
 function clearTutorialFocus() {
@@ -808,850 +1584,58 @@ function showTutorialStep() {
   nextBtn.textContent = safeIndex === TUTORIAL_STEPS.length - 1 ? '理解した' : '次の解説へ';
 }
 
-function bindTutorialWorkspaceAutoAdvance() {}
+function queueTutorialAutoAdvanceCheck() {
+  if (!tutorialModeActive || !isTutorialStageId(currentStageNumber)) return;
 
-function openInteractiveTutorialOverlay() {
-  const overlay = document.getElementById('tutorial-overlay');
-  const skipBtn = document.getElementById('btn-tutorial-skip');
-  if (!overlay) return;
-
-  tutorialModeActive = true;
-  tutorialStepIndex = 0;
-  overlay.classList.remove('hidden');
-  if (skipBtn) {
-    skipBtn.style.display = 'none';
-  }
-  showTutorialStep();
-  queueTutorialAutoAdvanceCheck();
-}
-
-async function completeTutorialAndOpenMap() {
-  localStorage.setItem('tutorial_seen', 'true');
-  hideTutorialOverlay();
-  await renderStageMap();
-  switchScreen('stage-map-screen');
-}
-
-async function skipInteractiveTutorial() {
-  await completeTutorialAndOpenMap();
-  showToast('チュートリアルをスキップしました。', true);
-}
-
-function getTutorialCompletionState(ast) {
-  const usedFormulaIds = collectAppliedFormulaIdsFromAST(ast);
-  const hasCommonDenominator = ast.some((step) => String(step?.type || '') === 'common_denominator_operation');
-
-  const checks = [
-    usedFormulaIds.has('formula_2'),
-    hasCommonDenominator,
-    usedFormulaIds.has('formula_1'),
-    usedFormulaIds.has('formula_3'),
-  ];
-  const firstMissingIndex = checks.findIndex((isDone) => !isDone);
-
-  return {
-    isComplete: firstMissingIndex === -1,
-    firstMissingIndex: firstMissingIndex === -1 ? TUTORIAL_STEPS.length - 1 : firstMissingIndex,
-    checks,
-  };
-}
-
-function getSafeStagePreview(mathText) {
-  if (typeof mathText !== 'string') return '問題文プレビューなし';
-  return mathText
-    .replaceAll('\\[', '')
-    .replaceAll('\\]', '')
-    .replaceAll('\\', '')
-    .trim();
-}
-
-function showMapNodeTooltip(stageId, mathText, x, y) {
-  const tooltip = document.getElementById('map-node-tooltip');
-  if (!tooltip) return;
-  const preview = getSafeStagePreview(mathText);
-  tooltip.innerHTML = `<strong>STAGE ${stageId}</strong><div>${preview}</div>`;
-  tooltip.style.left = `${Math.max(18, x - 40)}px`;
-  tooltip.style.top = `${Math.max(24, y - 74)}px`;
-  tooltip.classList.add('visible');
-}
-
-function hideMapNodeTooltip() {
-  const tooltip = document.getElementById('map-node-tooltip');
-  if (!tooltip) return;
-  tooltip.classList.remove('visible');
-}
-
-function openSkipChallengeModal(fromStage, targetStage) {
-  const skipModal = document.getElementById('skip-challenge-modal');
-  const message = document.getElementById('skip-challenge-message');
-  if (!skipModal || !message) return;
-
-  const bypassedStages = [];
-  for (let stage = fromStage + 1; stage < targetStage; stage++) {
-    bypassedStages.push(stage);
+  if (tutorialAutoAdvanceFrameId) {
+    cancelAnimationFrame(tutorialAutoAdvanceFrameId);
+    tutorialAutoAdvanceFrameId = 0;
   }
 
-  currentSkipOffer = {
-    fromStage,
-    targetStage,
-    bypassedStages,
-  };
+  tutorialAutoAdvanceFrameId = requestAnimationFrame(() => {
+    tutorialAutoAdvanceFrameId = 0;
 
-  const bypassLabel = bypassedStages.length > 0 ? bypassedStages.join(', ') : 'なし';
-  message.textContent = `ステージ ${targetStage} へ挑戦しますか？（スキップ候補: ${bypassLabel}）`;
-  skipModal.classList.remove('hidden');
-}
+    let ast = [];
+    try {
+      ast = parseBlocksToAST(workspace, mathGenerator);
+    } catch (_) {
+      return;
+    }
 
-function applyPendingSkipClearIfNeeded() {
-  if (!pendingSkipChallenge) return;
-  if (currentStageNumber !== pendingSkipChallenge.targetStage) return;
-
-  let changed = false;
-  pendingSkipChallenge.bypassedStages.forEach((stage) => {
-    if (stage < 1 || stage > MAX_STAGE_NUMBER) return;
-    if (clearedStages.includes(stage)) return;
-    clearedStages.push(stage);
-    changed = true;
-  });
-
-  if (changed) {
-    localStorage.setItem('s', JSON.stringify(clearedStages));
-  }
-
-  pendingSkipChallenge = null;
-}
-
-function forceWorkspaceLayoutSync() {
-  if (typeof workspace.render === 'function') {
-    workspace.render();
-  }
-  if (typeof Blockly.svgResize === 'function') {
-    Blockly.svgResize(workspace);
-  }
-}
-
-// トップブロックを左から順に並べる
-function arrangeBlocks() {
-  if (typeof Blockly.svgResize === 'function') {
-    Blockly.svgResize(workspace);
-  }
-
-  let topBlocks = workspace.getTopBlocks(false);
-  if (!topBlocks || topBlocks.length === 0) return;
-  // 証明ブロック(proof_step)を一番左に
-  topBlocks = topBlocks.slice(); // 破壊的変更防止
-  const proofIdx = topBlocks.findIndex((b) => b.type === 'proof_step');
-  if (proofIdx > 0) {
-    const [proofBlock] = topBlocks.splice(proofIdx, 1);
-    topBlocks.unshift(proofBlock);
-  }
-
-  // ツールボックス/フライアウトを避けつつ、アスペクト比に応じて中央寄りへ配置する
-  const metrics = typeof workspace.getMetrics === 'function' ? workspace.getMetrics() : null;
-  const toolboxWidthFromApi = workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getWidth ? workspace.getToolbox().getWidth() : 0;
-  const toolboxDiv = document.querySelector('#l .blocklyToolboxDiv');
-  const flyoutSvg = document.querySelector('#l .blocklyFlyout');
-  const parentRect = workspace.getParentSvg() ? workspace.getParentSvg().getBoundingClientRect() : null;
-
-  const toolboxWidth = Math.max(metrics?.toolboxWidth || 0, toolboxWidthFromApi || 0, toolboxDiv ? toolboxDiv.getBoundingClientRect().width : 0);
-  const flyoutWidth = Math.max(metrics?.flyoutWidth || 0, flyoutSvg ? flyoutSvg.getBoundingClientRect().width : 0);
-  const leftInset = Math.max(250, Math.ceil(toolboxWidth + flyoutWidth + 24));
-
-  const viewportWidth = Math.max(metrics?.viewWidth || 0, parentRect ? parentRect.width : 0);
-  const viewportHeight = Math.max(metrics?.viewHeight || 0, parentRect ? parentRect.height : 0);
-  const aspectRatio = viewportHeight > 0 ? viewportWidth / viewportHeight : 1;
-
-  const gap = aspectRatio < 1 ? 24 : 32;
-  const sizes = topBlocks.map((block) => block.getHeightWidth());
-  const totalWidth = sizes.reduce((sum, size) => sum + (size?.width || 0), 0) + gap * (topBlocks.length - 1);
-  const maxHeight = sizes.reduce((max, size) => Math.max(max, size?.height || 0), 0);
-
-  const availableWidth = Math.max(120, viewportWidth - leftInset - 24);
-  const centeredX = leftInset + Math.max(0, Math.floor((availableWidth - totalWidth) / 2));
-  const nudgeLeft = Math.min(220, Math.max(60, Math.floor(availableWidth * 0.25)));
-  const rightSafeX = Math.max(leftInset, viewportWidth - totalWidth - 12);
-  let currentX = Math.min(Math.max(leftInset, centeredX - nudgeLeft), rightSafeX);
-
-  let startY;
-  if (aspectRatio < 0.9) {
-    // 縦長画面は上寄りの中央に置いて、下方向の作業スペースを確保
-    startY = Math.max(20, Math.floor(viewportHeight * 0.14));
-  } else {
-    // 横長〜標準画面は中央付近
-    startY = Math.max(20, Math.floor((viewportHeight - maxHeight) / 2) - 90);
-  }
-
-  topBlocks.forEach((block) => {
-    const xy = block.getRelativeToSurfaceXY();
-    block.moveBy(currentX - xy.x, startY - xy.y);
-    const blockSize = block.getHeightWidth();
-    currentX += blockSize.width + gap;
+    const tutorialState = getTutorialCompletionState(ast);
+    const nextStepIndex = Math.max(0, Math.min(tutorialState.firstMissingIndex, TUTORIAL_STEPS.length - 1));
+    if (nextStepIndex !== tutorialStepIndex) {
+      tutorialStepIndex = nextStepIndex;
+      showTutorialStep();
+    }
   });
 }
 
-// 画面切替の認知負荷を下げるカーテントランジション
-async function transitionToStage(stageNum) {
-  const curtain = document.getElementById('transition-curtain');
+function bindTutorialWorkspaceAutoAdvance() {
+  if (tutorialWorkspaceListenerBound) return;
+  tutorialWorkspaceListenerBound = true;
 
-  if (!curtain) {
-    currentStageNumber = stageNum;
-    switchScreen('p');
-    if (typeof Blockly.svgResize === 'function') Blockly.svgResize(workspace);
-    await loadStage(stageNum);
+  workspace.addChangeListener((event) => {
+    if (!tutorialModeActive || !isTutorialStageId(currentStageNumber)) return;
+    if (!event || event.isUiEvent) return;
+    queueTutorialAutoAdvanceCheck();
+  });
+}
+
+async function advanceTutorialFlowOrComplete() {
+  if (tutorialFlowIndex < tutorialFlowProblems.length - 1) {
+    await loadTutorialFlowProblem(tutorialFlowIndex + 1);
+    showToast(`<span style='color:#2563eb'>チュートリアル ${tutorialFlowIndex + 1}/${tutorialFlowProblems.length} へ進みました。</span>`);
     return;
   }
 
-  curtain.classList.remove('hidden');
-
-  setTimeout(async () => {
-    // 重要: 先に p 画面を表示してワークスペースのサイズを確定させる
-    // 非表示状態で loadStage すると、Zelos の描画が崩れる場合がある
-    switchScreen('p');
-    if (typeof Blockly.svgResize === 'function') Blockly.svgResize(workspace);
-
-    currentStageNumber = stageNum;
-    await loadStage(stageNum);
-
-    setTimeout(() => {
-      curtain.classList.add('hidden');
-    }, 200);
-  }, 300);
-}
-
-// ===== ステージ選択描画 =====
-async function renderStageMap() {
-  const mapNodes = document.getElementById('map-nodes');
-  const mapLinks = document.getElementById('map-links');
-  const mapWorlds = document.getElementById('map-worlds');
-  const progressLabel = document.getElementById('map-progress');
-  const mapScreen = document.getElementById('stage-map-screen');
-  if (!mapNodes || !mapLinks || !mapWorlds || !progressLabel || !mapScreen) return;
-
-  mapScreen.classList.remove('hidden');
-  mapNodes.innerHTML = '';
-  mapLinks.innerHTML = '';
-  mapWorlds.innerHTML = '';
-
-  const allProblems = await getProblemsData();
-  const hasBundle = !!(allProblems && allProblems.stages);
-  const stageIds = [];
-  for (let i = 1; i <= MAX_STAGE_NUMBER; i++) {
-    if (!hasBundle || allProblems.stages[String(i)]) {
-      stageIds.push(i);
-    }
-  }
-
-  const cols = 8;
-  const startX = 110;
-  const startY = 120;
-  const xGap = 180;
-  const yGap = 170;
-  const points = [];
-
-  stageIds.forEach((stageId, index) => {
-    const row = Math.floor(index / cols);
-    const colInRow = index % cols;
-    const zigzagCol = row % 2 === 0 ? colInRow : (cols - 1 - colInRow);
-
-    const x = startX + zigzagCol * xGap;
-    const y = startY + row * yGap;
-    points.push({ stageId, x, y });
-
-    const isCleared = clearedStages.includes(stageId);
-    const isUnlocked = unlockAll || stageId === 1 || clearedStages.includes(stageId - 1);
-
-    const node = document.createElement('button');
-    node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
-    node.style.left = `${x}px`;
-    node.style.top = `${y}px`;
-    node.type = 'button';
-    node.innerHTML = `${stageId}<span class='map-node-icon'>${isCleared ? '✓' : isUnlocked ? '▶' : '🔒'}</span><span class='map-node-label'>STAGE ${stageId}</span>`;
-
-    const stageData = hasBundle ? allProblems.stages[String(stageId)] : null;
-    node.addEventListener('mouseenter', () => {
-      showMapNodeTooltip(stageId, stageData?.mathText || '', x + 72, y + 10);
-    });
-    node.addEventListener('mouseleave', () => {
-      hideMapNodeTooltip();
-    });
-
-    node.onclick = async () => {
-      if (!isUnlocked) {
-        showToast('このステージはまだロック中です。', true);
-        return;
-      }
-      currentStageNumber = stageId;
-      await transitionToStage(stageId);
-    };
-
-    mapNodes.appendChild(node);
-  });
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const from = points[i];
-    const to = points[i + 1];
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', String(from.x + 47));
-    line.setAttribute('y1', String(from.y + 47));
-    line.setAttribute('x2', String(to.x + 47));
-    line.setAttribute('y2', String(to.y + 47));
-    const shouldGlowPath = unlockAll || clearedStages.includes(from.stageId);
-    if (shouldGlowPath) line.classList.add('map-link-lit');
-    mapLinks.appendChild(line);
-  }
-
-  WORLD_SEGMENTS.forEach((world) => {
-    const startIndex = stageIds.indexOf(world.start);
-    const endIndex = stageIds.indexOf(world.end);
-    if (startIndex === -1 || endIndex === -1) return;
-
-    const startPoint = points[startIndex];
-    const endPoint = points[endIndex];
-    const top = Math.max(12, Math.min(startPoint.y, endPoint.y) - 86);
-
-    const badge = document.createElement('div');
-    badge.className = 'map-world-badge';
-    badge.style.top = `${top}px`;
-    badge.innerHTML = `<h4>${world.title}</h4><p>${world.start} - ${world.end}: ${world.subtitle}</p>`;
-    mapWorlds.appendChild(badge);
-  });
-
-  progressLabel.textContent = `${clearedStages.length} / ${MAX_STAGE_NUMBER} CLEAR`;
-}
-
-async function renderStageSelectionDynamic() {
-  await renderStageMap();
-}
-
-// セーブデータ + チュートリアル既読フラグを初期化
-function resetSaveData() {
-  localStorage.removeItem('s');
-  localStorage.removeItem('tutorial_seen');
-  localStorage.removeItem('unlock_all');
-  clearedStages = [];
-  unlockAll = false;
-  renderStageMap();
-}
-
-// 全問題を開放してチャレンジ可能にする
-function unlockAllStages() {
-  unlockAll = true;
-  localStorage.setItem('unlock_all', '1');
-  renderStageMap();
-}
-
-// ===== Blockly ブロック定義 =====
-Blockly.Blocks.term_tan = {
-  init: function () {
-    this.appendDummyInput().appendField('tan θ');
-    this.setOutput(true, 'Math');
-    this.setColour(230);
-  },
-};
-
-Blockly.Blocks.term_sin = {
-  init: function () {
-    this.appendDummyInput().appendField('sin θ');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_cos = {
-  init: function () {
-    this.appendDummyInput().appendField('cos θ');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_sin2 = {
-  init: function () {
-    this.appendDummyInput().appendField('sin 2θ');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_cos2 = {
-  init: function () {
-    this.appendDummyInput().appendField('cos 2θ');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_pi = {
-  init: function () {
-    this.appendDummyInput().appendField('π');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_pi_sixth = {
-  init: function () {
-    this.appendDummyInput().appendField('π/6');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_pi_quarter = {
-  init: function () {
-    this.appendDummyInput().appendField('π/4');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_pi_third = {
-  init: function () {
-    this.appendDummyInput().appendField('π/3');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_pi_half = {
-  init: function () {
-    this.appendDummyInput().appendField('π/2');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_two_pi_thirds = {
-  init: function () {
-    this.appendDummyInput().appendField('2π/3');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_three_pi_quarters = {
-  init: function () {
-    this.appendDummyInput().appendField('3π/4');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_five_pi_sixths = {
-  init: function () {
-    this.appendDummyInput().appendField('5π/6');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_half_value = {
-  init: function () {
-    this.appendDummyInput().appendField('1/2');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_sqrt2_half = {
-  init: function () {
-    this.appendDummyInput().appendField('√2/2');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_sqrt3_half = {
-  init: function () {
-    this.appendDummyInput().appendField('√3/2');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_sin_of = {
-  init: function () {
-    this.appendDummyInput().appendField('sin(');
-    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().appendField(')');
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_cos_of = {
-  init: function () {
-    this.appendDummyInput().appendField('cos(');
-    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().appendField(')');
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.term_tan_of = {
-  init: function () {
-    this.appendDummyInput().appendField('tan(');
-    this.appendValueInput('ANGLE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().appendField(')');
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.custom_number = {
-  init: function () {
-    this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
-    this.setOutput(true, 'Math');
-    this.setColour('#1e40af');
-  },
-};
-
-Blockly.Blocks.math_fraction = {
-  init: function () {
-    this.appendValueInput('NUMERATOR').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField(new FieldSpacer(0), 'SPACER_NUM');
-    this.appendDummyInput('DIVIDER_ROW').appendField(new FieldFractionLine('─────')).setAlign(Blockly.ALIGN_CENTRE);
-    this.appendValueInput('DENOMINATOR').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField(new FieldSpacer(0), 'SPACER_DEN');
-    this.setInputsInline(false);
-    this.setOutput(true, 'Math');
-    this.setColour('#4a90e2');
-    this.onchange = this.updateFractionLine_;
-  },
-
-  updateFractionLine_: function () {
-    const numeratorBlock = this.getInputTargetBlock('NUMERATOR');
-    const denominatorBlock = this.getInputTargetBlock('DENOMINATOR');
-
-    const numWidth = numeratorBlock ? numeratorBlock.getHeightWidth()?.width || 20 : 20;
-    const denWidth = denominatorBlock ? denominatorBlock.getHeightWidth()?.width || 20 : 20;
-
-    const maxWidth = Math.max(numWidth, denWidth);
-    const charCount = Math.ceil(maxWidth / 10);
-    const newLineText = '─'.repeat(Math.max(3, charCount));
-
-    const padNum = Math.max(0, (maxWidth - numWidth) / 2);
-    const padDen = Math.max(0, (maxWidth - denWidth) / 2);
-
-    const spacerNum = this.getField('SPACER_NUM');
-    const spacerDen = this.getField('SPACER_DEN');
-    if (spacerNum && typeof spacerNum.setWidth === 'function') spacerNum.setWidth(padNum);
-    if (spacerDen && typeof spacerDen.setWidth === 'function') spacerDen.setWidth(padDen);
-
-    const dividerRow = this.getInput('DIVIDER_ROW');
-    if (dividerRow && dividerRow.fieldRow && dividerRow.fieldRow[0]) {
-      const currentValue = dividerRow.fieldRow[0].getText();
-      if (currentValue !== newLineText) dividerRow.fieldRow[0].setValue(newLineText);
-    }
-
-    if (this.workspace) this.render();
-  },
-};
-
-Blockly.Blocks.math_add = {
-  init: function () {
-    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput('OPERATOR_ROW').setAlign(Blockly.ALIGN_CENTRE).appendField('＋');
-    this.appendValueInput('B').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#0ea5e9');
-  },
-};
-
-Blockly.Blocks.math_negate = {
-  init: function () {
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('−(');
-    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField(')');
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#0ea5e9');
-  },
-};
-
-Blockly.Blocks.math_multiply = {
-  init: function () {
-    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput('OPERATOR_ROW').setAlign(Blockly.ALIGN_CENTRE).appendField('×');
-    this.appendValueInput('B').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#0ea5e9');
-  },
-};
-
-Blockly.Blocks.math_square = {
-  init: function () {
-    this.appendValueInput('A').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('²');
-    this.setInputsInline(true);
-    this.setOutput(true, 'Math');
-    this.setColour('#0ea5e9');
-  },
-};
-
-Blockly.Blocks.formula_1 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式①: sin²θ + cos²θ = 1');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_2 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式②: tanθ = sinθ / cosθ');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_3 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式③: 1 + tan²θ = 1 / cos²θ');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_4 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式④: sin2θ = 2sinθcosθ');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_5 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式⑤: sin²θ = (1 - cos2θ) / 2');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_6 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式⑥: cos²θ = (1 + cos2θ) / 2');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_7 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式⑦: tanθ = sin2θ / (1 + cos2θ)');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.formula_8 = {
-  init: function () {
-    this.appendDummyInput().appendField('公式⑧: tan²θ = (1 - cos2θ) / (1 + cos2θ)');
-    this.setOutput(true, 'Formula');
-    this.setColour(300);
-  },
-};
-
-Blockly.Blocks.proof_step = {
-  init: function () {
-    this.appendDummyInput('TITLE').setAlign(Blockly.ALIGN_CENTRE).appendField('証明');
-    this.appendStatementInput('OPERATIONS').setCheck('Operation');
-    this.setPreviousStatement(true, 'ProofStep');
-    this.setNextStatement(true, 'ProofStep');
-    this.setColour(120);
-  },
-};
-
-Blockly.Blocks.replace_operation = {
-  init: function () {
-    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField('式');
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('を');
-    this.appendValueInput('FORMULA').setCheck('Formula').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('で');
-    this.appendValueInput('REPLACEMENT').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('にする');
-    this.setInputsInline(true);
-    this.setPreviousStatement(true, 'Operation');
-    this.setNextStatement(true, 'Operation');
-    this.setColour(160);
-  },
-};
-
-Blockly.Blocks.common_denominator_operation = {
-  init: function () {
-    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE).appendField('式');
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('を通分して');
-    this.appendValueInput('REPLACEMENT').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('にする');
-    this.setInputsInline(true);
-    this.setPreviousStatement(true, 'Operation');
-    this.setNextStatement(true, 'Operation');
-    this.setColour(160);
-  },
-};
-
-Blockly.Blocks.conclusion_operation = {
-  init: function () {
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('よって');
-    this.appendValueInput('VALUE').setCheck('Math').setAlign(Blockly.ALIGN_CENTRE);
-    this.appendDummyInput().setAlign(Blockly.ALIGN_CENTRE).appendField('となる');
-    this.setInputsInline(true);
-    this.setPreviousStatement(true, 'Operation');
-    this.setColour(180);
-  },
-};
-
-// ===== ツールボックス設定 =====
-const toolboxConfig = {
-  kind: 'categoryToolbox',
-  contents: [
-    {
-      kind: 'category',
-      name: '📂 ブロック一覧',
-      expanded: true,
-      contents: [
-        {
-          kind: 'category',
-          name: '項',
-          contents: [
-            { kind: 'block', type: 'custom_number' },
-            { kind: 'block', type: 'term_sin' },
-            { kind: 'block', type: 'term_cos' },
-            { kind: 'block', type: 'term_tan' },
-            { kind: 'block', type: 'term_sin2' },
-            { kind: 'block', type: 'term_cos2' },
-            { kind: 'block', type: 'term_sin_of' },
-            { kind: 'block', type: 'term_cos_of' },
-            { kind: 'block', type: 'term_tan_of' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '有名角',
-          contents: [
-            { kind: 'block', type: 'term_pi_sixth' },
-            { kind: 'block', type: 'term_pi_quarter' },
-            { kind: 'block', type: 'term_pi_third' },
-            { kind: 'block', type: 'term_pi_half' },
-            { kind: 'block', type: 'term_two_pi_thirds' },
-            { kind: 'block', type: 'term_three_pi_quarters' },
-            { kind: 'block', type: 'term_five_pi_sixths' },
-            { kind: 'block', type: 'term_pi' },
-            { kind: 'block', type: 'term_half_value' },
-            { kind: 'block', type: 'term_sqrt2_half' },
-            { kind: 'block', type: 'term_sqrt3_half' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '演算',
-          contents: [
-            { kind: 'block', type: 'math_fraction' },
-            { kind: 'block', type: 'math_add' },
-            { kind: 'block', type: 'math_negate' },
-            { kind: 'block', type: 'math_multiply' },
-            { kind: 'block', type: 'math_square' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '公式',
-          contents: [
-            { kind: 'block', type: 'formula_1' },
-            { kind: 'block', type: 'formula_2' },
-            { kind: 'block', type: 'formula_3' },
-            { kind: 'block', type: 'formula_4' },
-            { kind: 'block', type: 'formula_5' },
-            { kind: 'block', type: 'formula_6' },
-            { kind: 'block', type: 'formula_7' },
-            { kind: 'block', type: 'formula_8' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '証明',
-          contents: [
-            { kind: 'block', type: 'proof_step' },
-            { kind: 'block', type: 'replace_operation' },
-            { kind: 'block', type: 'common_denominator_operation' },
-            { kind: 'block', type: 'conclusion_operation' },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-// ===== テーマ + ワークスペース初期化 =====
-const customTheme = Blockly.Theme.defineTheme('mathTheme', {
-  base: Blockly.Themes.Classic,
-  componentStyles: {
-    workspaceBackgroundColour: '#ffffff',
-    toolboxBackgroundColour: '#f5f5f5',
-    toolboxForegroundColour: '#333',
-    flyoutBackgroundColour: '#f9f9f9',
-    flyoutForegroundColour: '#333',
-    scrollbarColour: '#ccc',
-    insertionMarkerColour: '#4a90e2',
-    insertionMarkerOpacity: 0.3,
-    scrollbarOpacity: 0.4,
-    cursorColour: '#d0d0d0',
-    blackBackground: '#333',
-  },
-});
-
-const workspace = Blockly.inject('l', {
-  toolbox: toolboxConfig,
-  renderer: 'zelos',
-  theme: customTheme,
-  rendererOverrides: {
-    ROW_PADDING: 0.3,
-    MIN_BLOCK_HEIGHT: 10,
-    STATEMENT_BOTTOM_SPACING: 0,
-    EMPTY_INLINE_INPUT_PADDING: 0,
-    DUMMY_INPUT_MIN_HEIGHT: 10,
-    INLINE_PADDING_H: 2,
-    INLINE_PADDING_V: 0,
-  },
-  move: {
-    drag: true,
-    wheel: true,
-  },
-  zoom: {
-    controls: true,
-    wheel: false,
-    startScale: 1.2,
-    maxScale: 3,
-    minScale: 0.3,
-  },
-});
-
-/**
- * problems.json を一度だけ取得してキャッシュする。
- * 取得失敗時は null を返し、既存の stage 個別 JSON へフォールバックする。
- */
-async function getProblemsData() {
-  if (problemsDataCache) return problemsDataCache;
-
-  try {
-    const response = await fetch('problems.json');
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    problemsDataCache = await response.json();
-    return problemsDataCache;
-  } catch (error) {
-    return null;
-  }
+  await completeTutorialAndOpenMap();
 }
 
 // ===== ステージロード =====
 /**
  * 指定ステージを読み込み、ワークスペースと UI を初期化する。
- * @param {number} stageNumber
+ * @param {number|string} stageNumber
  */
 async function loadStage(stageNumber) {
   try {
@@ -1674,8 +1658,13 @@ async function loadStage(stageNumber) {
 
     const stageText = document.getElementById('r');
     const problemText = document.getElementById('s');
-    if (stageText) stageText.innerText = `STAGE ${stageNumber}`;
+    if (stageText) {
+      stageText.innerText = isTutorialStageId(stageNumber)
+        ? `TUTORIAL ${getTutorialStageIndex(stageNumber) + 1}/${TUTORIAL_STAGE_IDS.length}`
+        : `STAGE ${stageNumber}`;
+    }
     if (problemText) problemText.innerText = currentProblemData.mathText || '';
+    updateTutorialBanner(stageNumber);
 
     const toastElement = document.getElementById('toast-message');
     if (toastElement) toastElement.classList.add('hidden');
@@ -1710,7 +1699,9 @@ async function loadStage(stageNumber) {
     workspace.clear();
   Blockly.serialization.workspaces.load(currentProblemData.initialState, workspace);
 
-    applyConditionalInitialStateGeneration(workspace);
+    if (!isTutorialStageId(stageNumber)) {
+      applyConditionalInitialStateGeneration(workspace);
+    }
 
     forceWorkspaceLayoutSync();
     arrangeBlocks(); // 最後に整列
@@ -1889,26 +1880,13 @@ function setupEventListeners() {
 
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
     closeGameEntrance();
-    currentStageNumber = TUTORIAL_STAGE_NUMBER;
-    switchScreen('p');
-    await loadStage(TUTORIAL_STAGE_NUMBER);
-    openInteractiveTutorialOverlay();
+    await transitionToStage('0-1');
   });
 
   document.getElementById('btn-entry-map')?.addEventListener('click', async () => {
     localStorage.setItem('tutorial_seen', 'true');
     closeGameEntrance();
     await routeToTarget();
-  });
-
-  document.getElementById('btn-tutorial-next')?.addEventListener('click', () => {
-    if (!tutorialModeActive) return;
-    tutorialStepIndex = Math.min(tutorialStepIndex + 1, TUTORIAL_STEPS.length - 1);
-    showTutorialStep();
-  });
-
-  document.getElementById('btn-tutorial-skip')?.addEventListener('click', () => {
-    skipInteractiveTutorial();
   });
 
   document.getElementById('btn-skip-challenge-cancel')?.addEventListener('click', () => {
@@ -1942,55 +1920,53 @@ function setupEventListeners() {
     transitionToStage(targetStage);
   });
 
+  document.getElementById('btn-unit-circle')?.addEventListener('click', () => {
+    const modal = document.getElementById('unit-circle-modal');
+    const slider = document.getElementById('unit-circle-angle');
+    if (modal) modal.classList.remove('hidden');
+    drawUnitCircle(Number(slider?.value || 0));
+  });
+
+  document.getElementById('btn-unit-circle-close')?.addEventListener('click', () => {
+    const modal = document.getElementById('unit-circle-modal');
+    if (modal) modal.classList.add('hidden');
+  });
+
+  document.getElementById('unit-circle-angle')?.addEventListener('input', (event) => {
+    const angle = Number(event?.target?.value || 0);
+    drawUnitCircle(angle);
+  });
+
   document.getElementById('btn-next')?.addEventListener('click', () => {
     closeSkipChallengeModal();
     currentSkipOffer = null;
     document.getElementById('btn-next').style.display = 'none';
     document.getElementById('btn-submit').style.display = 'inline-block';
-    if (currentStageNumber < MAX_STAGE_NUMBER) transitionToStage(currentStageNumber + 1);
-    else {
+
+    if (isTutorialStageId(currentStageNumber)) {
+      const nextTutorialStage = getNextTutorialStageId(currentStageNumber);
+      if (nextTutorialStage) {
+        transitionToStage(nextTutorialStage);
+      } else {
+        localStorage.setItem('tutorial_seen', 'true');
+        updateTutorialBanner('');
+        renderStageMap();
+        switchScreen('stage-map-screen');
+      }
+      return;
+    }
+
+    if (currentStageNumber < MAX_STAGE_NUMBER) {
+      transitionToStage(currentStageNumber + 1);
+    } else {
       renderStageMap();
       switchScreen('stage-map-screen');
     }
   });
 
-  document.getElementById('btn-submit')?.addEventListener('click', () => {
+  document.getElementById('btn-submit')?.addEventListener('click', async () => {
     const ast = parseBlocksToAST(workspace, mathGenerator);
-
-    if (tutorialModeActive && currentStageNumber === TUTORIAL_STAGE_NUMBER) {
-      const tutorialState = getTutorialCompletionState(ast);
-      tutorialStepIndex = tutorialState.firstMissingIndex;
-      showTutorialStep();
-
-      if (!tutorialState.isComplete) {
-        showToast(`<span style='color:#ff4b4b'>${TUTORIAL_STEPS[tutorialState.firstMissingIndex].text}</span>`);
-        return;
-      }
-
-      if (!currentStageSolved) {
-        currentStreak += 1;
-        updateStreakCounter(true);
-      }
-      currentStageSolved = true;
-
-      showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 Stage 0 クリア！ガイド完了です！</span>", false);
-      if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 220,
-          spread: 95,
-          origin: { y: 0.58 },
-          colors: ['#22c55e', '#1d4ed8', '#f59e0b', '#eab308'],
-        });
-      }
-
-      if (!clearedStages.includes(currentStageNumber)) {
-        clearedStages.push(currentStageNumber);
-        localStorage.setItem('s', JSON.stringify(clearedStages));
-      }
-
-      completeTutorialAndOpenMap();
-      return;
-    }
+    console.log('[AST]', ast);
 
     const requiredFormulaIds = getRequiredFormulaIdsForProblem(currentProblemData);
     if (requiredFormulaIds.length > 0) {
@@ -2044,14 +2020,18 @@ function setupEventListeners() {
         });
       }
 
-      if (!clearedStages.includes(currentStageNumber)) {
+      if (!isTutorialStageId(currentStageNumber) && !clearedStages.includes(currentStageNumber) && currentStageNumber >= 1) {
         clearedStages.push(currentStageNumber);
         localStorage.setItem('s', JSON.stringify(clearedStages));
       }
 
-      if (currentStageNumber === TUTORIAL_STAGE_NUMBER && localStorage.getItem('tutorial_seen') !== 'true') {
-        completeTutorialAndOpenMap();
-        showToast('<span style="color:#2563eb">チュートリアルクリア！次はステージマップへ進みましょう。</span>', false);
+      if (isTutorialStageId(currentStageNumber)) {
+        document.getElementById('btn-submit').style.display = 'none';
+        const nextBtn = document.getElementById('btn-next');
+        if (nextBtn) {
+          nextBtn.style.display = 'inline-block';
+          nextBtn.innerText = getNextTutorialStageId(currentStageNumber) ? '次へ進む' : 'マップへ進む';
+        }
         return;
       }
 
@@ -2078,6 +2058,17 @@ function setupEventListeners() {
       showToast(`<span style='color:#ff4b4b'>不正解。${userMessage}</span>`);
       return;
     }
+  });
+
+  workspace.addChangeListener((event) => {
+    if (!event || event.isUiEvent) return;
+    if (!isTutorialStageId(currentStageNumber)) return;
+    updateTutorialDragAssist(currentStageNumber);
+  });
+
+  window.addEventListener('resize', () => {
+    if (!document.getElementById('stage-map-screen')?.classList.contains('b')) return;
+    centerMapCameraOnCurrentStage(false);
   });
 }
 
@@ -2106,7 +2097,6 @@ async function bootApplication() {
   resetAppStateForGoLiveIfNeeded();
 
   setupEventListeners();
-  bindTutorialWorkspaceAutoAdvance();
   updateStreakCounter(false);
   updateOverwritePermissionButton();
 

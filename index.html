@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Hiragino Kaku Gothic ProN', sans-serif; }
+        html, body { height: 100%; margin: 0; padding: 0; background-color: #f0f7ff; font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif; }
         .a { display: none; height: 100%; flex-direction: column; }
         .b { display: flex; }
         #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow-y: auto;}
@@ -16,9 +16,24 @@
         .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;}
         .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; }
         .g .f { display: block; }
-        #h { background-color: #1976d2; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        #h button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        #i { background-color: #e3f2fd; padding: 20px; margin: 10px; text-align: center; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        #p { position: relative; }
+        #h { background: linear-gradient(180deg, #1f8af2 0%, #1776dd 100%); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.16); }
+        #h button { background: #ffffff; border: none; color: #1163c7; padding: 10px 16px; border-radius: 14px; cursor: pointer; font-weight: 800; box-shadow: 0 4px 0 #c8d8f4; }
+        #h button:active { transform: translateY(3px); box-shadow: 0 1px 0 #c8d8f4; }
+        #i { background: #ffffff; padding: 18px; margin: 10px; text-align: center; border-radius: 16px; border: 2px solid #d7e7ff; box-shadow: 0 4px 0 #d8e8ff; font-weight: 700; color: #1f3e66; }
+        #tutorial-progress-shell { display: none; margin: 0 10px 10px; background: #ffffff; border: 2px solid #d7e7ff; border-radius: 16px; box-shadow: 0 4px 0 #d8e8ff; padding: 10px 12px; }
+        #tutorial-progress-shell.visible { display: block; }
+        #tutorial-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 900; color: #176438; }
+        #tutorial-progress-track { width: 100%; height: 18px; border-radius: 999px; background: #dcfce7; overflow: hidden; box-shadow: inset 0 2px 0 rgba(0,0,0,0.1); }
+        #tutorial-progress-fill { width: 0%; height: 100%; background: linear-gradient(180deg, #5dda3c, #4ac529); border-radius: 999px; transition: width 0.35s ease; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.14); }
+        #tutorial-drag-assist { display: none; position: absolute; right: 16px; bottom: 110px; width: min(92vw, 360px); z-index: 6; align-items: flex-end; gap: 10px; }
+        #tutorial-drag-assist.visible { display: flex; }
+        #tutorial-coach-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(180deg, #ffdc7a, #ffbe3f); display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 0 #ef9f00; flex-shrink: 0; }
+        #tutorial-coach-bubble { flex: 1; background: #fff7ed; border: 2px solid #ffd6ad; border-radius: 16px; box-shadow: 0 4px 0 #f3c58d; padding: 10px 12px; color: #8a3b00; }
+        #tutorial-coach-text { margin: 0 0 8px; font-weight: 800; line-height: 1.35; }
+        #tutorial-drag-assist-list { margin: 0; padding-left: 18px; text-align: left; font-size: 0.92rem; }
+        #tutorial-drag-assist-list li { margin: 4px 0; }
+        #tutorial-drag-assist-list li.done { color: #15803d; font-weight: 800; }
         #l { flex-grow: 1; width: 100%; position: relative; }
         #l .blocklyDiv,
         #l .blocklySvg,
@@ -50,8 +65,8 @@
         .blocklyFieldRect { display: none !important; }
         .blocklyFieldGroup rect { fill: transparent !important; stroke: none !important; }
         .blocklyText, .blocklyEditableText { font-family: 'Times New Roman', serif !important; font-style: italic !important; font-size: 14px !important; }
-        .action-bar-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; background: rgba(255, 255, 255, 0.95); padding: 15px 25px; border-radius: 50px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); backdrop-filter: blur(5px); z-index: 1000; }
-        .action-btn { font-family: inherit; font-weight: bold; font-size: 16px; padding: 12px 24px; border: none; border-radius: 25px; cursor: pointer; color: white; transition: all 0.1s ease; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); outline: none; }
+        .action-bar-container { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; background: rgba(255, 255, 255, 0.95); padding: 12px 16px; border-radius: 20px; border: 2px solid #d5e6ff; box-shadow: 0 6px 0 #cfe2ff, 0 12px 24px rgba(10,37,64,0.18); backdrop-filter: blur(5px); z-index: 1000; }
+        .action-btn { font-family: inherit; font-weight: 900; font-size: 15px; padding: 12px 20px; border: none; border-radius: 16px; cursor: pointer; color: white; transition: all 0.1s ease; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); outline: none; }
         .action-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2); }
         .btn-primary { background-color: #58cc02; box-shadow: 0 4px 0 #4a9d00; }
         .btn-warning { background-color: #ffc800; box-shadow: 0 4px 0 #e5b400; color: #333; }
@@ -68,6 +83,10 @@
         .tutorial-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15); text-align: center; max-width: 500px; transform: translateY(20px); transition: transform 0.4s ease; }
         .skip-challenge-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); text-align: center; max-width: 520px; width: min(92vw, 520px); }
         .skip-actions { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .unit-circle-card { background: white; padding: 22px; border-radius: 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); width: min(94vw, 620px); }
+        #unit-circle { width: 100%; max-width: 560px; height: auto; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff; display: block; margin: 12px auto 10px; }
+        .unit-circle-controls { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+        #unit-circle-angle { width: 100%; }
         .overlay-screen:not(.hidden) .tutorial-card { transform: translateY(0); }
         .step { display: flex; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: left; }
         .step-num { background: #4a90e2; color: white; font-weight: bold; font-size: 1.5rem; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin-right: 20px; flex-shrink: 0; }
@@ -138,14 +157,24 @@
         .map-canvas {
           position: relative;
           flex: 1;
-          overflow: auto;
-          padding: 28px 30px 36px;
+          overflow: hidden;
+          padding: 0;
+        }
+        #map-world {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 3600px;
+          height: 2400px;
+          transform: translate(0px, 0px);
+          transition: transform 0.8s ease-out;
+          will-change: transform;
         }
         #map-links {
           position: absolute;
           inset: 0;
-          width: 1600px;
-          height: 1100px;
+          width: 100%;
+          height: 100%;
           pointer-events: none;
           z-index: 0;
         }
@@ -156,8 +185,8 @@
         }
         #map-nodes {
           position: relative;
-          width: 1600px;
-          height: 1100px;
+          width: 100%;
+          height: 100%;
           z-index: 1;
         }
         .map-node {
@@ -259,6 +288,20 @@
         }
         #map-node-tooltip.visible { opacity: 1; transform: translateY(0); }
         #map-node-tooltip strong { color: #1d4ed8; }
+        #map-world-atmosphere {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .map-cloud {
+          position: absolute;
+          width: 220px;
+          height: 76px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.16);
+          filter: blur(0.3px);
+        }
 
         /* Game entrance */
         #game-entrance {
@@ -425,6 +468,22 @@
       </div>
     </div>
 
+    <div id="unit-circle-modal" class="overlay-screen hidden">
+      <div class="unit-circle-card">
+        <h2>Interactive Unit Circle</h2>
+        <p style="margin: 0; color: #4b5563;">角度スライダーを動かして、sin/cos/tan の幾何的な意味を確認できます。</p>
+        <canvas id="unit-circle" width="560" height="420"></canvas>
+        <div class="unit-circle-controls">
+          <span style="font-weight:700; color:#1f2937;">0°</span>
+          <input id="unit-circle-angle" type="range" min="0" max="360" value="0">
+          <span style="font-weight:700; color:#1f2937;">360°</span>
+        </div>
+        <div class="skip-actions" style="margin-top: 16px;">
+          <button id="btn-unit-circle-close" class="action-btn btn-secondary">閉じる</button>
+        </div>
+      </div>
+    </div>
+
     <div id="stage-map-screen" class="screen hidden a">
       <div class="map-topbar">
         <div class="map-title-wrap">
@@ -437,10 +496,19 @@
           <button class="map-control-btn" onclick="resetSaveData()">セーブデータリセット</button>
         </div>
       </div>
-      <div class="map-canvas">
-        <svg id="map-links" viewBox="0 0 1600 1100" preserveAspectRatio="none"></svg>
-        <div id="map-worlds"></div>
-        <div id="map-nodes"></div>
+      <div id="map-viewport" class="map-canvas">
+        <div id="map-world">
+          <div id="map-world-atmosphere">
+            <div class="map-cloud" style="left: 220px; top: 200px;"></div>
+            <div class="map-cloud" style="left: 1280px; top: 520px;"></div>
+            <div class="map-cloud" style="left: 760px; top: 980px;"></div>
+            <div class="map-cloud" style="left: 2480px; top: 640px;"></div>
+            <div class="map-cloud" style="left: 3060px; top: 1260px;"></div>
+          </div>
+          <svg id="map-links" viewBox="0 0 3600 2400" preserveAspectRatio="none"></svg>
+          <div id="map-worlds"></div>
+          <div id="map-nodes"></div>
+        </div>
         <div id="map-node-tooltip"></div>
       </div>
     </div>
@@ -463,13 +531,25 @@
 
     <div id="p" class="a">
       <div id="h"><button id="btn-back">← 戻る</button><div class="header-center"><div id="r">STAGE</div><button id="btn-overwrite-permission" class="overwrite-toggle-btn off">上書き許可: OFF</button></div><div id="streak-counter">🔥 0</div></div>
+        <div id="tutorial-progress-shell">
+          <div id="tutorial-progress-meta"><span id="tutorial-progress-label">チュートリアル</span><span id="tutorial-progress-rate">0%</span></div>
+          <div id="tutorial-progress-track"><div id="tutorial-progress-fill"></div></div>
+        </div>
         <div id="i"><span id="s"></span></div>
+        <div id="tutorial-drag-assist">
+          <div id="tutorial-coach-avatar">🦉</div>
+          <div id="tutorial-coach-bubble">
+            <p id="tutorial-coach-text">ここをドラッグしてみよう。</p>
+            <ul id="tutorial-drag-assist-list"></ul>
+          </div>
+        </div>
         <div id="l"></div>
         <div id="toast-message" class="toast hidden"></div> 
         <div class="action-bar-container">
           <button id="btn-reset" class="action-btn btn-secondary">やり直す</button>
           <button id="btn-answer" class="action-btn btn-danger">答え</button>
           <button id="btn-hint" class="action-btn btn-warning">ヒント</button>
+          <button id="btn-unit-circle" class="action-btn btn-secondary">単位円</button>
           <button id="btn-submit" class="action-btn btn-primary">判定する</button>
           <button id="btn-next" class="action-btn btn-primary">次へ進む</button>
         </div>
