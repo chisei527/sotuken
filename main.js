@@ -246,6 +246,7 @@ const {
   formulaIdToLabel,
   getRequiredFormulaIdsForProblem,
   isSupportedFormulaId,
+  collectUsedFormulaIdsFromAST,
   getAnswerFormulaTypeSequence,
   collectAppliedFormulaIdsFromAST,
   parseBlocksToAST,
@@ -1649,6 +1650,7 @@ async function loadStage(stageNumber) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       currentProblemData = await response.json();
     }
+    normalizeTutorialAnswerStateForValidation(currentProblemData, stageNumber);
 
     currentHintIndex = 0;
     currentStageSolved = false;
@@ -1970,7 +1972,7 @@ function setupEventListeners() {
 
     const requiredFormulaIds = getRequiredFormulaIdsForProblem(currentProblemData);
     if (requiredFormulaIds.length > 0) {
-      const usedFormulaIds = collectAppliedFormulaIdsFromAST(ast);
+      const usedFormulaIds = collectUsedFormulaIdsFromAST(ast);
       const missingFormulaIds = requiredFormulaIds
         .filter((formulaId) => isSupportedFormulaId(formulaId))
         .filter((formulaId) => !usedFormulaIds.has(formulaId));
@@ -2070,6 +2072,175 @@ function setupEventListeners() {
     if (!document.getElementById('stage-map-screen')?.classList.contains('b')) return;
     centerMapCameraOnCurrentStage(false);
   });
+}
+
+function normalizeTutorialAnswerStateForValidation(problemData, stageId) {
+  if (!problemData?.answerState?.blocks?.blocks) return;
+  const stage = String(stageId);
+  if (stage !== '0-4' && stage !== '0-5' && stage !== '0-6') return;
+
+  const proofBlock = problemData.answerState.blocks.blocks.find((block) => block?.type === 'proof_step');
+  const firstOperation = proofBlock?.inputs?.OPERATIONS?.block || null;
+  if (!firstOperation || firstOperation.type !== 'replace_operation') return;
+
+  const oneBlock = {
+    block: {
+      type: 'custom_number',
+      fields: {
+        NUM: 1,
+      },
+    },
+  };
+  const sin2PlusCos2Block = {
+    block: {
+      type: 'math_add',
+      inputs: {
+        A: {
+          block: {
+            type: 'math_square',
+            inputs: {
+              A: {
+                block: {
+                  type: 'term_sin',
+                },
+              },
+            },
+          },
+        },
+        B: {
+          block: {
+            type: 'math_square',
+            inputs: {
+              A: {
+                block: {
+                  type: 'term_cos',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  const sinOverCosBlock = {
+    block: {
+      type: 'math_fraction',
+      inputs: {
+        NUMERATOR: {
+          block: {
+            type: 'term_sin',
+          },
+        },
+        DENOMINATOR: {
+          block: {
+            type: 'term_cos',
+          },
+        },
+      },
+    },
+  };
+  const oneOverCosSquaredBlock = {
+    block: {
+      type: 'math_fraction',
+      inputs: {
+        NUMERATOR: {
+          block: {
+            type: 'custom_number',
+            fields: {
+              NUM: 1,
+            },
+          },
+        },
+        DENOMINATOR: {
+          block: {
+            type: 'math_square',
+            inputs: {
+              A: {
+                block: {
+                  type: 'term_cos',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  const onePlusTanSquaredBlock = {
+    block: {
+      type: 'math_add',
+      inputs: {
+        A: {
+          block: {
+            type: 'custom_number',
+            fields: {
+              NUM: 1,
+            },
+          },
+        },
+        B: {
+          block: {
+            type: 'math_square',
+            inputs: {
+              A: {
+                block: {
+                  type: 'term_tan',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  if (stage === '0-4') {
+    // 0-4 は公式①を分数全体ではなく、分子の sin^2+cos^2 に適用する形へ揃える。
+    firstOperation.inputs = firstOperation.inputs || {};
+    firstOperation.inputs.VALUE = sin2PlusCos2Block;
+    firstOperation.inputs.REPLACEMENT = oneBlock;
+
+    const secondOperation = firstOperation?.next?.block || null;
+    if (secondOperation && secondOperation.type === 'conclusion_operation') {
+      // チェーン整合: 1段目の変形後(1) と 2段目の式 を一致させる。
+      secondOperation.inputs = secondOperation.inputs || {};
+      secondOperation.inputs.VALUE = oneBlock;
+    }
+    return;
+  }
+
+  if (stage === '0-5') {
+    // 0-5 は 1段目後の sin/cos と結論を一致させる。
+    firstOperation.inputs = firstOperation.inputs || {};
+    firstOperation.inputs.VALUE = { block: { type: 'term_tan' } };
+    firstOperation.inputs.REPLACEMENT = sinOverCosBlock;
+
+    const secondOperation = firstOperation?.next?.block || null;
+    if (secondOperation && secondOperation.type === 'conclusion_operation') {
+      secondOperation.inputs = secondOperation.inputs || {};
+      secondOperation.inputs.VALUE = sinOverCosBlock;
+    }
+    return;
+  }
+
+  // 0-6 はチェーン整合を優先し、公式③の1手で答え表示を構成する。
+  problemData.requiredFormulas = ['formula_3'];
+  firstOperation.inputs = firstOperation.inputs || {};
+  firstOperation.inputs.VALUE = onePlusTanSquaredBlock;
+  firstOperation.inputs.FORMULA = {
+    block: {
+      type: 'formula_3',
+    },
+  };
+  firstOperation.inputs.REPLACEMENT = oneOverCosSquaredBlock;
+  firstOperation.next = {
+    block: {
+      type: 'conclusion_operation',
+      inputs: {
+        VALUE: oneOverCosSquaredBlock,
+      },
+    },
+  };
 }
 
 // ===== アプリケーション初期化ルーティング =====
