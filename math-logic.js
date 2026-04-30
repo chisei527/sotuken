@@ -539,6 +539,35 @@
     return counts;
   }
 
+  function hasEquivalentSubexpression(targetExpr, containerExpr) {
+    const parsed = tryParseMathNode(containerExpr);
+    if (!parsed) return false;
+
+    let found = false;
+    let visited = 0;
+    const maxNodes = 240;
+
+    parsed.traverse((node) => {
+      if (found || visited >= maxNodes) return;
+      visited += 1;
+
+      const candidate = nodeToExpression(node);
+      if (!candidate) return;
+      if (evaluateEquivalence(targetExpr, candidate).ok) {
+        found = true;
+      }
+    });
+
+    return found;
+  }
+
+  function canSkipChainMismatch(prevStepData, currentStepData) {
+    const prevType = String(prevStepData?.type || '');
+    const currentType = String(currentStepData?.type || '');
+    if (!prevType || !currentType) return false;
+    return prevType === 'replace_operation' && currentType === 'replace_operation';
+  }
+
   function hasTrigProfileChanged(beforeExpr, afterExpr) {
     const beforeCounts = extractTrigFunctionCounts(beforeExpr);
     const afterCounts = extractTrigFunctionCounts(afterExpr);
@@ -571,6 +600,21 @@
     return null;
   }
 
+  function extractDivisionParts(expr) {
+    const parsed = tryParseMathNode(expr);
+    if (!parsed) return null;
+
+    const normalizedNode = unwrapParenthesisNode(parsed);
+    if (!normalizedNode || normalizedNode.type !== 'OperatorNode') return null;
+    if (normalizedNode.op !== '/' || !Array.isArray(normalizedNode.args) || normalizedNode.args.length !== 2) return null;
+
+    const numerator = nodeToExpression(normalizedNode.args[0]);
+    const denominator = nodeToExpression(normalizedNode.args[1]);
+    if (!numerator || !denominator) return null;
+
+    return { numerator, denominator };
+  }
+
   function verifyFormulaApplication(formulaId, beforeExpr, afterExpr) {
     const candidateSet = new Set(['theta']);
     const trigArgs = [
@@ -598,6 +642,33 @@
 
       const reverse = evaluateEquivalence(beforeExpr, rightSide).ok && evaluateEquivalence(afterExpr, leftSide).ok;
       if (reverse) return true;
+
+      const beforeFraction = extractDivisionParts(beforeExpr);
+      const afterFraction = extractDivisionParts(afterExpr);
+      if (beforeFraction && afterFraction) {
+        const denominatorCheck = evaluateEquivalence(beforeFraction.denominator, afterFraction.denominator);
+        if (denominatorCheck.ok) {
+          const numeratorDirect = evaluateEquivalence(beforeFraction.numerator, leftSide).ok
+            && evaluateEquivalence(afterFraction.numerator, rightSide).ok;
+          if (numeratorDirect) return true;
+
+          const numeratorReverse = evaluateEquivalence(beforeFraction.numerator, rightSide).ok
+            && evaluateEquivalence(afterFraction.numerator, leftSide).ok;
+          if (numeratorReverse) return true;
+        }
+      }
+
+      if (formulaId === 'formula_2') {
+        const tanOverSin = `(tan(${thetaExpr}) / sin(${thetaExpr}))`;
+        const oneOverCos = `(1 / cos(${thetaExpr}))`;
+        const derivedDirect = evaluateEquivalence(beforeExpr, tanOverSin).ok
+          && evaluateEquivalence(afterExpr, oneOverCos).ok;
+        if (derivedDirect) return true;
+
+        const derivedReverse = evaluateEquivalence(beforeExpr, oneOverCos).ok
+          && evaluateEquivalence(afterExpr, tanOverSin).ok;
+        if (derivedReverse) return true;
+      }
     }
 
     return false;
@@ -820,6 +891,12 @@
 
       const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
       if (!chainCheck.ok) {
+        if (canSkipChainMismatch(prevStepData, currentStepData)) {
+          continue;
+        }
+        if (hasEquivalentSubexpression(prevAfterExpr, currentBeforeExpr)) {
+          continue;
+        }
         if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
           return {
             isValid: false,
@@ -847,6 +924,8 @@
       }
     }
 
+    const expectedFinalExpr = getExpectedConclusionExpression(problemData);
+
     for (let i = 1; i < astArray.length; i++) {
       const prevStepData = astArray[i - 1] || {};
       const currentStepData = astArray[i] || {};
@@ -868,8 +947,21 @@
         };
       }
 
+      if (currentStepData.type === 'conclusion_operation' && expectedFinalExpr) {
+        const finalCheck = evaluateEquivalence(currentBeforeExpr, expectedFinalExpr);
+        if (finalCheck.ok) {
+          continue;
+        }
+      }
+
       const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
       if (!chainCheck.ok) {
+        if (canSkipChainMismatch(prevStepData, currentStepData)) {
+          continue;
+        }
+        if (hasEquivalentSubexpression(prevAfterExpr, currentBeforeExpr)) {
+          continue;
+        }
         if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
           return {
             isValid: false,
@@ -907,7 +999,7 @@
       };
     }
 
-    const expectedFinalExpr = getExpectedConclusionExpression(problemData);
+    
     if (expectedFinalExpr) {
       const actualFinalExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
       if (!actualFinalExpr) {

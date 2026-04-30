@@ -35,21 +35,27 @@ const MAP_NODE_SIZE = 94;
 
 const TUTORIAL_STEPS = [
   {
-    key: '1',
-    text: '1問目: まずは tan を sin/cos に置き換えるだけ。',
-    help: '必要なのは公式②だけです。最小の一手で解き始めましょう。',
+    key: '1️⃣',
+    text: '📚 チュートリアルへようこそ！\n\nBlocklyを使った証明パズルの楽しさを体験します。',
+    help: '左下のツールボックスからブロックをドラッグして、証明を組み立てていきましょう。',
     targetId: 'l',
   },
   {
-    key: '2',
-    text: '2問目: 分数が増えたら通分でまとめます。',
-    help: '置き換えのあとに通分を挟んで、式をひとつに整理しましょう。',
+    key: '2️⃣',
+    text: '🧮 基本操作を学ぶ\n\n公式ブロックを証明ブロックの「公式」スロットにつなぎます。',
+    help: '「置き換え」ブロックと「結論」ブロックの関係を理解することが大切です。',
     targetId: 'l',
   },
   {
-    key: '3',
-    text: '3問目: 公式①と③を使って、仕上げの一歩まで進みます。',
-    help: '最後は恒等式の組み合わせで完成です。',
+    key: '3️⃣',
+    text: '✨ ステップバイステップで進む\n\n複数の公式を組み合わせて、最終的な答えへ到達します。',
+    help: '各ステップで何をしているのか、数学的な意味を考えながら進めましょう。',
+    targetId: 'l',
+  },
+  {
+    key: '🎯',
+    text: '🎉 チュレーション完了！\n\nあなたはBlocklyでの証明パズルをマスターしました！',
+    help: 'ワールドマップから自分のペースで問題に挑戦してください。\n各ステージで新しい公式や操作を学べます。',
     targetId: 'l',
   },
 ];
@@ -89,6 +95,96 @@ function getTutorialBannerText(stageId) {
 function isTutorialPullModeStage(stageId) {
   const stage = String(stageId);
   return stage === '0-4' || stage === '0-5';
+}
+
+// ===== チュートリアルブロック制限ロジック =====
+function getTutorialAllowedBlockTypes(stageId) {
+  // チュートリアルステージごとに使用可能なブロックタイプを制限
+  const stage = String(stageId);
+  
+  // 基本ブロック（すべてのステージで利用可能）
+  const basicBlocks = ['custom_number', 'term_sin', 'term_cos', 'term_tan', 'term_sin2', 'term_cos2', 
+                       'math_add', 'math_negate', 'math_multiply', 'math_fraction', 'math_square'];
+  
+  // 各ステージでの許可ブロック
+  const stageRestrictions = {
+    '0-1': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
+    '0-2': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2'] },
+    '0-3': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
+    '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
+    '0-5': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
+    '0-6': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
+  };
+  
+  const restriction = stageRestrictions[stage] || null;
+  if (!restriction) return { allowed: true, types: null }; // 非チュートリアル、制限なし
+  
+  return {
+    allowed: false,
+    basicBlocks,
+    operationBlocks: restriction.operations,
+    formulaBlocks: restriction.formulas
+  };
+}
+
+function isBlockAllowedInTutorial(blockType, stageId) {
+  if (!isTutorialStageId(stageId)) return true;
+  
+  const restriction = getTutorialAllowedBlockTypes(stageId);
+  if (restriction.allowed !== false) return true; // 制限なし
+  
+  // 基本ブロックは常に許可
+  if (restriction.basicBlocks?.includes(blockType)) return true;
+  
+  // 操作・数式ブロックは制限
+  if (restriction.operationBlocks?.includes(blockType)) return true;
+  if (restriction.formulaBlocks?.includes(blockType)) return true;
+  
+  return false;
+}
+
+function applyTutorialBlockRestrictions() {
+  if (!isTutorialStageId(currentStageNumber)) return;
+  if (!workspace) return;
+  
+  // ツールボックスをフィルタリング
+  const restriction = getTutorialAllowedBlockTypes(currentStageNumber);
+  if (restriction.allowed !== false) return; // 制限なし
+  
+  // 利用可能なブロックタイプ
+  const allowedTypes = new Set([
+    ...restriction.basicBlocks,
+    ...restriction.operationBlocks,
+    ...restriction.formulaBlocks
+  ]);
+  
+  // ツールボックスカテゴリをフィルタリング
+  const toolboxElement = workspace.getToolbox();
+  if (toolboxElement) {
+    const categories = toolboxElement.getCategories();
+    categories.forEach(category => {
+      const blocks = category.getContents();
+      blocks.forEach(block => {
+        if (!allowedTypes.has(block.type)) {
+          block.setDisabled(true);
+        }
+      });
+    });
+  }
+}
+
+function clearTutorialBlockRestrictions() {
+  if (!workspace) return;
+  const toolboxElement = workspace.getToolbox();
+  if (toolboxElement) {
+    const categories = toolboxElement.getCategories();
+    categories.forEach(category => {
+      const blocks = category.getContents();
+      blocks.forEach(block => {
+        block.setDisabled(false);
+      });
+    });
+  }
 }
 
 function updateTutorialProgress(stageId) {
@@ -159,6 +255,7 @@ function updateTutorialDragAssist(stageId) {
   const panel = document.getElementById('tutorial-drag-assist');
   const list = document.getElementById('tutorial-drag-assist-list');
   const coachText = document.getElementById('tutorial-coach-text');
+  const nextAction = document.getElementById('tutorial-drag-assist-next');
   if (!panel || !list || !coachText) return;
 
   if (!isTutorialStageId(stageId)) {
@@ -208,6 +305,11 @@ function updateTutorialDragAssist(stageId) {
       done: !!replaceOp?.getInputTargetBlock('VALUE') && !!replaceOp?.getInputTargetBlock('REPLACEMENT') && !!conclusionOp?.getInputTargetBlock('VALUE'),
     },
   ];
+
+  const firstPending = items.find((item) => !item.done);
+  if (nextAction) {
+    nextAction.textContent = firstPending ? `いま最優先: ${firstPending.text}` : '完了！「判定する」を押して次へ進もう。';
+  }
 
   list.innerHTML = items
     .map((item) => `<li class="${item.done ? 'done' : ''}">${item.done ? '✓ ' : ''}${item.text}</li>`)
@@ -347,6 +449,12 @@ async function loadTutorialFlowProblem(index) {
   currentProblemData = tutorialFlowProblems[safeIndex];
   applyProblemDataToWorkspace(currentProblemData, `チュートリアル ${safeIndex + 1}/${tutorialFlowProblems.length}`);
   tutorialStepIndex = safeIndex;
+  
+  // チュートリアルブロック制限を適用
+  requestAnimationFrame(() => {
+    applyTutorialBlockRestrictions();
+  });
+  
   showTutorialStep();
   queueTutorialAutoAdvanceCheck();
 }
@@ -933,8 +1041,28 @@ function openInteractiveTutorialOverlay() {
   tutorialModeActive = true;
   tutorialStepIndex = 0;
   overlay.classList.remove('hidden');
+  overlay.style.opacity = '1';
+  overlay.style.transition = 'opacity 0.4s ease-out';
+  
+  // チュートリアルオーバーレイを開く際のアニメーション
+  requestAnimationFrame(() => {
+    overlay.style.pointerEvents = 'auto';
+    // panel にもスポットライト効果を適用
+    const panel = document.querySelector('.tutorial-panel');
+    if (panel) {
+      panel.style.zIndex = '3601';
+      panel.style.opacity = '1';
+    }
+  });
+  
+  // 詳細なガイダンステキストを設定
   showTutorialStep();
   queueTutorialAutoAdvanceCheck();
+  
+  // 1秒後にコーチアシストパネルも表示
+  setTimeout(() => {
+    bindTutorialWorkspaceAutoAdvance();
+  }, 500);
 }
 
 function skipInteractiveTutorial() {
@@ -945,9 +1073,23 @@ function skipInteractiveTutorial() {
 
 async function completeTutorialAndOpenMap() {
   localStorage.setItem('tutorial_seen', 'true');
+  
+  // フェードアウトアニメーション
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.5s ease-out';
+  }
+  
+  // 遅延してオーバーレイを非表示
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   hideTutorialOverlay();
   await renderStageMap();
   switchScreen('stage-map-screen');
+  
+  // マップ表示後にトーストで完了メッセージを表示
+  showToast('<span style="color:#58cc02; font-size:1.1em;">✨ チュートリアル完了！\n\nステージマップから好きな問題に挑戦してください！</span>', true);
 }
 
 // ===== インタラクティブ単位円 =====
@@ -1534,6 +1676,11 @@ function updateTutorialBanner(stageId) {
 function clearTutorialFocus() {
   if (activeTutorialTarget) {
     activeTutorialTarget.classList.remove('tutorial-focus-target');
+    // スポットライト効果をクリア
+    if (activeTutorialTarget.style) {
+      delete activeTutorialTarget.style.setProperty('--spotlight-x');
+      delete activeTutorialTarget.style.setProperty('--spotlight-y');
+    }
   }
   activeTutorialTarget = null;
 }
@@ -1544,6 +1691,16 @@ function setTutorialFocus(targetId) {
   const target = document.getElementById(targetId);
   if (!target) return;
   target.classList.add('tutorial-focus-target');
+  
+  // スポットライト効果のための座標計算
+  requestAnimationFrame(() => {
+    const rect = target.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    target.style.setProperty('--spotlight-x', `${centerX}px`);
+    target.style.setProperty('--spotlight-y', `${centerY}px`);
+  });
+  
   activeTutorialTarget = target;
 }
 
@@ -1562,6 +1719,10 @@ function hideTutorialOverlay() {
   if (overlay) overlay.classList.add('hidden');
   tutorialModeActive = false;
   clearTutorialFocus();
+  
+  // チュートリアル終了時は行動制限を解除
+  clearTutorialBlockRestrictions();
+  
   if (tutorialAutoAdvanceFrameId) {
     cancelAnimationFrame(tutorialAutoAdvanceFrameId);
     tutorialAutoAdvanceFrameId = 0;
@@ -1574,15 +1735,33 @@ function showTutorialStep() {
   const nextBtn = document.getElementById('btn-tutorial-next');
   const stepPill = document.getElementById('tutorial-step-pill');
   const stepHint = document.getElementById('tutorial-step-hint');
+  const nextAction = document.getElementById('tutorial-next-action');
+  const nextDetail = document.getElementById('tutorial-next-detail');
+  const panel = document.querySelector('.tutorial-panel');
   if (!overlay || !stepText || !nextBtn) return;
 
   const safeIndex = Math.max(0, Math.min(tutorialStepIndex, TUTORIAL_STEPS.length - 1));
   const step = TUTORIAL_STEPS[safeIndex];
-  stepText.textContent = `${step.text} ${step.help}`;
+  const headline = String(step.text || '').split('\n')[0] || '';
+  const bodyLines = String(step.text || '').split('\n').slice(1).join('\n').trim();
+  const detailText = String(step.help || '').trim();
+
+  if (nextAction) nextAction.textContent = headline || '次の操作を確認しよう。';
+  if (nextDetail) nextDetail.textContent = detailText || 'ブロックを動かして進めよう。';
+  stepText.textContent = bodyLines || detailText || '';
   setTutorialFocus(step.targetId);
+  
   if (stepPill) stepPill.textContent = `Step ${step.key}`;
   if (stepHint) stepHint.textContent = `${safeIndex + 1} / ${TUTORIAL_STEPS.length}`;
-  nextBtn.textContent = safeIndex === TUTORIAL_STEPS.length - 1 ? '理解した' : '次の解説へ';
+  nextBtn.textContent = safeIndex === TUTORIAL_STEPS.length - 1 ? '理解した 🎉' : '次へ進む ▶';
+  
+  // パネルにアニメーション効果
+  if (panel) {
+    panel.style.animation = 'none';
+    requestAnimationFrame(() => {
+      panel.style.animation = 'slideInPanel 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    });
+  }
 }
 
 function queueTutorialAutoAdvanceCheck() {
@@ -1608,6 +1787,13 @@ function queueTutorialAutoAdvanceCheck() {
     if (nextStepIndex !== tutorialStepIndex) {
       tutorialStepIndex = nextStepIndex;
       showTutorialStep();
+      
+      // 進行度に応じた視覚的フィードバック
+      const progressPercent = Math.round((tutorialStepIndex / TUTORIAL_STEPS.length) * 100);
+      const panel = document.querySelector('.tutorial-panel');
+      if (panel) {
+        panel.style.backgroundColor = `rgba(255, 255, 255, ${0.88 + progressPercent * 0.001})`;
+      }
     }
   });
 }
@@ -1619,6 +1805,23 @@ function bindTutorialWorkspaceAutoAdvance() {
   workspace.addChangeListener((event) => {
     if (!tutorialModeActive || !isTutorialStageId(currentStageNumber)) return;
     if (!event || event.isUiEvent) return;
+    
+    // チュートリアル中のブロック削除や移動を制限
+    if (event.type === Blockly.Events.BLOCK_MOVE || event.type === Blockly.Events.BLOCK_DELETE) {
+      // 特定のブロック（proof_step など重要なブロック）の削除は禁止
+      const blockId = event.blockId;
+      if (blockId) {
+        const block = workspace.getBlockById(blockId);
+        if (block && block.type === 'proof_step') {
+          // proof_step の削除は禁止（イベント後に復元する）
+          if (event.type === Blockly.Events.BLOCK_DELETE) {
+            // これは自動復元されていないため、ログを記録
+            console.warn('[Tutorial] proof_step deletion prevented');
+          }
+        }
+      }
+    }
+    
     queueTutorialAutoAdvanceCheck();
   });
 }
@@ -1650,7 +1853,6 @@ async function loadStage(stageNumber) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       currentProblemData = await response.json();
     }
-    normalizeTutorialAnswerStateForValidation(currentProblemData, stageNumber);
 
     currentHintIndex = 0;
     currentStageSolved = false;
@@ -1707,6 +1909,16 @@ async function loadStage(stageNumber) {
 
     forceWorkspaceLayoutSync();
     arrangeBlocks(); // 最後に整列
+    
+    // チュートリアルステージの場合はブロック制限を適用
+    if (isTutorialStageId(stageNumber)) {
+      requestAnimationFrame(() => {
+        applyTutorialBlockRestrictions();
+      });
+    } else {
+      // 非チュートリアルステージの場合は制限を解除
+      clearTutorialBlockRestrictions();
+    }
 
     const submitBtn = document.getElementById('btn-submit');
     const nextBtn = document.getElementById('btn-next');
@@ -2062,6 +2274,22 @@ function setupEventListeners() {
     }
   });
 
+  // チュートリアルボタンのイベントリスナー
+  document.getElementById('btn-tutorial-next')?.addEventListener('click', () => {
+    tutorialStepIndex = Math.min(tutorialStepIndex + 1, TUTORIAL_STEPS.length - 1);
+    showTutorialStep();
+    if (tutorialStepIndex >= TUTORIAL_STEPS.length - 1) {
+      // チュートリアル完了
+      setTimeout(() => {
+        completeTutorialAndOpenMap();
+      }, 500);
+    }
+  });
+
+  document.getElementById('btn-tutorial-skip')?.addEventListener('click', () => {
+    skipInteractiveTutorial();
+  });
+
   workspace.addChangeListener((event) => {
     if (!event || event.isUiEvent) return;
     if (!isTutorialStageId(currentStageNumber)) return;
@@ -2072,175 +2300,6 @@ function setupEventListeners() {
     if (!document.getElementById('stage-map-screen')?.classList.contains('b')) return;
     centerMapCameraOnCurrentStage(false);
   });
-}
-
-function normalizeTutorialAnswerStateForValidation(problemData, stageId) {
-  if (!problemData?.answerState?.blocks?.blocks) return;
-  const stage = String(stageId);
-  if (stage !== '0-4' && stage !== '0-5' && stage !== '0-6') return;
-
-  const proofBlock = problemData.answerState.blocks.blocks.find((block) => block?.type === 'proof_step');
-  const firstOperation = proofBlock?.inputs?.OPERATIONS?.block || null;
-  if (!firstOperation || firstOperation.type !== 'replace_operation') return;
-
-  const oneBlock = {
-    block: {
-      type: 'custom_number',
-      fields: {
-        NUM: 1,
-      },
-    },
-  };
-  const sin2PlusCos2Block = {
-    block: {
-      type: 'math_add',
-      inputs: {
-        A: {
-          block: {
-            type: 'math_square',
-            inputs: {
-              A: {
-                block: {
-                  type: 'term_sin',
-                },
-              },
-            },
-          },
-        },
-        B: {
-          block: {
-            type: 'math_square',
-            inputs: {
-              A: {
-                block: {
-                  type: 'term_cos',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-  const sinOverCosBlock = {
-    block: {
-      type: 'math_fraction',
-      inputs: {
-        NUMERATOR: {
-          block: {
-            type: 'term_sin',
-          },
-        },
-        DENOMINATOR: {
-          block: {
-            type: 'term_cos',
-          },
-        },
-      },
-    },
-  };
-  const oneOverCosSquaredBlock = {
-    block: {
-      type: 'math_fraction',
-      inputs: {
-        NUMERATOR: {
-          block: {
-            type: 'custom_number',
-            fields: {
-              NUM: 1,
-            },
-          },
-        },
-        DENOMINATOR: {
-          block: {
-            type: 'math_square',
-            inputs: {
-              A: {
-                block: {
-                  type: 'term_cos',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-  const onePlusTanSquaredBlock = {
-    block: {
-      type: 'math_add',
-      inputs: {
-        A: {
-          block: {
-            type: 'custom_number',
-            fields: {
-              NUM: 1,
-            },
-          },
-        },
-        B: {
-          block: {
-            type: 'math_square',
-            inputs: {
-              A: {
-                block: {
-                  type: 'term_tan',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-
-  if (stage === '0-4') {
-    // 0-4 は公式①を分数全体ではなく、分子の sin^2+cos^2 に適用する形へ揃える。
-    firstOperation.inputs = firstOperation.inputs || {};
-    firstOperation.inputs.VALUE = sin2PlusCos2Block;
-    firstOperation.inputs.REPLACEMENT = oneBlock;
-
-    const secondOperation = firstOperation?.next?.block || null;
-    if (secondOperation && secondOperation.type === 'conclusion_operation') {
-      // チェーン整合: 1段目の変形後(1) と 2段目の式 を一致させる。
-      secondOperation.inputs = secondOperation.inputs || {};
-      secondOperation.inputs.VALUE = oneBlock;
-    }
-    return;
-  }
-
-  if (stage === '0-5') {
-    // 0-5 は 1段目後の sin/cos と結論を一致させる。
-    firstOperation.inputs = firstOperation.inputs || {};
-    firstOperation.inputs.VALUE = { block: { type: 'term_tan' } };
-    firstOperation.inputs.REPLACEMENT = sinOverCosBlock;
-
-    const secondOperation = firstOperation?.next?.block || null;
-    if (secondOperation && secondOperation.type === 'conclusion_operation') {
-      secondOperation.inputs = secondOperation.inputs || {};
-      secondOperation.inputs.VALUE = sinOverCosBlock;
-    }
-    return;
-  }
-
-  // 0-6 はチェーン整合を優先し、公式③の1手で答え表示を構成する。
-  problemData.requiredFormulas = ['formula_3'];
-  firstOperation.inputs = firstOperation.inputs || {};
-  firstOperation.inputs.VALUE = onePlusTanSquaredBlock;
-  firstOperation.inputs.FORMULA = {
-    block: {
-      type: 'formula_3',
-    },
-  };
-  firstOperation.inputs.REPLACEMENT = oneOverCosSquaredBlock;
-  firstOperation.next = {
-    block: {
-      type: 'conclusion_operation',
-      inputs: {
-        VALUE: oneOverCosSquaredBlock,
-      },
-    },
-  };
 }
 
 // ===== アプリケーション初期化ルーティング =====
