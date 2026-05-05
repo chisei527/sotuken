@@ -26,7 +26,7 @@ let tutorialWorkspaceListenerBound = false;
 let tutorialFlowProblems = [];
 let tutorialFlowIndex = 0;
 
-const MAX_STAGE_NUMBER = 43;
+const MAX_STAGE_NUMBER = 100;
 const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6'];
 const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode'];
 const MAP_WORLD_MIN_WIDTH = 3600;
@@ -61,10 +61,11 @@ const TUTORIAL_STEPS = [
 ];
 
 const WORLD_SEGMENTS = [
-  { start: 1, end: 10, title: 'World 1: Foundational Route', subtitle: '公式の基本連結' },
-  { start: 11, end: 20, title: 'World 2: Conversion Ridge', subtitle: '変換の往復を習得' },
-  { start: 21, end: 30, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
-  { start: 31, end: 43, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
+  { start: 1, end: 25, title: 'World 1: Foundational Route', subtitle: '公式の基本連結' },
+  { start: 26, end: 50, title: 'World 2: Conversion Ridge', subtitle: '変換の往復を習得' },
+  { start: 51, end: 75, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
+  { start: 76, end: 85, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
+  { start: 86, end: 100, title: 'World 5: Apex Legend', subtitle: '最高難度の集大成' },
 ];
 
 function isTutorialStageId(stageId) {
@@ -160,31 +161,43 @@ function applyTutorialBlockRestrictions() {
   
   // ツールボックスカテゴリをフィルタリング
   const toolboxElement = workspace.getToolbox();
-  if (toolboxElement) {
-    const categories = toolboxElement.getCategories();
-    categories.forEach(category => {
-      const blocks = category.getContents();
-      blocks.forEach(block => {
-        if (!allowedTypes.has(block.type)) {
-          block.setDisabled(true);
-        }
-      });
+  if (!toolboxElement) return;
+
+  const categories = typeof toolboxElement.getCategories === 'function'
+    ? toolboxElement.getCategories()
+    : typeof toolboxElement.getToolboxItems === 'function'
+      ? toolboxElement.getToolboxItems()
+      : [];
+
+  categories.forEach((category) => {
+    const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
+    blocks.forEach((block) => {
+      if (!block || !block.type || typeof block.setDisabled !== 'function') return;
+      if (!allowedTypes.has(block.type)) {
+        block.setDisabled(true);
+      }
     });
-  }
+  });
 }
 
 function clearTutorialBlockRestrictions() {
   if (!workspace) return;
   const toolboxElement = workspace.getToolbox();
-  if (toolboxElement) {
-    const categories = toolboxElement.getCategories();
-    categories.forEach(category => {
-      const blocks = category.getContents();
-      blocks.forEach(block => {
-        block.setDisabled(false);
-      });
+  if (!toolboxElement) return;
+
+  const categories = typeof toolboxElement.getCategories === 'function'
+    ? toolboxElement.getCategories()
+    : typeof toolboxElement.getToolboxItems === 'function'
+      ? toolboxElement.getToolboxItems()
+      : [];
+
+  categories.forEach((category) => {
+    const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
+    blocks.forEach((block) => {
+      if (!block || typeof block.setDisabled !== 'function') return;
+      block.setDisabled(false);
     });
-  }
+  });
 }
 
 function updateTutorialProgress(stageId) {
@@ -539,6 +552,29 @@ function updateOverwritePermissionButton() {
 }
 
 // ===== Blockly 定義とワークスペース初期化 =====
+// 分数の見た目調整用: 幅だけを持つ透明フィールド
+class FieldSpacer extends Blockly.Field {
+  constructor(width) {
+    super('');
+    this.EDITABLE = false;
+    this.spacerWidth_ = width || 0;
+  }
+
+  getSize() {
+    return new Blockly.utils.Size(this.spacerWidth_, 0);
+  }
+
+  setWidth(width) {
+    if (this.spacerWidth_ !== width) {
+      this.spacerWidth_ = width;
+      this.forceRerender();
+    }
+  }
+
+  draw_() {}
+}
+Blockly.fieldRegistry.register('field_spacer', FieldSpacer);
+
 const FORMULA_BLOCK_DEFS = [
   ['formula_1', '公式① sin(x)^2 + cos(x)^2 = 1'],
   ['formula_2', '公式② tan(x) = sin(x) / cos(x)'],
@@ -609,6 +645,7 @@ function defineMathBlocks() {
     init() {
       this.appendValueInput('A');
       this.appendValueInput('B').appendField('+');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour(30);
     },
@@ -618,6 +655,7 @@ function defineMathBlocks() {
     init() {
       this.appendValueInput('A').appendField('-(');
       this.appendDummyInput().appendField(')');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour(30);
     },
@@ -627,6 +665,7 @@ function defineMathBlocks() {
     init() {
       this.appendValueInput('A');
       this.appendValueInput('B').appendField('×');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour(30);
     },
@@ -634,18 +673,51 @@ function defineMathBlocks() {
 
   Blockly.Blocks.math_fraction = {
     init() {
-      this.appendValueInput('NUMERATOR').appendField('(');
-      this.appendDummyInput().appendField('/');
-      this.appendValueInput('DENOMINATOR').appendField(')');
+      this.appendValueInput('NUMERATOR')
+        .appendField(new FieldSpacer(0), 'NUMERATOR_PAD');
+      this.appendDummyInput('FRACTION_LINE')
+        .appendField(new FieldSpacer(0), 'LINE_PAD')
+        .appendField('—', 'FRACTION_LINE');
+      this.appendValueInput('DENOMINATOR')
+        .appendField(new FieldSpacer(0), 'DENOMINATOR_PAD');
+      this.setInputsInline(false);
       this.setOutput(true, null);
       this.setColour(30);
+    },
+    onchange(event) {
+      if (!this.workspace || this.workspace.isDragging()) return;
+      if (event && event.isUiEvent) return;
+
+      const numeratorBlock = this.getInputTargetBlock('NUMERATOR');
+      const denominatorBlock = this.getInputTargetBlock('DENOMINATOR');
+      const numeratorWidth = numeratorBlock?.getHeightWidth?.().width || 0;
+      const denominatorWidth = denominatorBlock?.getHeightWidth?.().width || 0;
+      const maxWidth = Math.max(numeratorWidth, denominatorWidth, 24);
+
+      const numeratorPad = Math.max(0, Math.round((maxWidth - numeratorWidth) / 2));
+      const denominatorPad = Math.max(0, Math.round((maxWidth - denominatorWidth) / 2));
+      const numeratorPadField = this.getField('NUMERATOR_PAD');
+      const denominatorPadField = this.getField('DENOMINATOR_PAD');
+      const linePadField = this.getField('LINE_PAD');
+      if (numeratorPadField?.setWidth) numeratorPadField.setWidth(numeratorPad);
+      if (denominatorPadField?.setWidth) denominatorPadField.setWidth(denominatorPad);
+      if (linePadField?.setWidth) linePadField.setWidth(0);
+
+      // Approximate: each dash is ~12px wide in the current font.
+      const dashCount = Math.max(3, Math.min(18, Math.round(maxWidth / 12)));
+      const line = '—'.repeat(dashCount);
+      const field = this.getField('FRACTION_LINE');
+      if (field && field.getText && field.getText() !== line) {
+        field.setValue(line);
+      }
     },
   };
 
   Blockly.Blocks.math_square = {
     init() {
       this.appendValueInput('A');
-      this.appendDummyInput().appendField('^2');
+      this.appendDummyInput().appendField('²');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour(30);
     },
@@ -673,9 +745,12 @@ function defineMathBlocks() {
 
   Blockly.Blocks.replace_operation = {
     init() {
-      this.appendValueInput('VALUE').appendField('置き換え 前');
+      this.appendValueInput('VALUE').appendField('置き換え');
+      this.appendDummyInput().appendField('[');
       this.appendValueInput('FORMULA').appendField('公式');
-      this.appendValueInput('REPLACEMENT').appendField('置き換え 後');
+      this.appendDummyInput().appendField('] →');
+      this.appendValueInput('REPLACEMENT');
+      this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(120);
@@ -684,8 +759,10 @@ function defineMathBlocks() {
 
   Blockly.Blocks.common_denominator_operation = {
     init() {
-      this.appendValueInput('VALUE').appendField('通分 前');
-      this.appendValueInput('REPLACEMENT').appendField('通分 後');
+      this.appendValueInput('VALUE').appendField('通分');
+      this.appendDummyInput().appendField('→');
+      this.appendValueInput('REPLACEMENT').appendField('後');
+      this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(120);
@@ -1178,48 +1255,6 @@ function drawUnitCircle(angleDeg) {
     ctx.fillText('tan: ∞', 12, 82);
   }
 }
-
-// ===== Blockly カスタムフィールド =====
-// 分数の見た目調整用: 幅だけを持つ透明フィールド
-class FieldSpacer extends Blockly.Field {
-  constructor(width) {
-    super('');
-    this.EDITABLE = false;
-    this.spacerWidth_ = width || 0;
-  }
-
-  getSize() {
-    return new Blockly.utils.Size(this.spacerWidth_, 0);
-  }
-
-  setWidth(width) {
-    if (this.spacerWidth_ !== width) {
-      this.spacerWidth_ = width;
-      this.forceRerender();
-    }
-  }
-
-  draw_() {}
-}
-Blockly.fieldRegistry.register('field_spacer', FieldSpacer);
-
-// 分数線のベースラインを中央寄せするフィールド
-class FieldFractionLine extends Blockly.FieldLabel {
-  constructor(text) {
-    super(text);
-    this.className_ = 'fraction-line';
-    this.EDITABLE = false;
-  }
-
-  draw_() {
-    super.draw_();
-    if (this.textElement_) {
-      this.textElement_.setAttribute('dominant-baseline', 'central');
-      this.textElement_.setAttribute('y', '0');
-    }
-  }
-}
-Blockly.fieldRegistry.register('field_fraction_line', FieldFractionLine);
 
 // ===== 解析ヘルパー =====
 // answerState を再帰走査し、操作ブロック数と公式種類数を数える
@@ -1843,16 +1878,18 @@ async function advanceTutorialFlowOrComplete() {
  */
 async function loadStage(stageNumber) {
   try {
-    const allProblems = await getProblemsData();
-    const fromBundle = allProblems?.stages?.[String(stageNumber)] || null;
-
-    if (fromBundle) {
-      currentProblemData = fromBundle;
-    } else {
-      const response = await fetch(`problems/${stageNumber}.json`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      currentProblemData = await response.json();
-    }
+    const isTutorialStage = isTutorialStageId(stageNumber);
+    const stageKey = String(stageNumber);
+    const numericStage = Math.max(1, Number(stageNumber) || 1);
+    const stageFile = isTutorialStage
+      ? `problems/tutorial/${stageKey}.json`
+      : `problems/${numericStage}.json`;
+    const response = await fetch(stageFile);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const rawText = await response.text();
+    const sanitizedText = rawText.replace(/^\uFEFF/, '').trim();
+    if (!sanitizedText) throw new Error('EMPTY_JSON');
+    currentProblemData = JSON.parse(sanitizedText);
 
     currentHintIndex = 0;
     currentStageSolved = false;
@@ -1930,9 +1967,19 @@ async function loadStage(stageNumber) {
   } catch (error) {
     const errorText = error && error.message ? String(error.message) : '';
     const isHttpError = /^HTTP\s+\d+/.test(errorText);
+    const isTutorialStage = isTutorialStageId(stageNumber);
+    const stageKey = String(stageNumber);
+    const numericStage = Math.max(1, Number(stageNumber) || 1);
+    const stageFile = isTutorialStage
+      ? `problems/tutorial/${stageKey}.json`
+      : `problems/${numericStage}.json`;
+    const detailSuffix = errorText ? ` (${errorText})` : '';
     const message = isHttpError
-      ? `問題ファイルが見つかりません: problems/${stageNumber}.json (${errorText})`
-      : `問題ファイルの内容が不正です: problems/${stageNumber}.json`;
+      ? `問題ファイルが見つかりません: ${stageFile}${detailSuffix}`
+      : `問題ファイルの内容が不正です: ${stageFile}${detailSuffix}`;
+    if (errorText) {
+      console.error('[StageLoadError]', stageFile, error);
+    }
     showToast(`<span style='color:red'>${message}</span>`, false);
 
     const stageText = document.getElementById('r');
@@ -2310,7 +2357,7 @@ async function routeToTarget() {
   const urlParams = new URLSearchParams(window.location.search);
   const stageParam = parseInt(urlParams.get('stage'), 10);
 
-  if (stageParam >= 1 && stageParam <= 43) {
+  if (stageParam >= 1 && stageParam <= MAX_STAGE_NUMBER) {
     currentStageNumber = stageParam;
     switchScreen('p');
     await loadStage(stageParam);

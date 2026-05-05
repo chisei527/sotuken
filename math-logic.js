@@ -668,6 +668,16 @@
         const derivedReverse = evaluateEquivalence(beforeExpr, oneOverCos).ok
           && evaluateEquivalence(afterExpr, tanOverSin).ok;
         if (derivedReverse) return true;
+
+        const oneOverTan = `(1 / tan(${thetaExpr}))`;
+        const cosOverSin = `(cos(${thetaExpr}) / sin(${thetaExpr}))`;
+        const reciprocalDirect = evaluateEquivalence(beforeExpr, oneOverTan).ok
+          && evaluateEquivalence(afterExpr, cosOverSin).ok;
+        if (reciprocalDirect) return true;
+
+        const reciprocalReverse = evaluateEquivalence(beforeExpr, cosOverSin).ok
+          && evaluateEquivalence(afterExpr, oneOverTan).ok;
+        if (reciprocalReverse) return true;
       }
     }
 

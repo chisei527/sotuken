@@ -1,282 +1,399 @@
-﻿{
-    "id":  30,
-    "mathText":  "\\[ \\tan(\\frac{\\pi}{3})\\tan(\\frac{\\pi}{6}) = 1 \\]",
-    "requiredBlocks":  [
-                           "\"type\":\"replace_operation\"",
-                           "\"type\":\"common_denominator_operation\"",
-                           "\"type\":\"conclusion_operation\""
-                       ],
-    "hints":  [
-                  "それぞれを \\(\\sin/\\cos\\) で考える。",
-                  "有名角の値で積を計算すると 1 になる。"
-              ],
-    "initialState":  {
-                         "blocks":  {
-                                        "languageVersion":  0,
-                                        "blocks":  [
-                                                       {
-                                                           "y":  50,
-                                                           "inputs":  {
-                                                                          "A":  {
-                                                                                    "block":  {
-                                                                                                  "inputs":  {
-                                                                                                                 "ANGLE":  {
-                                                                                                                               "block":  {
-                                                                                                                                             "type":  "term_pi_third"
-                                                                                                                                         }
-                                                                                                                           }
-                                                                                                             },
-                                                                                                  "type":  "term_tan_of"
-                                                                                              }
-                                                                                },
-                                                                          "B":  {
-                                                                                    "block":  {
-                                                                                                  "inputs":  {
-                                                                                                                 "ANGLE":  {
-                                                                                                                               "block":  {
-                                                                                                                                             "type":  "term_pi_sixth"
-                                                                                                                                         }
-                                                                                                                           }
-                                                                                                             },
-                                                                                                  "type":  "term_tan_of"
-                                                                                              }
-                                                                                }
-                                                                      },
-                                                           "type":  "math_multiply",
-                                                           "x":  50
-                                                       },
-                                                       {
-                                                           "y":  50,
-                                                           "fields":  {
-                                                                          "NUM":  1
-                                                                      },
-                                                           "type":  "custom_number",
-                                                           "x":  600
-                                                       },
-                                                       {
-                                                           "y":  150,
-                                                           "type":  "proof_step",
-                                                           "x":  50
-                                                       }
-                                                   ]
+{
+  "id": 30,
+  "mathText": "\\[ \\sin(\\frac{\\pi}{3}+\\frac{\\pi}{6}) = 1 \\]",
+  "requiredBlocks": [
+    "\"type\":\"replace_operation\"",
+    "\"type\":\"common_denominator_operation\"",
+    "\"type\":\"conclusion_operation\""
+  ],
+  "hints": [
+    "加法で \\(\\frac{\\pi}{2}\\) を作る。",
+    "sin の最大値になる角度を確認する。"
+  ],
+  "initialState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "y": 50,
+          "inputs": {
+            "ANGLE": {
+              "block": {
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_pi_third"
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_pi_sixth"
+                    }
+                  }
+                },
+                "type": "math_add"
+              }
+            }
+          },
+          "type": "term_sin_of",
+          "x": 50
+        },
+        {
+          "y": 50,
+          "fields": {
+            "NUM": 1
+          },
+          "type": "custom_number",
+          "x": 600
+        },
+        {
+          "y": 150,
+          "type": "proof_step",
+          "x": 50
+        }
+      ]
+    }
+  },
+  "answerState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "y": 50,
+          "inputs": {
+            "ANGLE": {
+              "block": {
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_pi_third"
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_pi_sixth"
+                    }
+                  }
+                },
+                "type": "math_add"
+              }
+            }
+          },
+          "type": "term_sin_of",
+          "x": 50
+        },
+        {
+          "y": 50,
+          "fields": {
+            "NUM": 1
+          },
+          "type": "custom_number",
+          "x": 600
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 150,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "replace_operation",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "term_tan_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_pi_quarter"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "FORMULA": {
+                    "block": {
+                      "type": "formula_2"
+                    }
+                  },
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "math_fraction",
+                      "inputs": {
+                        "NUMERATOR": {
+                          "block": {
+                            "type": "term_sin_of",
+                            "inputs": {
+                              "ANGLE": {
+                                "block": {
+                                  "type": "term_pi_quarter"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "DENOMINATOR": {
+                          "block": {
+                            "type": "term_cos_of",
+                            "inputs": {
+                              "ANGLE": {
+                                "block": {
+                                  "type": "term_pi_quarter"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "replace_operation",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_fraction",
+                          "inputs": {
+                            "NUMERATOR": {
+                              "block": {
+                                "type": "term_sin_of",
+                                "inputs": {
+                                  "ANGLE": {
+                                    "block": {
+                                      "type": "term_pi_quarter"
                                     }
-                     },
-    "answerState":  {
-                        "blocks":  {
-                                       "languageVersion":  0,
-                                       "blocks":  [
-                                                      {
-                                                          "y":  50,
-                                                          "inputs":  {
-                                                                         "A":  {
-                                                                                   "block":  {
-                                                                                                 "inputs":  {
-                                                                                                                "ANGLE":  {
-                                                                                                                              "block":  {
-                                                                                                                                            "type":  "term_pi_third"
-                                                                                                                                        }
-                                                                                                                          }
-                                                                                                            },
-                                                                                                 "type":  "term_tan_of"
-                                                                                             }
-                                                                               },
-                                                                         "B":  {
-                                                                                   "block":  {
-                                                                                                 "inputs":  {
-                                                                                                                "ANGLE":  {
-                                                                                                                              "block":  {
-                                                                                                                                            "type":  "term_pi_sixth"
-                                                                                                                                        }
-                                                                                                                          }
-                                                                                                            },
-                                                                                                 "type":  "term_tan_of"
-                                                                                             }
-                                                                               }
-                                                                     },
-                                                          "type":  "math_multiply",
-                                                          "x":  50
-                                                      },
-                                                      {
-                                                          "y":  50,
-                                                          "fields":  {
-                                                                         "NUM":  1
-                                                                     },
-                                                          "type":  "custom_number",
-                                                          "x":  600
-                                                      },
-                                                      {
-                                                          "type":  "proof_step",
-                                                          "x":  50,
-                                                          "y":  150,
-                                                          "inputs":  {
-                                                                         "OPERATIONS":  {
-                                                                                            "block":  {
-                                                                                                          "type":  "replace_operation",
-                                                                                                          "inputs":  {
-                                                                                                                         "VALUE":  {
-                                                                                                                                       "block":  {
-                                                                                                                                                     "type":  "term_tan_of",
-                                                                                                                                                     "inputs":  {
-                                                                                                                                                                    "ANGLE":  {
-                                                                                                                                                                                  "block":  {
-                                                                                                                                                                                                "type":  "term_pi_quarter"
-                                                                                                                                                                                            }
-                                                                                                                                                                              }
-                                                                                                                                                                }
-                                                                                                                                                 }
-                                                                                                                                   },
-                                                                                                                         "FORMULA":  {
-                                                                                                                                         "block":  {
-                                                                                                                                                       "type":  "formula_2"
-                                                                                                                                                   }
-                                                                                                                                     },
-                                                                                                                         "REPLACEMENT":  {
-                                                                                                                                             "block":  {
-                                                                                                                                                           "type":  "math_fraction",
-                                                                                                                                                           "inputs":  {
-                                                                                                                                                                          "NUMERATOR":  {
-                                                                                                                                                                                            "block":  {
-                                                                                                                                                                                                          "type":  "term_sin_of",
-                                                                                                                                                                                                          "inputs":  {
-                                                                                                                                                                                                                         "ANGLE":  {
-                                                                                                                                                                                                                                       "block":  {
-                                                                                                                                                                                                                                                     "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                 }
-                                                                                                                                                                                                                                   }
-                                                                                                                                                                                                                     }
-                                                                                                                                                                                                      }
-                                                                                                                                                                                        },
-                                                                                                                                                                          "DENOMINATOR":  {
-                                                                                                                                                                                              "block":  {
-                                                                                                                                                                                                            "type":  "term_cos_of",
-                                                                                                                                                                                                            "inputs":  {
-                                                                                                                                                                                                                           "ANGLE":  {
-                                                                                                                                                                                                                                         "block":  {
-                                                                                                                                                                                                                                                       "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                   }
-                                                                                                                                                                                                                                     }
-                                                                                                                                                                                                                       }
-                                                                                                                                                                                                        }
-                                                                                                                                                                                          }
-                                                                                                                                                                      }
-                                                                                                                                                       }
-                                                                                                                                         }
-                                                                                                                     },
-                                                                                                          "next":  {
-                                                                                                                       "block":  {
-                                                                                                                                     "type":  "common_denominator_operation",
-                                                                                                                                     "inputs":  {
-                                                                                                                                                    "VALUE":  {
-                                                                                                                                                                  "block":  {
-                                                                                                                                                                                "type":  "math_fraction",
-                                                                                                                                                                                "inputs":  {
-                                                                                                                                                                                               "NUMERATOR":  {
-                                                                                                                                                                                                                 "block":  {
-                                                                                                                                                                                                                               "type":  "term_sin_of",
-                                                                                                                                                                                                                               "inputs":  {
-                                                                                                                                                                                                                                              "ANGLE":  {
-                                                                                                                                                                                                                                                            "block":  {
-                                                                                                                                                                                                                                                                          "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                           }
-                                                                                                                                                                                                             },
-                                                                                                                                                                                               "DENOMINATOR":  {
-                                                                                                                                                                                                                   "block":  {
-                                                                                                                                                                                                                                 "type":  "term_cos_of",
-                                                                                                                                                                                                                                 "inputs":  {
-                                                                                                                                                                                                                                                "ANGLE":  {
-                                                                                                                                                                                                                                                              "block":  {
-                                                                                                                                                                                                                                                                            "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                             }
-                                                                                                                                                                                                               }
-                                                                                                                                                                                           }
-                                                                                                                                                                            }
-                                                                                                                                                              },
-                                                                                                                                                    "REPLACEMENT":  {
-                                                                                                                                                                        "block":  {
-                                                                                                                                                                                      "type":  "math_fraction",
-                                                                                                                                                                                      "inputs":  {
-                                                                                                                                                                                                     "NUMERATOR":  {
-                                                                                                                                                                                                                       "block":  {
-                                                                                                                                                                                                                                     "type":  "term_sin_of",
-                                                                                                                                                                                                                                     "inputs":  {
-                                                                                                                                                                                                                                                    "ANGLE":  {
-                                                                                                                                                                                                                                                                  "block":  {
-                                                                                                                                                                                                                                                                                "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                 }
-                                                                                                                                                                                                                   },
-                                                                                                                                                                                                     "DENOMINATOR":  {
-                                                                                                                                                                                                                         "block":  {
-                                                                                                                                                                                                                                       "type":  "term_cos_of",
-                                                                                                                                                                                                                                       "inputs":  {
-                                                                                                                                                                                                                                                      "ANGLE":  {
-                                                                                                                                                                                                                                                                    "block":  {
-                                                                                                                                                                                                                                                                                  "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                   }
-                                                                                                                                                                                                                     }
-                                                                                                                                                                                                 }
-                                                                                                                                                                                  }
-                                                                                                                                                                    }
-                                                                                                                                                },
-                                                                                                                                     "next":  {
-                                                                                                                                                  "block":  {
-                                                                                                                                                                "type":  "conclusion_operation",
-                                                                                                                                                                "inputs":  {
-                                                                                                                                                                               "VALUE":  {
-                                                                                                                                                                                             "block":  {
-                                                                                                                                                                                                           "type":  "math_fraction",
-                                                                                                                                                                                                           "inputs":  {
-                                                                                                                                                                                                                          "NUMERATOR":  {
-                                                                                                                                                                                                                                            "block":  {
-                                                                                                                                                                                                                                                          "type":  "term_sin_of",
-                                                                                                                                                                                                                                                          "inputs":  {
-                                                                                                                                                                                                                                                                         "ANGLE":  {
-                                                                                                                                                                                                                                                                                       "block":  {
-                                                                                                                                                                                                                                                                                                     "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                                                 }
-                                                                                                                                                                                                                                                                                   }
-                                                                                                                                                                                                                                                                     }
-                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                          "DENOMINATOR":  {
-                                                                                                                                                                                                                                              "block":  {
-                                                                                                                                                                                                                                                            "type":  "term_cos_of",
-                                                                                                                                                                                                                                                            "inputs":  {
-                                                                                                                                                                                                                                                                           "ANGLE":  {
-                                                                                                                                                                                                                                                                                         "block":  {
-                                                                                                                                                                                                                                                                                                       "type":  "term_pi_quarter"
-                                                                                                                                                                                                                                                                                                   }
-                                                                                                                                                                                                                                                                                     }
-                                                                                                                                                                                                                                                                       }
-                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                      }
-                                                                                                                                                                                                       }
-                                                                                                                                                                                         }
-                                                                                                                                                                           }
-                                                                                                                                                            }
-                                                                                                                                              }
-                                                                                                                                 }
-                                                                                                                   }
-                                                                                                      }
-                                                                                        }
-                                                                     }
-                                                      }
-                                                  ]
-                                   }
+                                  }
+                                }
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "term_cos_of",
+                                "inputs": {
+                                  "ANGLE": {
+                                    "block": {
+                                      "type": "term_pi_quarter"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "FORMULA": {
+                        "block": {
+                          "type": "formula_1"
+                        }
+                      },
+                      "REPLACEMENT": {
+                        "block": {
+                          "type": "math_add",
+                          "inputs": {
+                            "A": {
+                              "block": {
+                                "type": "math_square",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "term_sin_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_pi_quarter"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "B": {
+                              "block": {
+                                "type": "math_square",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "term_cos_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_pi_quarter"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
                     },
-    "requiredFormulas":  [
-                             "formula_2"
-                         ]
+                    "next": {
+                      "block": {
+                        "type": "common_denominator_operation",
+                        "inputs": {
+                          "VALUE": {
+                            "block": {
+                              "type": "math_add",
+                              "inputs": {
+                                "A": {
+                                  "block": {
+                                    "type": "math_square",
+                                    "inputs": {
+                                      "A": {
+                                        "block": {
+                                          "type": "term_sin_of",
+                                          "inputs": {
+                                            "ANGLE": {
+                                              "block": {
+                                                "type": "term_pi_quarter"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "B": {
+                                  "block": {
+                                    "type": "math_square",
+                                    "inputs": {
+                                      "A": {
+                                        "block": {
+                                          "type": "term_cos_of",
+                                          "inputs": {
+                                            "ANGLE": {
+                                              "block": {
+                                                "type": "term_pi_quarter"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "REPLACEMENT": {
+                            "block": {
+                              "type": "math_add",
+                              "inputs": {
+                                "A": {
+                                  "block": {
+                                    "type": "math_square",
+                                    "inputs": {
+                                      "A": {
+                                        "block": {
+                                          "type": "term_sin_of",
+                                          "inputs": {
+                                            "ANGLE": {
+                                              "block": {
+                                                "type": "term_pi_quarter"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "B": {
+                                  "block": {
+                                    "type": "math_square",
+                                    "inputs": {
+                                      "A": {
+                                        "block": {
+                                          "type": "term_cos_of",
+                                          "inputs": {
+                                            "ANGLE": {
+                                              "block": {
+                                                "type": "term_pi_quarter"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "next": {
+                          "block": {
+                            "type": "conclusion_operation",
+                            "inputs": {
+                              "VALUE": {
+                                "block": {
+                                  "type": "math_add",
+                                  "inputs": {
+                                    "A": {
+                                      "block": {
+                                        "type": "math_square",
+                                        "inputs": {
+                                          "A": {
+                                            "block": {
+                                              "type": "term_sin_of",
+                                              "inputs": {
+                                                "ANGLE": {
+                                                  "block": {
+                                                    "type": "term_pi_quarter"
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "B": {
+                                      "block": {
+                                        "type": "math_square",
+                                        "inputs": {
+                                          "A": {
+                                            "block": {
+                                              "type": "term_cos_of",
+                                              "inputs": {
+                                                "ANGLE": {
+                                                  "block": {
+                                                    "type": "term_pi_quarter"
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "requiredFormulas": [
+    "formula_2",
+    "formula_1"
+  ]
 }

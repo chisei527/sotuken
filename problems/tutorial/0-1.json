@@ -1,0 +1,198 @@
+{
+  "id": "0-1",
+  "mathText": "\\[ \\tan\\theta = \\frac{\\sin\\theta}{\\cos\\theta} \\]",
+  "requiredBlocks": [
+    "\"type\":\"replace_operation\"",
+    "\"type\":\"conclusion_operation\""
+  ],
+  "requiredFormulas": [
+    "formula_2"
+  ],
+  "hints": [
+    "まずは tan ブロックをドラッグして、公式②で置き換えましょう。",
+    "目標は sin/cos の分数です。"
+  ],
+  "initialState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "term_tan",
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_fraction",
+          "x": 600,
+          "y": 50,
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          }
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 150,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "replace_operation",
+                "inputs": {
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "math_fraction",
+                      "inputs": {
+                        "NUMERATOR": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "DENOMINATOR": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "conclusion_operation",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_fraction",
+                          "inputs": {
+                            "NUMERATOR": {
+                              "block": {
+                                "type": "term_sin"
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "term_cos"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "formula_2",
+          "x": 440,
+          "y": 170
+        }
+      ]
+    }
+  },
+  "answerState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "term_tan",
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_fraction",
+          "x": 600,
+          "y": 50,
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          }
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 150,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "replace_operation",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "term_tan"
+                    }
+                  },
+                  "FORMULA": {
+                    "block": {
+                      "type": "formula_2"
+                    }
+                  },
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "math_fraction",
+                      "inputs": {
+                        "NUMERATOR": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "DENOMINATOR": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "conclusion_operation",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_fraction",
+                          "inputs": {
+                            "NUMERATOR": {
+                              "block": {
+                                "type": "term_sin"
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "term_cos"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
