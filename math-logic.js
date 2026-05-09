@@ -729,43 +729,43 @@
 
     switch (errorCode) {
       case 'ERROR_NO_PROOF_BLOCK':
-        return '証明ブロックが見つかりません。まず「証明」ブロックを配置してください。';
+        return '証明ブロックをつなげて、変形を始めよう。';
       case 'ERROR_EMPTY_INPUT':
-        return `${stepPrefix}「式」または「変形後」の入力が空です。ブロックを接続して式を完成させてください。`;
+        return `${stepPrefix}式が空だよ！ブロックをはめてね。`;
       case 'ERROR_DIVISION_BY_ZERO':
-        return `${stepPrefix}計算結果が無効です（0 除算の可能性があります）。分母が 0 になっていないか確認してください。`;
+        return `${stepPrefix}0で割っているみたい！式を確認しよう。`;
       case 'ERROR_EQUATION_MISMATCH':
-        return `${stepPrefix}変形前と変形後が一致しません。使用した公式と置き換え先の式を見直してください。`;
+        return `${stepPrefix}変形が合っていないよ。公式と式を見直そう。`;
       case 'ERROR_EVALUATION':
-        return `${stepPrefix}式を評価できません。未接続ブロックや不正な式がないか確認してください。`;
+        return `${stepPrefix}この式は正しく読み取れないみたい。`;
       case 'ERROR_FORMULA_REQUIRED':
-        return `${stepPrefix}置き換え操作には公式ブロックが必要です。`;
+        return `${stepPrefix}公式をスロットに入れてね。`;
       case 'ERROR_UNSUPPORTED_FORMULA':
-        return `${stepPrefix}この公式は判定対象外です。公式ブロックを確認してください。`;
+        return `${stepPrefix}その公式は使えないよ。別の公式を試そう。`;
       case 'ERROR_FORMULA_MISMATCH':
-        return `${stepPrefix}選択した公式と変形内容が一致していません。${suggestionText}`.trim();
+        return `${stepPrefix}公式の当てはめが違うみたい。${suggestionText}`.trim();
       case 'ERROR_COMMON_DENOMINATOR_RULE':
-        return `${stepPrefix}通分では tan→sin/cos などの三角関数置換はできません。置き換えブロックで公式を使って変形してください。`;
+        return `${stepPrefix}通分では tan → sin/cos にはできないよ！公式ブロックを使おう。`;
       case 'ERROR_CHAIN_EMPTY_INPUT':
-        return `${stepPrefix}前段とのつながりを確認できません。この段の「式」を入力してください。`;
+        return `${stepPrefix}前の段とつながっていないよ。式を確認してね。`;
       case 'ERROR_CHAIN_DIVISION_BY_ZERO':
-        return `${stepPrefix}前段との接続確認中に無効な値が発生しました。前段の「変形後」とこの段の「式」を見直してください。`;
+        return `${stepPrefix}前の式との比較で0割が発生したよ。`;
       case 'ERROR_CHAIN_MISMATCH':
-        return `${stepPrefix}前段とのつながりが不一致です。前段の「変形後」とこの段の「式」を一致させてください。`;
+        return `${stepPrefix}前の式とつながっていないよ。もう一度見直してね。`;
       case 'ERROR_CHAIN_EVALUATION':
-        return `${stepPrefix}前段との接続確認で式を評価できません。未接続ブロックや不正な式がないか確認してください。`;
+        return `${stepPrefix}前の式とつながっているか確認できないよ。`;
       case 'ERROR_NO_CONCLUSION':
-        return '最後の行を「よって ... となる（結論）」ブロックで締めてください。';
+        return '最後は「よって...」のブロックでしめよう！';
       case 'ERROR_FINAL_EMPTY':
-        return '最後の結論式が空です。目標の式を「よって ... となる」に接続してください。';
+        return '結論の式が空だよ！正しい式を入れてね。';
       case 'ERROR_FINAL_DIVISION_BY_ZERO':
-        return '最終式の判定で無効な値が発生しました（0 除算の可能性があります）。最終式を見直してください。';
+        return '結論の式で0割が起きているよ。';
       case 'ERROR_FINAL_MISMATCH':
-        return '最終式が問題の目標式と一致していません。通分だけでなく必要な公式変形まで行ってください。';
+        return '最後の式が目標と違うよ。公式を最後まで使えているか見てみよう。';
       case 'ERROR_FINAL_EVALUATION':
-        return '最終式を評価できません。未接続ブロックや不正な式がないか確認してください。';
+        return '結論の式が正しく読み取れないよ。';
       default:
-        return '不明なエラーが発生しました。ブロックの接続と式を確認してください。';
+        return 'エラーが起きたよ。ブロックと式を見直してみよう！';
     }
   }
 

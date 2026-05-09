@@ -25,6 +25,12 @@ let tutorialAutoAdvanceFrameId = 0;
 let tutorialWorkspaceListenerBound = false;
 let tutorialFlowProblems = [];
 let tutorialFlowIndex = 0;
+let tutorialGuidanceBound = false;
+let tutorialScrollGuardBound = false;
+let tutorialScrollInProgress = false;
+let tutorialReadLockTimerId = 0;
+let tutorialReadLockUntil = 0;
+let tutorialInteractionBlockerBound = false;
 
 const MAX_STAGE_NUMBER = 100;
 const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6'];
@@ -33,29 +39,37 @@ const MAP_WORLD_MIN_WIDTH = 3600;
 const MAP_WORLD_MIN_HEIGHT = 2400;
 const MAP_NODE_SIZE = 94;
 
+const TUTORIAL_READ_LOCK = {
+  minMs: 1600,
+  maxMs: 6500,
+  perCharMs: 28,
+};
+
+const TUTORIAL_VIDEO_SOURCE = 'assets/tutorial.mp4';
+
 const TUTORIAL_STEPS = [
   {
     key: '1️⃣',
-    text: '📚 チュートリアルへようこそ！\n\nBlocklyを使った証明パズルの楽しさを体験します。',
-    help: '左下のツールボックスからブロックをドラッグして、証明を組み立てていきましょう。',
+    text: '最初のステップへようこそ！\n\nここから先、ボタンとヒントに従ってブロックを動かそう。',
+    help: '左のブロック置き場から、必要なブロックを引っぱってみよう。',
     targetId: 'l',
   },
   {
     key: '2️⃣',
-    text: '🧮 基本操作を学ぶ\n\n公式ブロックを証明ブロックの「公式」スロットにつなぎます。',
-    help: '「置き換え」ブロックと「結論」ブロックの関係を理解することが大切です。',
+    text: 'さあ次のステップ！\n\n出てきたブロックを順番につないで、式を変形しよう。',
+    help: 'ブロックを正しく組めば、自動で変形していくよ。',
     targetId: 'l',
   },
   {
     key: '3️⃣',
-    text: '✨ ステップバイステップで進む\n\n複数の公式を組み合わせて、最終的な答えへ到達します。',
-    help: '各ステップで何をしているのか、数学的な意味を考えながら進めましょう。',
+    text: 'あと少し！\n\n公式をうまく使って、右辺をまとめよう。',
+    help: '合っていれば「チェックする！」が押せるよ。',
     targetId: 'l',
   },
   {
     key: '🎯',
-    text: '🎉 チュレーション完了！\n\nあなたはBlocklyでの証明パズルをマスターしました！',
-    help: 'ワールドマップから自分のペースで問題に挑戦してください。\n各ステージで新しい公式や操作を学べます。',
+    text: 'チュートリアル完了！\n\nおつかれさまでした！ここからは自由に問題に挑戦しよう！',
+    help: 'ステージごとに少しずつ難しくなるよ。',
     targetId: 'l',
   },
 ];
@@ -84,10 +98,10 @@ function getNextTutorialStageId(stageId) {
 
 function getTutorialBannerText(stageId) {
   const stage = String(stageId);
-  if (stage === '0-1') return 'まずは tan を動かして公式②を入れよう。';
-  if (stage === '0-2') return '次は sin^2+cos^2 を公式①でまとめよう。';
-  if (stage === '0-3') return '最後は 1+tan^2 に公式③をつなげよう。';
-  if (stage === '0-4') return 'ここからは少し難しめ。証明ブロックは自分で引き出してつなげよう。';
+  if (stage === '0-1') return '公式②を使って tan を変形してみよう！';
+  if (stage === '0-2') return '今度は sin²+cos² に公式①を当てはめよう。';
+  if (stage === '0-3') return '1+tan² を公式③で変形してみよう。';
+  if (stage === '0-4') return 'ここからは自分で「証明」ブロックを引き出すよ！';
   if (stage === '0-5') return '同じく自力で構築。左の「証明」カテゴリから必要ブロックを取り出そう。';
   if (stage === '0-6') return '仕上げ問題。公式①と③を順に使う2段構成を試そう。';
   return '';
@@ -281,9 +295,10 @@ function updateTutorialDragAssist(stageId) {
   const expectedFormulaType = getTutorialExpectedFormulaType(stageId);
   const expectedFormulaLabel = getTutorialExpectedFormulaLabel(stageId);
   const pullMode = isTutorialPullModeStage(stageId);
-  coachText.textContent = pullMode
-    ? `${getTutorialBannerText(stageId)} 置き換え・結論は左の「証明」カテゴリからドラッグ。`
-    : getTutorialBannerText(stageId);
+  const coachArrowText = pullMode
+    ? `${getTutorialBannerText(stageId)} ➔ 左の「証明」カテゴリからブロックをドラッグ。`
+    : `${getTutorialBannerText(stageId)} ➔ 指示されたブロックをドラッグ。`;
+  coachText.textContent = coachArrowText;
   const replaceOp = findTutorialReplaceOperation();
   const conclusionOp = findTutorialConclusionOperation();
   const connectedFormulaType = replaceOp?.getInputTargetBlock('FORMULA')?.type || null;
@@ -291,38 +306,39 @@ function updateTutorialDragAssist(stageId) {
 
   const formulaItem = expectedFormulaType
     ? {
-      text: `3) ${expectedFormulaLabel} ブロックを置き換えの公式スロットへドラッグ`,
+      text: `3) ${expectedFormulaLabel} ➔ 置き換えブロックの「公式」につなぐ`,
       done: connectedFormulaType === expectedFormulaType,
     }
     : {
-      text: '3) 必要な公式ブロックを置き換えの公式スロットへ接続',
+      text: '3) 必要な公式 ➔ 置き換えブロックの「公式」につなぐ',
       done: hasAnyFormulaInReplace,
     };
 
   const items = [
     {
       text: pullMode
-        ? '1) 左の「証明」カテゴリから置き換えブロックを引き出す'
-        : '1) 置き換えブロックを「証明」の操作欄へドラッグ',
+        ? '1) 左の「証明」 ➔ 置き換えブロックを引っ張る'
+        : '1) 置き換えブロック ➔ 「証明」の操作欄へドラッグ',
       done: !!replaceOp,
     },
     {
       text: pullMode
-        ? '2) 結論ブロックも引き出して、置き換えの下に接続'
-        : '2) 結論ブロックを置き換えの下に接続',
+        ? '2) 結論ブロック ➔ 置き換えの下にくっつける'
+        : '2) 結論ブロック ➔ 置き換えの下にくっつける',
       done: !!conclusionOp,
     },
     formulaItem,
     {
-      text: '4) 変形前と変形後に式ブロックをつないで「判定する」を押す',
+      text: '4) 変形前/後の式 ➔ つないで「チェックする！」を押す',
       done: !!replaceOp?.getInputTargetBlock('VALUE') && !!replaceOp?.getInputTargetBlock('REPLACEMENT') && !!conclusionOp?.getInputTargetBlock('VALUE'),
     },
   ];
 
   const firstPending = items.find((item) => !item.done);
   if (nextAction) {
-    nextAction.textContent = firstPending ? `いま最優先: ${firstPending.text}` : '完了！「判定する」を押して次へ進もう。';
+    nextAction.textContent = firstPending ? `いま最優先: ${firstPending.text}` : '完了！「チェックする！」を押して次の問題へ。';
   }
+  updateTutorialUnderProblemText(firstPending ? `最優先: ${firstPending.text}` : '');
 
   list.innerHTML = items
     .map((item) => `<li class="${item.done ? 'done' : ''}">${item.done ? '✓ ' : ''}${item.text}</li>`)
@@ -441,7 +457,7 @@ function applyProblemDataToWorkspace(problemData, stageLabel) {
   if (submitBtn) submitBtn.style.display = 'inline-block';
   if (nextBtn) {
     nextBtn.style.display = 'none';
-    nextBtn.innerText = '次へ進む';
+    nextBtn.innerText = '次の問題へ';
   }
 }
 
@@ -546,7 +562,7 @@ function updateOverwritePermissionButton() {
 
   const mode = getProofScaffoldMode();
   const isEnabled = mode === 'guided';
-  button.textContent = `上書き許可: ${isEnabled ? 'ON' : 'OFF'}`;
+  button.textContent = `ガイド機能: ${isEnabled ? 'ON' : 'OFF'}`;
   button.classList.toggle('on', isEnabled);
   button.classList.toggle('off', !isEnabled);
 }
@@ -576,14 +592,14 @@ class FieldSpacer extends Blockly.Field {
 Blockly.fieldRegistry.register('field_spacer', FieldSpacer);
 
 const FORMULA_BLOCK_DEFS = [
-  ['formula_1', '公式① sin(x)^2 + cos(x)^2 = 1'],
+  ['formula_1', '公式① sin(x)² + cos(x)² = 1'],
   ['formula_2', '公式② tan(x) = sin(x) / cos(x)'],
-  ['formula_3', '公式③ 1 + tan(x)^2 = 1 / cos(x)^2'],
+  ['formula_3', '公式③ 1 + tan(x)² = 1 / cos(x)²'],
   ['formula_4', '公式④ sin(2*x) = 2*sin(x)*cos(x)'],
-  ['formula_5', '公式⑤ sin(x)^2 = (1-cos(2*x))/2'],
-  ['formula_6', '公式⑥ cos(x)^2 = (1+cos(2*x))/2'],
+  ['formula_5', '公式⑤ sin(x)² = (1-cos(2*x))/2'],
+  ['formula_6', '公式⑥ cos(x)² = (1+cos(2*x))/2'],
   ['formula_7', '公式⑦ tan(x) = sin(2*x)/(1+cos(2*x))'],
-  ['formula_8', '公式⑧ tan(x)^2 = (1-cos(2*x))/(1+cos(2*x))'],
+  ['formula_8', '公式⑧ tan(x)² = (1-cos(2*x))/(1+cos(2*x))'],
 ];
 
 function defineMathBlocks() {
@@ -883,12 +899,28 @@ function arrangeBlocks() {
   const gap = 26;
 
   const topBlocks = workspace.getTopBlocks(true);
-  let cursorY = topInset;
-  topBlocks.forEach((block) => {
-    const xy = block.getRelativeToSurfaceXY();
-    const size = block.getHeightWidth();
-    block.moveBy(leftInset - xy.x, cursorY - xy.y);
-    cursorY += Math.max(40, size.height) + gap;
+  const nonProofBlocks = topBlocks.filter((block) => block && block.type !== 'proof_step');
+  const proofBlocks = topBlocks.filter((block) => block && block.type === 'proof_step');
+
+  nonProofBlocks.sort((firstBlock, secondBlock) => firstBlock.getRelativeToSurfaceXY().x - secondBlock.getRelativeToSurfaceXY().x);
+
+  let nonProofBlockX = leftInset;
+  let nonProofRowMaxHeight = 0;
+  nonProofBlocks.forEach((mathBlock) => {
+    const mathBlockPosition = mathBlock.getRelativeToSurfaceXY();
+    const mathBlockSize = mathBlock.getHeightWidth();
+    mathBlock.moveBy(nonProofBlockX - mathBlockPosition.x, topInset - mathBlockPosition.y);
+    nonProofBlockX += mathBlockSize.width + gap;
+    nonProofRowMaxHeight = Math.max(nonProofRowMaxHeight, mathBlockSize.height);
+  });
+
+  const proofRowStartY = topInset + Math.max(150, nonProofRowMaxHeight + 80);
+  let proofBlockY = proofRowStartY;
+  proofBlocks.forEach((proofBlock) => {
+    const proofBlockPosition = proofBlock.getRelativeToSurfaceXY();
+    const proofBlockSize = proofBlock.getHeightWidth();
+    proofBlock.moveBy(leftInset - proofBlockPosition.x, proofBlockY - proofBlockPosition.y);
+    proofBlockY += Math.max(40, proofBlockSize.height) + gap;
   });
 }
 
@@ -1115,11 +1147,15 @@ function getTutorialCompletionState(astArray) {
 function openInteractiveTutorialOverlay() {
   const overlay = document.getElementById('tutorial-overlay');
   if (!overlay) return;
+  if (tutorialModeActive) return;
   tutorialModeActive = true;
   tutorialStepIndex = 0;
+  document.body.classList.add('tutorial-locked');
   overlay.classList.remove('hidden');
   overlay.style.opacity = '1';
   overlay.style.transition = 'opacity 0.4s ease-out';
+  enableTutorialScrollGuard();
+  bindTutorialGuidanceReflow();
   
   // チュートリアルオーバーレイを開く際のアニメーション
   requestAnimationFrame(() => {
@@ -1134,6 +1170,8 @@ function openInteractiveTutorialOverlay() {
   
   // 詳細なガイダンステキストを設定
   showTutorialStep();
+  ensureTutorialTargetInView(true);
+  updateTutorialGuidanceUI();
   queueTutorialAutoAdvanceCheck();
   
   // 1秒後にコーチアシストパネルも表示
@@ -1706,6 +1744,9 @@ function closeSkipChallengeModal() {
 function updateTutorialBanner(stageId) {
   updateTutorialProgress(stageId);
   updateTutorialDragAssist(stageId);
+  if (!isTutorialStageId(stageId)) {
+    updateTutorialUnderProblemText('');
+  }
 }
 
 function clearTutorialFocus() {
@@ -1720,13 +1761,11 @@ function clearTutorialFocus() {
   activeTutorialTarget = null;
 }
 
-function setTutorialFocus(targetId) {
+function setTutorialFocusElement(target) {
   clearTutorialFocus();
-  if (!targetId) return;
-  const target = document.getElementById(targetId);
   if (!target) return;
   target.classList.add('tutorial-focus-target');
-  
+
   // スポットライト効果のための座標計算
   requestAnimationFrame(() => {
     const rect = target.getBoundingClientRect();
@@ -1735,8 +1774,124 @@ function setTutorialFocus(targetId) {
     target.style.setProperty('--spotlight-x', `${centerX}px`);
     target.style.setProperty('--spotlight-y', `${centerY}px`);
   });
-  
+
   activeTutorialTarget = target;
+}
+
+function setTutorialFocus(targetId) {
+  if (!targetId) return;
+  setTutorialFocusElement(document.getElementById(targetId));
+}
+
+function getTutorialToolboxElement() {
+  return document.querySelector('.blocklyToolboxDiv');
+}
+
+function getTutorialWorkspaceElement() {
+  return document.getElementById('l');
+}
+
+function findFlyoutBlockElementByType(blockType) {
+  if (!workspace) return null;
+  const flyoutWorkspace = workspace.getToolbox()?.getFlyout()?.getWorkspace?.();
+  if (!flyoutWorkspace) return null;
+  const matchingBlock = flyoutWorkspace.getAllBlocks(false).find((block) => block.type === blockType);
+  return typeof matchingBlock?.getSvgRoot === 'function' ? matchingBlock.getSvgRoot() : null;
+}
+
+function getTutorialRequiredBlockTarget(stageId) {
+  if (!isTutorialStageId(stageId)) return null;
+
+  const gateState = getTutorialActionGateState();
+  if (!gateState.hasReplace) {
+    return findFlyoutBlockElementByType('replace_operation') || getTutorialToolboxElement();
+  }
+  if (!gateState.hasConclusion) {
+    return findFlyoutBlockElementByType('conclusion_operation') || getTutorialToolboxElement();
+  }
+  if (!gateState.hasFormula) {
+    const formulaType = getTutorialExpectedFormulaType(stageId);
+    if (formulaType) {
+      return findFlyoutBlockElementByType(formulaType) || getTutorialToolboxElement();
+    }
+    return getTutorialToolboxElement();
+  }
+  if (!gateState.hasExpressions) {
+    return getTutorialWorkspaceElement();
+  }
+
+  return getTutorialWorkspaceElement();
+}
+
+function resolveTutorialFocusTarget(step) {
+  const fallback = step?.targetId ? document.getElementById(step.targetId) : null;
+  if (!isTutorialStageId(currentStageNumber)) return fallback;
+  const gateState = getTutorialActionGateState();
+  if (currentStageNumber === '0-1' && !gateState.hasExpressions) {
+    const mathBlocks = getTopLevelMathBlocksSortedByY(workspace);
+    const mathBlockRoot = getBlockSvgRoot(mathBlocks[0] || null);
+    if (mathBlockRoot) return mathBlockRoot;
+  }
+
+  return getTutorialRequiredBlockTarget(currentStageNumber) || fallback;
+}
+
+function updateTutorialUnderProblemText(text) {
+  const underProblem = document.getElementById('tutorial-next-under-problem');
+  if (!underProblem) return;
+  if (!isTutorialStageId(currentStageNumber) || !text) {
+    underProblem.textContent = '';
+    underProblem.classList.remove('visible');
+    underProblem.classList.remove('pulse');
+    return;
+  }
+  underProblem.textContent = `今やること: ${text}`;
+  underProblem.classList.add('visible');
+  underProblem.classList.add('pulse');
+}
+
+function getTutorialActionGateState() {
+  const replaceOp = findTutorialReplaceOperation();
+  const conclusionOp = findTutorialConclusionOperation();
+  const formulaConnected = !!replaceOp?.getInputTargetBlock('FORMULA');
+  const expressionsConnected = !!replaceOp?.getInputTargetBlock('VALUE')
+    && !!replaceOp?.getInputTargetBlock('REPLACEMENT')
+    && !!conclusionOp?.getInputTargetBlock('VALUE');
+
+  return {
+    hasReplace: !!replaceOp,
+    hasConclusion: !!conclusionOp,
+    hasFormula: formulaConnected,
+    hasExpressions: expressionsConnected,
+  };
+}
+
+function getTutorialGateAllowedTypes(stageId) {
+  if (!isTutorialStageId(stageId)) return { allowAll: true, types: null };
+
+  const gate = getTutorialActionGateState();
+  if (!gate.hasReplace) {
+    return { allowAll: false, types: new Set(['replace_operation', 'proof_step']) };
+  }
+  if (!gate.hasConclusion) {
+    return { allowAll: false, types: new Set(['conclusion_operation', 'proof_step']) };
+  }
+  if (!gate.hasFormula) {
+    return { allowAll: false, types: new Set(['proof_step', 'formula_1', 'formula_2', 'formula_3', 'formula_4', 'formula_5', 'formula_6', 'formula_7', 'formula_8']) };
+  }
+  if (!gate.hasExpressions) {
+    return { allowAll: false, types: new Set(['custom_number', 'term_sin', 'term_cos', 'term_tan', 'term_sin2', 'term_cos2',
+      'math_add', 'math_negate', 'math_multiply', 'math_fraction', 'math_square']) };
+  }
+
+  return { allowAll: true, types: null };
+}
+
+function isTutorialGateAllowed(blockType, stageId) {
+  if (!isTutorialStageId(stageId)) return true;
+  const gate = getTutorialGateAllowedTypes(stageId);
+  if (gate.allowAll) return true;
+  return gate.types?.has(blockType);
 }
 
 function closeGameEntrance() {
@@ -1753,7 +1908,12 @@ function hideTutorialOverlay() {
   const overlay = document.getElementById('tutorial-overlay');
   if (overlay) overlay.classList.add('hidden');
   tutorialModeActive = false;
+  document.body.classList.remove('tutorial-locked');
   clearTutorialFocus();
+  hideTutorialGuidanceUI();
+  disableTutorialScrollGuard();
+  stopTutorialReadLock();
+  updateTutorialUnderProblemText('');
   
   // チュートリアル終了時は行動制限を解除
   clearTutorialBlockRestrictions();
@@ -1772,6 +1932,7 @@ function showTutorialStep() {
   const stepHint = document.getElementById('tutorial-step-hint');
   const nextAction = document.getElementById('tutorial-next-action');
   const nextDetail = document.getElementById('tutorial-next-detail');
+  const readLock = document.getElementById('tutorial-read-lock');
   const panel = document.querySelector('.tutorial-panel');
   if (!overlay || !stepText || !nextBtn) return;
 
@@ -1784,11 +1945,26 @@ function showTutorialStep() {
   if (nextAction) nextAction.textContent = headline || '次の操作を確認しよう。';
   if (nextDetail) nextDetail.textContent = detailText || 'ブロックを動かして進めよう。';
   stepText.textContent = bodyLines || detailText || '';
-  setTutorialFocus(step.targetId);
+  const focusTarget = resolveTutorialFocusTarget(step);
+  if (focusTarget) {
+    setTutorialFocusElement(focusTarget);
+  } else {
+    setTutorialFocus(step.targetId);
+  }
+  updateTutorialUnderProblemText(headline || detailText || '');
+  ensureTutorialTargetInView(true);
+  updateTutorialGuidanceUI();
+
+  if (nextAction) nextAction.classList.add('tutorial-reading-focus');
+  if (nextDetail) nextDetail.classList.add('tutorial-reading-secondary');
+  if (stepText) stepText.classList.add('tutorial-reading-secondary');
+  if (readLock) readLock.classList.remove('visible');
   
   if (stepPill) stepPill.textContent = `Step ${step.key}`;
   if (stepHint) stepHint.textContent = `${safeIndex + 1} / ${TUTORIAL_STEPS.length}`;
-  nextBtn.textContent = safeIndex === TUTORIAL_STEPS.length - 1 ? '理解した 🎉' : '次へ進む ▶';
+  nextBtn.textContent = safeIndex === TUTORIAL_STEPS.length - 1 ? 'OK！ 🎉' : '次の問題へ ▶';
+
+  startTutorialReadLock(headline, bodyLines, detailText);
   
   // パネルにアニメーション効果
   if (panel) {
@@ -1840,6 +2016,15 @@ function bindTutorialWorkspaceAutoAdvance() {
   workspace.addChangeListener((event) => {
     if (!tutorialModeActive || !isTutorialStageId(currentStageNumber)) return;
     if (!event || event.isUiEvent) return;
+    if (event.type === Blockly.Events.BLOCK_CREATE && event.blockId) {
+      const createdBlock = workspace.getBlockById(event.blockId);
+      if (createdBlock && !isTutorialGateAllowed(createdBlock.type, currentStageNumber)) {
+        createdBlock.dispose(true);
+        showToast('順番どおりに操作しましょう。');
+        applyTutorialBlockRestrictions();
+        return;
+      }
+    }
     
     // チュートリアル中のブロック削除や移動を制限
     if (event.type === Blockly.Events.BLOCK_MOVE || event.type === Blockly.Events.BLOCK_DELETE) {
@@ -1857,8 +2042,432 @@ function bindTutorialWorkspaceAutoAdvance() {
       }
     }
     
+    applyTutorialBlockRestrictions();
     queueTutorialAutoAdvanceCheck();
   });
+}
+
+function handleTutorialScrollBlock(event) {
+  if (!tutorialModeActive) return;
+  if (tutorialScrollInProgress) return;
+  if (event.cancelable) event.preventDefault();
+}
+
+function handleTutorialKeyBlock(event) {
+  if (!tutorialModeActive) return;
+  if (tutorialScrollInProgress) return;
+  const blockedKeys = new Set([
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'PageUp',
+    'PageDown',
+    'Home',
+    'End',
+    ' ',
+  ]);
+  if (blockedKeys.has(event.key)) {
+    event.preventDefault();
+  }
+}
+
+function enableTutorialScrollGuard() {
+  if (tutorialScrollGuardBound) return;
+  tutorialScrollGuardBound = true;
+  window.addEventListener('wheel', handleTutorialScrollBlock, { passive: false });
+  window.addEventListener('touchmove', handleTutorialScrollBlock, { passive: false });
+  window.addEventListener('keydown', handleTutorialKeyBlock, { passive: false });
+}
+
+function disableTutorialScrollGuard() {
+  if (!tutorialScrollGuardBound) return;
+  tutorialScrollGuardBound = false;
+  window.removeEventListener('wheel', handleTutorialScrollBlock, { passive: false });
+  window.removeEventListener('touchmove', handleTutorialScrollBlock, { passive: false });
+  window.removeEventListener('keydown', handleTutorialKeyBlock, { passive: false });
+}
+
+function forceScrollToTarget(target) {
+  if (!target || typeof target.scrollIntoView !== 'function') return;
+  tutorialScrollInProgress = true;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  setTimeout(() => {
+    tutorialScrollInProgress = false;
+  }, 650);
+}
+
+function ensureTutorialTargetInView(force = false) {
+  if (!activeTutorialTarget) return;
+  const rect = activeTutorialTarget.getBoundingClientRect();
+  const margin = 90;
+  const isOutOfView =
+    rect.top < margin ||
+    rect.left < margin ||
+    rect.bottom > window.innerHeight - margin ||
+    rect.right > window.innerWidth - margin;
+  if (force || isOutOfView) {
+    forceScrollToTarget(activeTutorialTarget);
+  }
+}
+
+function updateTutorialGuidanceUI() {
+  if (!tutorialModeActive) return;
+  const layer = document.getElementById('tutorial-guidance-layer');
+  const svg = document.getElementById('tutorial-arrow-svg');
+  const path = document.getElementById('tutorial-arrow-path');
+  const dragPath = document.getElementById('tutorial-drag-path');
+  const ping = document.getElementById('tutorial-target-ping');
+  const panel = document.querySelector('.tutorial-panel');
+  const anchor = document.getElementById('tutorial-next-action');
+  if (!layer || !svg || !path || !dragPath || !ping || !panel) return;
+  if (!activeTutorialTarget) {
+    hideTutorialGuidanceUI();
+    return;
+  }
+
+  const panelRect = panel.getBoundingClientRect();
+  const anchorRect = anchor ? anchor.getBoundingClientRect() : null;
+  const targetRect = activeTutorialTarget.getBoundingClientRect();
+
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  let startX = anchorRect ? anchorRect.left + anchorRect.width / 2 : panelRect.left + panelRect.width / 2;
+  let startY = anchorRect ? anchorRect.top + anchorRect.height / 2 : panelRect.top + panelRect.height / 2;
+  if (targetX < panelRect.left) {
+    startX = panelRect.left;
+  } else if (targetX > panelRect.right) {
+    startX = panelRect.right;
+  }
+
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const curve = Math.min(180, Math.max(80, Math.abs(dx) * 0.2 + Math.abs(dy) * 0.1));
+  const controlX = startX + dx * 0.5;
+  const controlY = startY + dy * 0.5 - curve;
+
+  svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+  path.setAttribute('d', `M ${startX} ${startY} Q ${controlX} ${controlY} ${targetX} ${targetY}`);
+  ping.style.left = `${targetX}px`;
+  ping.style.top = `${targetY}px`;
+  layer.classList.add('visible');
+  positionTutorialCoachNearTarget(activeTutorialTarget);
+  updateTutorialDragArrow(dragPath);
+}
+
+function getElementCenterPoint(element) {
+  if (!element || typeof element.getBoundingClientRect !== 'function') return null;
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+function getInputConnectionScreenPoint(block, inputName) {
+  if (!block || typeof block.getInput !== 'function') return null;
+  const input = block.getInput(inputName);
+  const connection = input?.connection;
+  if (!connection) return null;
+
+  if (typeof connection.getOffsetInPixels === 'function') {
+    const offset = connection.getOffsetInPixels();
+    const metrics = workspace?.getMetrics?.();
+    const absoluteLeft = Math.max(0, metrics?.absoluteMetrics?.left || 0);
+    const absoluteTop = Math.max(0, metrics?.absoluteMetrics?.top || 0);
+    return {
+      x: absoluteLeft + offset.x,
+      y: absoluteTop + offset.y,
+    };
+  }
+
+  const fallback = getElementCenterPoint(getBlockSvgRoot(block));
+  return fallback ? { x: fallback.x + 40, y: fallback.y } : null;
+}
+
+function getBlockSvgRoot(block) {
+  return typeof block?.getSvgRoot === 'function' ? block.getSvgRoot() : null;
+}
+
+function getTutorialDragArrowTargets(stageId) {
+  if (!isTutorialStageId(stageId)) return null;
+
+  const gate = getTutorialActionGateState();
+  if (!gate.hasReplace) {
+    return {
+      source: findFlyoutBlockElementByType('replace_operation'),
+      target: getBlockSvgRoot(workspace?.getTopBlocks(false)?.find((block) => block.type === 'proof_step')),
+    };
+  }
+
+  if (!gate.hasConclusion) {
+    return {
+      source: findFlyoutBlockElementByType('conclusion_operation'),
+      target: getBlockSvgRoot(findTutorialReplaceOperation()),
+    };
+  }
+
+  if (!gate.hasFormula) {
+    const formulaType = getTutorialExpectedFormulaType(stageId);
+    return {
+      source: formulaType ? findFlyoutBlockElementByType(formulaType) : null,
+      target: getBlockSvgRoot(findTutorialReplaceOperation()),
+    };
+  }
+
+  if (!gate.hasExpressions) {
+    const mathBlocks = getTopLevelMathBlocksSortedByY(workspace);
+    const replaceOp = findTutorialReplaceOperation();
+    const targetPoint = replaceOp ? getInputConnectionScreenPoint(replaceOp, 'VALUE') : null;
+    return {
+      source: getBlockSvgRoot(mathBlocks[0] || null),
+      target: targetPoint || getBlockSvgRoot(replaceOp || findTutorialConclusionOperation()),
+    };
+  }
+
+  return null;
+}
+
+function updateTutorialDragArrow(dragPath) {
+  const targets = getTutorialDragArrowTargets(currentStageNumber);
+  if (!targets?.source || !targets?.target) {
+    dragPath.setAttribute('d', '');
+    return;
+  }
+
+  const sourcePoint = getElementCenterPoint(targets.source);
+  const targetPoint = targets.target.x != null
+    ? targets.target
+    : getElementCenterPoint(targets.target);
+  if (!sourcePoint || !targetPoint) {
+    dragPath.setAttribute('d', '');
+    return;
+  }
+
+  const dx = targetPoint.x - sourcePoint.x;
+  const dy = targetPoint.y - sourcePoint.y;
+  const curve = Math.min(160, Math.max(60, Math.abs(dx) * 0.2 + Math.abs(dy) * 0.1));
+  const controlX = sourcePoint.x + dx * 0.5;
+  const controlY = sourcePoint.y + dy * 0.5 - curve;
+
+  dragPath.setAttribute('d', `M ${sourcePoint.x} ${sourcePoint.y} Q ${controlX} ${controlY} ${targetPoint.x} ${targetPoint.y}`);
+}
+
+function positionTutorialCoachNearTarget(target) {
+  const coach = document.getElementById('tutorial-drag-assist');
+  if (!coach || !target) return;
+  const targetRect = target.getBoundingClientRect();
+  const coachRect = coach.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const panelRect = document.querySelector('.tutorial-panel')?.getBoundingClientRect() || null;
+  const toolboxRect = document.querySelector('.blocklyToolboxDiv')?.getBoundingClientRect() || null;
+  const collisionRects = [panelRect, toolboxRect].filter(Boolean);
+  const padding = 16;
+
+  let proposedLeft = targetRect.left - coachRect.width - 20;
+  if (proposedLeft < 16) {
+    proposedLeft = targetRect.right + 20;
+  }
+  let proposedTop = targetRect.top + (targetRect.height - coachRect.height) / 2;
+  proposedTop = Math.max(16, Math.min(viewportHeight - coachRect.height - 16, proposedTop));
+
+  const overlaps = (left, top) => {
+    const rect = {
+      left,
+      top,
+      right: left + coachRect.width,
+      bottom: top + coachRect.height,
+    };
+    return collisionRects.some((block) => !(
+      rect.right <= block.left + padding
+      || rect.left >= block.right - padding
+      || rect.bottom <= block.top + padding
+      || rect.top >= block.bottom - padding
+    ));
+  };
+
+  let finalLeft = proposedLeft;
+  let finalTop = proposedTop;
+
+  if (overlaps(finalLeft, finalTop)) {
+    finalTop = targetRect.top - coachRect.height - 20;
+    if (finalTop < 16 || overlaps(finalLeft, finalTop)) {
+      finalTop = targetRect.bottom + 20;
+    }
+  }
+
+  if (overlaps(finalLeft, finalTop)) {
+    const tryLeft = targetRect.right + 20;
+    const tryRight = targetRect.left - coachRect.width - 20;
+    if (!overlaps(tryLeft, finalTop)) {
+      finalLeft = tryLeft;
+    } else if (!overlaps(tryRight, finalTop)) {
+      finalLeft = tryRight;
+    }
+  }
+
+  finalLeft = Math.max(16, Math.min(viewportWidth - coachRect.width - 16, finalLeft));
+  finalTop = Math.max(16, Math.min(viewportHeight - coachRect.height - 16, finalTop));
+
+  coach.style.left = `${finalLeft}px`;
+  coach.style.top = `${finalTop}px`;
+  coach.style.right = 'auto';
+  coach.style.bottom = 'auto';
+  coach.style.transform = 'none';
+}
+
+function hideTutorialGuidanceUI() {
+  const layer = document.getElementById('tutorial-guidance-layer');
+  if (layer) layer.classList.remove('visible');
+  const dragPath = document.getElementById('tutorial-drag-path');
+  if (dragPath) dragPath.setAttribute('d', '');
+}
+
+function isTutorialInteractionAllowed(eventTarget) {
+  if (!tutorialModeActive) return true;
+  if (!eventTarget) return false;
+
+  const panel = document.querySelector('.tutorial-panel');
+  const coach = document.getElementById('tutorial-drag-assist');
+  if (panel && panel.contains(eventTarget)) return true;
+  if (coach && coach.contains(eventTarget)) return true;
+
+  if (activeTutorialTarget) {
+    if (activeTutorialTarget === eventTarget) return true;
+    if (typeof activeTutorialTarget.contains === 'function' && activeTutorialTarget.contains(eventTarget)) return true;
+  }
+
+  return false;
+}
+
+function handleTutorialInteractionBlock(event) {
+  if (!tutorialModeActive) return;
+  if (isTutorialInteractionAllowed(event.target)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function bindTutorialInteractionBlocker() {
+  if (tutorialInteractionBlockerBound) return;
+  tutorialInteractionBlockerBound = true;
+  document.addEventListener('pointerdown', handleTutorialInteractionBlock, true);
+  document.addEventListener('mousedown', handleTutorialInteractionBlock, true);
+  document.addEventListener('touchstart', handleTutorialInteractionBlock, true);
+  document.addEventListener('click', handleTutorialInteractionBlock, true);
+}
+
+function unbindTutorialInteractionBlocker() {
+  if (!tutorialInteractionBlockerBound) return;
+  tutorialInteractionBlockerBound = false;
+  document.removeEventListener('pointerdown', handleTutorialInteractionBlock, true);
+  document.removeEventListener('mousedown', handleTutorialInteractionBlock, true);
+  document.removeEventListener('touchstart', handleTutorialInteractionBlock, true);
+  document.removeEventListener('click', handleTutorialInteractionBlock, true);
+}
+
+function showTutorialVideoModal() {
+  const modal = document.getElementById('tutorial-video-modal');
+  const video = document.getElementById('tutorial-video-player');
+  if (!modal) return false;
+  if (video && TUTORIAL_VIDEO_SOURCE) {
+    video.src = TUTORIAL_VIDEO_SOURCE;
+  }
+  modal.classList.remove('hidden');
+  return true;
+}
+
+function hideTutorialVideoModal() {
+  const modal = document.getElementById('tutorial-video-modal');
+  const video = document.getElementById('tutorial-video-player');
+  if (video) {
+    video.pause();
+    video.currentTime = 0;
+  }
+  if (modal) modal.classList.add('hidden');
+}
+
+function showTutorialIntroModal() {
+  const modal = document.getElementById('tutorial-intro-modal');
+  if (!modal) return false;
+  modal.classList.remove('hidden');
+  return true;
+}
+
+function hideTutorialIntroModal() {
+  const modal = document.getElementById('tutorial-intro-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function bindTutorialGuidanceReflow() {
+  if (tutorialGuidanceBound) return;
+  tutorialGuidanceBound = true;
+  const reflow = () => {
+    if (!tutorialModeActive) return;
+    updateTutorialGuidanceUI();
+  };
+  window.addEventListener('resize', reflow);
+  window.addEventListener('scroll', reflow, { passive: true });
+}
+
+function computeReadLockDurationMs(headline, bodyLines, detailText) {
+  const combined = [headline, bodyLines, detailText]
+    .filter((item) => typeof item === 'string')
+    .join(' ')
+    .replace(/\s+/g, '');
+  const base = combined.length * TUTORIAL_READ_LOCK.perCharMs;
+  const clamped = Math.max(TUTORIAL_READ_LOCK.minMs, Math.min(TUTORIAL_READ_LOCK.maxMs, base));
+  return Math.round(clamped);
+}
+
+function setTutorialButtonsLocked(locked) {
+  const nextBtn = document.getElementById('btn-tutorial-next');
+  const skipBtn = document.getElementById('btn-tutorial-skip');
+  if (nextBtn) nextBtn.disabled = locked;
+  if (skipBtn) skipBtn.disabled = locked;
+}
+
+function updateTutorialReadLockUI(remainingMs) {
+  const lockShell = document.getElementById('tutorial-read-lock');
+  const timer = document.getElementById('tutorial-read-lock-timer');
+  if (!lockShell || !timer) return;
+
+  if (remainingMs <= 0) {
+    lockShell.classList.remove('visible');
+    return;
+  }
+
+  const seconds = Math.max(0, remainingMs / 1000);
+  timer.textContent = seconds.toFixed(1);
+  lockShell.classList.add('visible');
+}
+
+function stopTutorialReadLock() {
+  if (tutorialReadLockTimerId) {
+    clearInterval(tutorialReadLockTimerId);
+    tutorialReadLockTimerId = 0;
+  }
+  tutorialReadLockUntil = 0;
+  setTutorialButtonsLocked(false);
+  updateTutorialReadLockUI(0);
+}
+
+function startTutorialReadLock(headline, bodyLines, detailText) {
+  stopTutorialReadLock();
+  const durationMs = computeReadLockDurationMs(headline, bodyLines, detailText);
+  tutorialReadLockUntil = Date.now() + durationMs;
+  setTutorialButtonsLocked(true);
+  updateTutorialReadLockUI(durationMs);
+
+  tutorialReadLockTimerId = window.setInterval(() => {
+    const remaining = tutorialReadLockUntil - Date.now();
+    if (remaining <= 0) {
+      stopTutorialReadLock();
+      return;
+    }
+    updateTutorialReadLockUI(remaining);
+  }, 100);
 }
 
 async function advanceTutorialFlowOrComplete() {
@@ -1952,6 +2561,7 @@ async function loadStage(stageNumber) {
       requestAnimationFrame(() => {
         applyTutorialBlockRestrictions();
       });
+      openInteractiveTutorialOverlay();
     } else {
       // 非チュートリアルステージの場合は制限を解除
       clearTutorialBlockRestrictions();
@@ -1962,7 +2572,7 @@ async function loadStage(stageNumber) {
     if (submitBtn) submitBtn.style.display = 'inline-block';
     if (nextBtn) {
       nextBtn.style.display = 'none';
-      nextBtn.innerText = '次へ進む';
+      nextBtn.innerText = '次の問題へ';
     }
   } catch (error) {
     const errorText = error && error.message ? String(error.message) : '';
@@ -2109,7 +2719,7 @@ function setupEventListeners() {
       loadStage(currentStageNumber);
     }
 
-    showToast(nextMode === 'guided' ? '上書き許可を ON にしました' : '上書き許可を OFF にしました');
+    showToast(nextMode === 'guided' ? 'ガイド機能を ON にしました' : 'ガイド機能を OFF にしました');
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
@@ -2141,7 +2751,13 @@ function setupEventListeners() {
 
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
     closeGameEntrance();
-    await transitionToStage('0-1');
+    const introShown = showTutorialIntroModal();
+    if (!introShown) {
+      const modalShown = showTutorialVideoModal();
+      if (!modalShown) {
+        await transitionToStage('0-1');
+      }
+    }
   });
 
   document.getElementById('btn-entry-map')?.addEventListener('click', async () => {
@@ -2150,13 +2766,31 @@ function setupEventListeners() {
     await routeToTarget();
   });
 
+  document.getElementById('btn-tutorial-video-start')?.addEventListener('click', async () => {
+    hideTutorialVideoModal();
+    await transitionToStage('0-1');
+  });
+
+  document.getElementById('btn-tutorial-video-skip')?.addEventListener('click', async () => {
+    hideTutorialVideoModal();
+    await transitionToStage('0-1');
+  });
+
+  document.getElementById('btn-tutorial-intro-start')?.addEventListener('click', async () => {
+    hideTutorialIntroModal();
+    const modalShown = showTutorialVideoModal();
+    if (!modalShown) {
+      await transitionToStage('0-1');
+    }
+  });
+
   document.getElementById('btn-skip-challenge-cancel')?.addEventListener('click', () => {
     closeSkipChallengeModal();
     currentSkipOffer = null;
     const nextBtn = document.getElementById('btn-next');
     if (nextBtn) {
       nextBtn.style.display = 'inline-block';
-      nextBtn.innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次へ進む';
+      nextBtn.innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次の問題へ';
     }
   });
 
@@ -2291,7 +2925,7 @@ function setupEventListeners() {
         const nextBtn = document.getElementById('btn-next');
         if (nextBtn) {
           nextBtn.style.display = 'inline-block';
-          nextBtn.innerText = getNextTutorialStageId(currentStageNumber) ? '次へ進む' : 'マップへ進む';
+          nextBtn.innerText = getNextTutorialStageId(currentStageNumber) ? '次の問題へ' : 'マップへ進む';
         }
         return;
       }
@@ -2306,7 +2940,7 @@ function setupEventListeners() {
         openSkipChallengeModal(currentStageNumber, currentStageNumber + 3);
       } else {
         document.getElementById('btn-next').style.display = 'inline-block';
-        document.getElementById('btn-next').innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次へ進む';
+        document.getElementById('btn-next').innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次の問題へ';
       }
     } else {
       currentStreak = 0;
