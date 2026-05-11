@@ -729,23 +729,23 @@
 
     switch (errorCode) {
       case 'ERROR_NO_PROOF_BLOCK':
-        return '証明ブロックをつなげて、変形を始めよう。';
+        return '「証明」ブロックが見つからないよ。左のメニューから出してみよう。';
       case 'ERROR_EMPTY_INPUT':
-        return `${stepPrefix}式が空だよ！ブロックをはめてね。`;
+        return `${stepPrefix}空っぽの穴があるよ。ブロックをちゃんと繋げてね。`;
       case 'ERROR_DIVISION_BY_ZERO':
-        return `${stepPrefix}0で割っているみたい！式を確認しよう。`;
+        return `${stepPrefix}計算がおかしくなっちゃった（分母が0かも？）。式を見直してみてね。`;
       case 'ERROR_EQUATION_MISMATCH':
-        return `${stepPrefix}変形が合っていないよ。公式と式を見直そう。`;
+        return `${stepPrefix}変身前と変身後が合っていないみたい。公式と式を見直してみよう！`;
       case 'ERROR_EVALUATION':
-        return `${stepPrefix}この式は正しく読み取れないみたい。`;
+        return `${stepPrefix}ちゃんと繋がっていないブロックがあるみたい。確認してね。`;
       case 'ERROR_FORMULA_REQUIRED':
-        return `${stepPrefix}公式をスロットに入れてね。`;
+        return `${stepPrefix}置き換えには「公式」ブロックが必要だよ。穴に入れてね。`;
       case 'ERROR_UNSUPPORTED_FORMULA':
         return `${stepPrefix}その公式は使えないよ。別の公式を試そう。`;
       case 'ERROR_FORMULA_MISMATCH':
-        return `${stepPrefix}公式の当てはめが違うみたい。${suggestionText}`.trim();
+        return `${stepPrefix}使った公式と、式の変身が合っていないよ。${suggestionText}`.trim();
       case 'ERROR_COMMON_DENOMINATOR_RULE':
-        return `${stepPrefix}通分では tan → sin/cos にはできないよ！公式ブロックを使おう。`;
+        return `${stepPrefix}「通分」ブロックでは公式は使えないよ。「置き換え」ブロックを使おう！`;
       case 'ERROR_CHAIN_EMPTY_INPUT':
         return `${stepPrefix}前の段とつながっていないよ。式を確認してね。`;
       case 'ERROR_CHAIN_DIVISION_BY_ZERO':
@@ -755,13 +755,13 @@
       case 'ERROR_CHAIN_EVALUATION':
         return `${stepPrefix}前の式とつながっているか確認できないよ。`;
       case 'ERROR_NO_CONCLUSION':
-        return '最後は「よって...」のブロックでしめよう！';
+        return '最後は「よって〜となる」ブロックで終わらせてね。';
       case 'ERROR_FINAL_EMPTY':
         return '結論の式が空だよ！正しい式を入れてね。';
       case 'ERROR_FINAL_DIVISION_BY_ZERO':
         return '結論の式で0割が起きているよ。';
       case 'ERROR_FINAL_MISMATCH':
-        return '最後の式が目標と違うよ。公式を最後まで使えているか見てみよう。';
+        return '最後の式が目標と違うみたい。もっと変身させてみよう！';
       case 'ERROR_FINAL_EVALUATION':
         return '結論の式が正しく読み取れないよ。';
       default:
