@@ -11,7 +11,6 @@ let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
 let unlockAll = localStorage.getItem('unlock_all') === '1';
 let currentStageNumber = 1;
 let currentProblemData = null;
-let currentHintIndex = 0;
 let currentStreak = 0;
 let currentStageSolved = false;
 let currentSkipOffer = null;
@@ -26,12 +25,47 @@ let tutorialFlowProblems = [];
 let tutorialFlowIndex = 0;
 let tutorialIntroIndex = 0;
 let tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
+let goalHintActive = false;
+let currentHighlightTargetNode = null;
+let currentHighlightInputObj = null;
+let highlightTrackingFrameId = 0;
 
 const MAX_STAGE_NUMBER = 100;
 const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6'];
 const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress'];
 const MAP_WORLD_MIN_WIDTH = 3600;
 const MAP_WORLD_MIN_HEIGHT = 2400;
+
+
+const BLOCK_HOLE_OFFSETS = {
+  // 置き換えブロック
+  'replace_operation': {
+    'VALUE': { rightOffset: -10, topOffset: 20 },
+    'FORMULA': { rightOffset: -10, topOffset: 64 },
+    'REPLACEMENT': { rightOffset: -10, topOffset: 108 },
+    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
+  },
+  // 通分ブロック
+  'common_denominator_operation': {
+    'VALUE': { rightOffset: -10, topOffset: 20 },
+    'REPLACEMENT': { rightOffset: -10, topOffset: 64 },
+    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
+  },
+  // よって（結論）ブロック
+  'conclusion_operation': {
+    'VALUE': { rightOffset: -10, topOffset: 'center' },
+    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
+  },
+  // 証明の枠
+  'proof_step': {
+    'STATEMENT': { leftOffset: 16, topOffset: 36 }
+  },
+  // デフォルト
+  'default': {
+    'VALUE': { rightOffset: -10, topOffset: 'center' },
+    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
+  }
+};
 const MAP_NODE_SIZE = 94;
 
 const TUTORIAL_STEPS = [
@@ -398,31 +432,197 @@ function positionTutorialHighlight(element, highlight) {
   return true;
 }
 
-function updateTutorialHighlightUI(stageId) {
-  const sourceHighlight = document.getElementById('tutorial-highlight-source');
-  const targetHighlight = document.getElementById('tutorial-highlight-target');
-  if (!sourceHighlight || !targetHighlight) return;
+ function updateTutorialHighlightUI(stageNumber) {
+  if (!tutorialModeActive || !workspace || !currentProblemData) return;
 
-  if (!isTutorialStageId(stageId)) {
-    hideTutorialHighlights();
-    return;
+  const targetPulse = document.getElementById('tutorial-highlight-target');
+  const banner = document.getElementById('tutorial-banner');
+  if (targetPulse) targetPulse.classList.add('hidden');
+
+  function setTutorialUI(text, targetNode, inputObj = null) {
+    banner.innerHTML = text;
+    currentHighlightTargetNode = targetNode;
+    currentHighlightInputObj = inputObj;
+    if (targetPulse) targetPulse.classList.remove('hidden');
+    startHighlightTracking();
   }
 
-  const targets = getTutorialHighlightTargets(stageId);
-  if (!targets?.source || !targets?.target) {
-    hideTutorialHighlights();
-    return;
+  const toolboxElement = document.querySelector('.blocklyToolboxDiv');
+  const requiredOps = getAnswerOperationTypeSequence(currentProblemData);
+  if (!requiredOps || requiredOps.length === 0) return;
+
+  const OPERATION_LABELS = {
+    'replace_operation': '「置き換え」の土台ブロック',
+    'common_denominator_operation': '「通分」の土台ブロック',
+    'conclusion_operation': '「よって」の土台ブロック'
+  };
+  const HOLE_LABELS = { 'VALUE': '式', 'FORMULA': '公式', 'REPLACEMENT': '結果' };
+
+  const proofStep = workspace.getTopBlocks(false).find(b => b.type === 'proof_step');
+  if (!proofStep) return;
+
+  // 【追加】初期配置されている「右辺（目標の式）」ブロックを取得（＝無視リスト）
+  const topMathBlocks = getTopLevelMathBlocksSortedByY(workspace);
+  const rhsBlock = topMathBlocks.length >= 2 ? topMathBlocks[topMathBlocks.length - 1] : null;
+
+  const currentChain = [];
+  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
+  while (currentOp) {
+    currentChain.push(currentOp);
+    currentOp = currentOp.getNextBlock();
   }
 
-  const sourceOk = positionTutorialHighlight(targets.source, sourceHighlight);
-  const targetOk = positionTutorialHighlight(targets.target, targetHighlight);
-  if (!sourceOk || !targetOk) {
-    hideTutorialHighlights();
-    return;
-  }
+  for (let i = 0; i < requiredOps.length; i++) {
+    const expectedType = requiredOps[i];
+    const actualOp = currentChain[i];
+    const opLabel = OPERATION_LABELS[expectedType] || '土台ブロック';
+    const opShortName = opLabel.replace('の土台ブロック', '');
 
-  sourceHighlight.classList.remove('hidden');
-  targetHighlight.classList.remove('hidden');
+    if (!actualOp || actualOp.type !== expectedType) {
+      const orphanOp = workspace.getTopBlocks(false).find(b => b.type === expectedType && !b.getParent());
+      if (orphanOp) {
+        const targetStr = (i === 0) ? '証明の枠' : '前のブロックの下';
+        return setTutorialUI(`【目標】引き出した${opLabel}を ${targetStr} に繋げよう`, orphanOp.getSvgRoot());
+      } else {
+        return setTutorialUI(`【目標】左の欄から ${opLabel} を引き出そう`, toolboxElement);
+      }
+    }
+
+    const inputsToCheck = [];
+    if (expectedType === 'replace_operation') inputsToCheck.push('VALUE', 'FORMULA', 'REPLACEMENT');
+    else if (expectedType === 'common_denominator_operation') inputsToCheck.push('VALUE', 'REPLACEMENT');
+    else if (expectedType === 'conclusion_operation') inputsToCheck.push('VALUE');
+
+    for (const inputName of inputsToCheck) {
+      const input = actualOp.getInput(inputName);
+      if (input && input.connection && !input.connection.targetConnection) {
+        const isFormulaHole = (inputName === 'FORMULA');
+        const holeLabel = HOLE_LABELS[inputName] || '';
+        
+        if (isFormulaHole) {
+          // 公式の穴の場合の処理
+          const orphanFormula = workspace.getTopBlocks(false).find(b => b.type.startsWith('formula_'));
+          if (orphanFormula) {
+            return setTutorialUI(`【目標】盤面の「公式のブロック」を ${opShortName}の「${holeLabel}の穴」にはめよう`, orphanFormula.getSvgRoot(), input);
+          } else {
+            return setTutorialUI(`【目標】${opShortName}の「${holeLabel}の穴」に入れる 「公式のブロック」 を引き出そう`, toolboxElement);
+          }
+        } else {
+          // 【変更】数式（式・結果）の穴の場合の処理
+          // rhsBlock（初期配置の右辺）を除外してパーツを探す
+          const orphanPieces = workspace.getTopBlocks(false).filter(b => {
+            if (b.type === 'proof_step' || OPERATION_LABELS[b.type] || b.type.startsWith('formula_')) return false;
+            if (b === rhsBlock) return false; // ゴール用のブロックは無視！
+            return true;
+          });
+
+          if (orphanPieces.length > 0) {
+            return setTutorialUI(`【目標】盤面のパーツを組み合わせて、${opShortName}の「${holeLabel}の穴」にはめよう`, orphanPieces[0].getSvgRoot(), input);
+          } else {
+            return setTutorialUI(`【目標】メニューからブロックを出し、組み合わせて対象の式を作ろう！`, toolboxElement);
+          }
+        }
+      }
+    }
+  }
+  return setTutorialUI('【目標】準備完了！「チェックする」を押そう！', document.getElementById('btn-submit'));
+}
+function startHighlightTracking() {
+  if (highlightTrackingFrameId) cancelAnimationFrame(highlightTrackingFrameId);
+  
+  function track() {
+    const pulseElement = document.getElementById('tutorial-highlight-target');
+    if (pulseElement && currentHighlightTargetNode && !pulseElement.classList.contains('hidden')) {
+      const rect = currentHighlightTargetNode.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        let left = rect.left;
+        let top = rect.top;
+        let width = rect.width;
+        let height = rect.height;
+        const orbSize = 36; // オーブのサイズ
+
+        if (currentHighlightInputObj) {
+          const blockType = currentHighlightTargetNode.getAttribute('data-id') ? 
+                            workspace.getBlockById(currentHighlightTargetNode.getAttribute('data-id'))?.type : null;
+          
+          const inputName = currentHighlightInputObj.name;
+          const inputType = currentHighlightInputObj.type === Blockly.INPUT_VALUE ? 'VALUE' : 'NEXT_STATEMENT';
+          
+          const blockOffsets = BLOCK_HOLE_OFFSETS[blockType] || BLOCK_HOLE_OFFSETS['default'];
+          const offset = blockOffsets[inputName] || blockOffsets[inputType] || BLOCK_HOLE_OFFSETS['default'][inputType];
+
+          if (inputType === 'VALUE' || inputName === 'FORMULA' || inputName === 'EXPRESSION' || inputName === 'RESULT') {
+            left = rect.right + (offset.rightOffset || 0) - (orbSize / 2);
+            top = offset.topOffset === 'center' ? 
+                  rect.top + (rect.height / 2) - (orbSize / 2) : 
+                  rect.top + offset.topOffset - (orbSize / 2);
+          } else {
+            left = rect.left + (offset.leftOffset || 0) - (orbSize / 2);
+            top = offset.topOffset !== undefined ? 
+                  rect.top + offset.topOffset - (orbSize / 2) :
+                  rect.bottom + (offset.bottomOffset || 0) - (orbSize / 2);
+          }
+          width = orbSize;
+          height = orbSize;
+        }
+
+        pulseElement.style.left = left + 'px';
+        pulseElement.style.top = top + 'px';
+        pulseElement.style.width = width + 'px';
+        pulseElement.style.height = height + 'px';
+      }
+    }
+    highlightTrackingFrameId = requestAnimationFrame(track);
+  }
+  track();
+}
+
+function startHighlightTracking() {
+  if (highlightTrackingFrameId) cancelAnimationFrame(highlightTrackingFrameId);
+
+  function track() {
+    const pulseElement = document.getElementById('tutorial-highlight-target');
+    if (pulseElement && currentHighlightTargetNode && !pulseElement.classList.contains('hidden')) {
+      const rect = currentHighlightTargetNode.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        let left = rect.left;
+        let top = rect.top;
+        let width = rect.width;
+        let height = rect.height;
+
+        const orbSize = 36;
+
+        if (currentHighlightInputObj) {
+          if (currentHighlightInputObj.type === Blockly.INPUT_VALUE) {
+            left = rect.right - (orbSize / 2) - 10;
+            top = rect.top + (rect.height / 2) - (orbSize / 2);
+          } else if (currentHighlightInputObj.type === Blockly.NEXT_STATEMENT) {
+            left = rect.left + 20;
+            top = rect.bottom - (orbSize / 2);
+          }
+          width = orbSize;
+          height = orbSize;
+        }
+
+        pulseElement.style.left = left + 'px';
+        pulseElement.style.top = top + 'px';
+        pulseElement.style.width = width + 'px';
+        pulseElement.style.height = height + 'px';
+      }
+    }
+    highlightTrackingFrameId = requestAnimationFrame(track);
+  }
+  track();
+}
+
+// ハイライト位置を適用するヘルパー関数
+function applyTutorialHighlight(element, rect) {
+  if (!rect || (rect.width === 0 && rect.height === 0)) return;
+  element.style.left = rect.left + 'px';
+  element.style.top = rect.top + 'px';
+  element.style.width = rect.width + 'px';
+  element.style.height = rect.height + 'px';
+  element.classList.remove('hidden');
 }
 
 function resetAppStateForGoLiveIfNeeded() {
@@ -436,7 +636,6 @@ function resetAppStateForGoLiveIfNeeded() {
   unlockAll = false;
   currentStageNumber = 1;
   currentProblemData = null;
-  currentHintIndex = 0;
   currentStreak = 0;
   currentStageSolved = false;
   currentSkipOffer = null;
@@ -484,7 +683,6 @@ function parseRequiredConcepts(requiredConcepts) {
 }
 
 function applyProblemDataToWorkspace(problemData, stageLabel) {
-  currentHintIndex = 0;
   currentStageSolved = false;
   currentSkipOffer = null;
   closeSkipChallengeModal();
@@ -537,6 +735,10 @@ function applyProblemDataToWorkspace(problemData, stageLabel) {
   if (nextBtn) {
     nextBtn.style.display = 'none';
     nextBtn.innerText = '次の問題へ';
+  }
+
+  if (!tutorialModeActive) {
+    hideGoalHintForStage();
   }
 }
 
@@ -1913,12 +2115,9 @@ function getTutorialGateAllowedTypes(stageId) {
 }
 
 function isTutorialGateAllowed(blockType, stageId) {
-  if (!isTutorialStageId(stageId)) return true;
-  const gate = getTutorialGateAllowedTypes(stageId);
-  if (gate.allowAll) return true;
-  return gate.types?.has(blockType);
+  // 新しい詳細なUIナビゲーションが導入されたため、古い強制作業順序ゲートは無効化
+  return true;
 }
-
 function closeGameEntrance() {
   const entrance = document.getElementById('game-entrance');
   if (entrance) entrance.classList.add('hidden');
@@ -1966,6 +2165,26 @@ function updateTutorialIntroStep() {
   const isLast = safeIndex >= TUTORIAL_STEPS.length - 1;
   nextBtn.style.display = isLast ? 'none' : 'inline-block';
   okBtn.style.display = isLast ? 'inline-block' : 'none';
+}
+
+function showGoalHintForStage() {
+  goalHintActive = true;
+  const hintButton = document.getElementById('btn-hint');
+  if (hintButton) hintButton.textContent = 'ヒントを消す';
+  updateTutorialHighlightUI(currentStageNumber);
+}
+
+function hideGoalHintForStage() {
+  goalHintActive = false;
+  const hintButton = document.getElementById('btn-hint');
+  if (hintButton) hintButton.textContent = 'ヒント';
+  const underProblem = document.getElementById('tutorial-next-under-problem');
+  if (underProblem) {
+    underProblem.textContent = '';
+    underProblem.classList.remove('visible');
+    underProblem.classList.remove('pulse');
+  }
+  hideTutorialHighlights();
 }
 
 function showTutorialStep() {
@@ -2042,6 +2261,11 @@ function bindTutorialWorkspaceAutoAdvance() {
     updateTutorialBanner(currentStageNumber);
     queueTutorialAutoAdvanceCheck();
   });
+
+  workspace.addChangeListener(() => {
+    if (tutorialModeActive || !goalHintActive) return;
+    updateTutorialHighlightUI(currentStageNumber);
+  });
 }
 
 function getBlockSvgRoot(block) {
@@ -2090,7 +2314,6 @@ async function loadStage(stageNumber) {
     if (!sanitizedText) throw new Error('EMPTY_JSON');
     currentProblemData = JSON.parse(sanitizedText);
 
-    currentHintIndex = 0;
     currentStageSolved = false;
     currentSkipOffer = null;
     closeSkipChallengeModal();
@@ -2322,9 +2545,16 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-hint')?.addEventListener('click', () => {
-    if (!currentProblemData?.hints?.length) return showToast('ヒントはありません');
-    showToast(currentProblemData.hints[currentHintIndex]);
-    currentHintIndex = (currentHintIndex + 1) % currentProblemData.hints.length;
+    if (tutorialModeActive) {
+      showToast(getTutorialBannerText(currentStageNumber) || '【目標】空いている穴にブロックをはめよう！', true);
+      updateTutorialHighlightUI(currentStageNumber);
+      return;
+    }
+    if (goalHintActive) {
+      hideGoalHintForStage();
+    } else {
+      showGoalHintForStage();
+    }
   });
 
   document.getElementById('btn-answer')?.addEventListener('click', () => {

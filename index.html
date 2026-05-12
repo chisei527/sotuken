@@ -56,7 +56,7 @@
         .tutorial-pulse-source,
         .tutorial-pulse-target {
           position: absolute;
-          z-index: 9999;
+          z-index: 9998;
           pointer-events: none;
           border-radius: 12px;
           box-sizing: border-box;
@@ -67,9 +67,13 @@
           animation: pulse-orange 1.5s ease-in-out infinite;
         }
         .tutorial-pulse-target {
-          border: 3px solid #22c55e;
-          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-          animation: pulse-green 1.5s ease-in-out infinite;
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          border-radius: 50%; /* 丸くする */
+          background-color: rgba(251, 191, 36, 0.3);
+          box-shadow: 0 0 20px 10px rgba(251, 191, 36, 0.8), inset 0 0 15px 5px rgba(251, 191, 36, 0.5);
+          transition: all 0.1s ease-out; /* 追従を滑らかに */
         }
         .tutorial-pulse-source.hidden,
         .tutorial-pulse-target.hidden {
@@ -79,9 +83,9 @@
           0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
           50% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.12); }
         }
-        @keyframes pulse-green {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
-          50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0.14); }
+        @keyframes pulse-yellow {
+          0%, 100% { opacity: 0.4; box-shadow: 0 0 20px 10px #fbbf24; }
+          50% { opacity: 1; box-shadow: 0 0 28px 14px #fbbf24; }
         }
         #tutorial-progress-shell { display: none; margin: 0 10px 10px; background: #ffffff; border: 2px solid #d7e7ff; border-radius: 16px; box-shadow: 0 4px 0 #d8e8ff; padding: 10px 12px; }
         #tutorial-progress-shell.visible { display: block; }
