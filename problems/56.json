@@ -1,10 +1,17 @@
 {
   "id": 56,
-  "mathText": "\\[ \\cos^2(\\frac{\\pi}{3}) = \\frac{1+\\cos(2\\cdot\\frac{\\pi}{3})}{2} \\]",
+  "title": "次数の降下",
+  "description": "2乗を取るか、角度を2倍にするか。選択が全てを決める。",
+  "startExpression": "2\\cos^2\\theta - \\cos 2\\theta",
+  "goalExpression": "1",
+  "mathText": "\\[ 2\\cos^2\\theta - \\cos 2\\theta = 1 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
     "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
+  ],
+  "requiredFormulas": [
+    "formula_5"
   ],
   "hints": [
     "公式⑥で \\(\\cos^2\\theta\\) を変形する。",
@@ -15,85 +22,70 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "y": 50,
+          "type": "math_add",
           "inputs": {
             "A": {
               "block": {
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
-                      "type": "term_pi_third"
-                    }
-                  }
-                },
-                "type": "term_cos_of"
-              }
-            }
-          },
-          "type": "math_square",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
-                "fields": {
-                  "NUM": 2
-                },
-                "type": "custom_number"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
+                "type": "math_multiply",
                 "inputs": {
                   "A": {
                     "block": {
+                      "type": "custom_number",
                       "fields": {
-                        "NUM": 1
-                      },
-                      "type": "custom_number"
+                        "NUM": 2
+                      }
                     }
                   },
                   "B": {
                     "block": {
+                      "type": "math_square",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_negate",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_cos_of",
                       "inputs": {
                         "ANGLE": {
                           "block": {
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "fields": {
-                                    "NUM": 2
-                                  },
-                                  "type": "custom_number"
-                                }
-                              },
-                              "B": {
-                                "block": {
-                                  "type": "term_pi_third"
-                                }
-                              }
-                            },
-                            "type": "math_multiply"
+                            "type": "term_two_theta"
                           }
                         }
-                      },
-                      "type": "term_cos_of"
+                      }
                     }
                   }
-                },
-                "type": "math_add"
+                }
               }
             }
           },
-          "type": "math_fraction",
-          "x": 600
+          "x": 50,
+          "y": 50
         },
         {
-          "y": 150,
+          "type": "custom_number",
+          "fields": {
+            "NUM": 1
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
           "type": "proof_step",
-          "x": 50
+          "x": 50,
+          "y": 150
         }
       ]
     }
@@ -103,80 +95,65 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "y": 50,
+          "type": "math_add",
           "inputs": {
             "A": {
               "block": {
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
-                      "type": "term_pi_third"
-                    }
-                  }
-                },
-                "type": "term_cos_of"
-              }
-            }
-          },
-          "type": "math_square",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
-                "fields": {
-                  "NUM": 2
-                },
-                "type": "custom_number"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
+                "type": "math_multiply",
                 "inputs": {
                   "A": {
                     "block": {
+                      "type": "custom_number",
                       "fields": {
-                        "NUM": 1
-                      },
-                      "type": "custom_number"
+                        "NUM": 2
+                      }
                     }
                   },
                   "B": {
                     "block": {
+                      "type": "math_square",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_negate",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_cos_of",
                       "inputs": {
                         "ANGLE": {
                           "block": {
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "fields": {
-                                    "NUM": 2
-                                  },
-                                  "type": "custom_number"
-                                }
-                              },
-                              "B": {
-                                "block": {
-                                  "type": "term_pi_third"
-                                }
-                              }
-                            },
-                            "type": "math_multiply"
+                            "type": "term_two_theta"
                           }
                         }
-                      },
-                      "type": "term_cos_of"
+                      }
                     }
                   }
-                },
-                "type": "math_add"
+                }
               }
             }
           },
-          "type": "math_fraction",
-          "x": 600
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "custom_number",
+          "fields": {
+            "NUM": 1
+          },
+          "x": 600,
+          "y": 50
         },
         {
           "type": "proof_step",
@@ -185,271 +162,13 @@
           "inputs": {
             "OPERATIONS": {
               "block": {
-                "type": "replace_operation",
+                "type": "conclusion_operation",
                 "inputs": {
                   "VALUE": {
                     "block": {
-                      "type": "math_square",
-                      "inputs": {
-                        "A": {
-                          "block": {
-                            "type": "term_cos_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_pi_quarter"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "FORMULA": {
-                    "block": {
-                      "type": "formula_6"
-                    }
-                  },
-                  "REPLACEMENT": {
-                    "block": {
-                      "type": "math_fraction",
-                      "inputs": {
-                        "NUMERATOR": {
-                          "block": {
-                            "type": "math_add",
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "type": "custom_number",
-                                  "fields": {
-                                    "NUM": 1
-                                  }
-                                }
-                              },
-                              "B": {
-                                "block": {
-                                  "type": "term_cos_of",
-                                  "inputs": {
-                                    "ANGLE": {
-                                      "block": {
-                                        "type": "math_multiply",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "custom_number",
-                                              "fields": {
-                                                "NUM": 2
-                                              }
-                                            }
-                                          },
-                                          "B": {
-                                            "block": {
-                                              "type": "term_pi_quarter"
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        },
-                        "DENOMINATOR": {
-                          "block": {
-                            "type": "custom_number",
-                            "fields": {
-                              "NUM": 2
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-                "next": {
-                  "block": {
-                    "type": "common_denominator_operation",
-                    "inputs": {
-                      "VALUE": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "math_add",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "custom_number",
-                                      "fields": {
-                                        "NUM": 1
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_multiply",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 2
-                                                  }
-                                                }
-                                              },
-                                              "B": {
-                                                "block": {
-                                                  "type": "term_pi_quarter"
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "custom_number",
-                                "fields": {
-                                  "NUM": 2
-                                }
-                              }
-                            }
-                          }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "math_add",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "custom_number",
-                                      "fields": {
-                                        "NUM": 1
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_multiply",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 2
-                                                  }
-                                                }
-                                              },
-                                              "B": {
-                                                "block": {
-                                                  "type": "term_pi_quarter"
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "custom_number",
-                                "fields": {
-                                  "NUM": 2
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "math_add",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "custom_number",
-                                          "fields": {
-                                            "NUM": 1
-                                          }
-                                        }
-                                      },
-                                      "B": {
-                                        "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "math_multiply",
-                                                "inputs": {
-                                                  "A": {
-                                                    "block": {
-                                                      "type": "custom_number",
-                                                      "fields": {
-                                                        "NUM": 2
-                                                      }
-                                                    }
-                                                  },
-                                                  "B": {
-                                                    "block": {
-                                                      "type": "term_pi_quarter"
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "custom_number",
-                                    "fields": {
-                                      "NUM": 2
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
                       }
                     }
                   }
@@ -460,8 +179,5 @@
         }
       ]
     }
-  },
-  "requiredFormulas": [
-    "formula_6"
-  ]
+  }
 }

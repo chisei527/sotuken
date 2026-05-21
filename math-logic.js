@@ -281,6 +281,16 @@
         return 'sin(2 * theta)';
       case 'term_cos2':
         return 'cos(2 * theta)';
+      case 'term_theta':
+        return 'theta';
+      case 'term_two_theta':
+        return '(2 * theta)';
+      case 'term_three_theta':
+        return '(3 * theta)';
+      case 'term_four_theta':
+        return '(4 * theta)';
+      case 'term_five_theta':
+        return '(5 * theta)';
       case 'term_pi':
         return 'pi';
       case 'term_pi_sixth':

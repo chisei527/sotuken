@@ -1,10 +1,17 @@
 {
   "id": 67,
-  "mathText": "\\[ \\tan(\\frac{\\pi}{6}) = \\frac{\\sin(2\\cdot\\frac{\\pi}{6})}{1+\\cos(2\\cdot\\frac{\\pi}{6})} \\]",
+  "title": "1の魔書き換え",
+  "description": "入試の定番。ただの「1」を相互関係式に逆変換せよ。",
+  "startExpression": "\\frac{\\sin\\theta + \\cos\\theta - 1}{\\sin\\theta - \\cos\\theta + 1}",
+  "goalExpression": "\\frac{\\sin\\theta}{1 + \\cos\\theta}",
+  "mathText": "\\[ \\frac{\\sin\\theta + \\cos\\theta - 1}{\\sin\\theta - \\cos\\theta + 1} = \\frac{\\sin\\theta}{1 + \\cos\\theta} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
     "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
+  ],
+  "requiredFormulas": [
+    "formula_1"
   ],
   "hints": [
     "公式⑦をそのまま使う。",
@@ -15,97 +22,126 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "y": 50,
+          "type": "math_fraction",
           "inputs": {
-            "ANGLE": {
+            "NUMERATOR": {
               "block": {
-                "type": "term_pi_sixth"
-              }
-            }
-          },
-          "type": "term_tan_of",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
+                "type": "math_add",
                 "inputs": {
                   "A": {
                     "block": {
-                      "fields": {
-                        "NUM": 1
-                      },
-                      "type": "custom_number"
-                    }
-                  },
-                  "B": {
-                    "block": {
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "fields": {
-                                    "NUM": 2
-                                  },
-                                  "type": "custom_number"
-                                }
-                              },
-                              "B": {
-                                "block": {
-                                  "type": "term_pi_sixth"
-                                }
-                              }
-                            },
-                            "type": "math_multiply"
-                          }
-                        }
-                      },
-                      "type": "term_cos_of"
-                    }
-                  }
-                },
-                "type": "math_add"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
+                      "type": "math_add",
                       "inputs": {
                         "A": {
                           "block": {
-                            "fields": {
-                              "NUM": 2
-                            },
-                            "type": "custom_number"
+                            "type": "term_sin"
                           }
                         },
                         "B": {
                           "block": {
-                            "type": "term_pi_sixth"
+                            "type": "term_cos"
                           }
                         }
-                      },
-                      "type": "math_multiply"
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "math_negate",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "custom_number",
+                            "fields": {
+                              "NUM": 1
+                            }
+                          }
+                        }
+                      }
                     }
                   }
-                },
-                "type": "term_sin_of"
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_negate",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_cos"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  }
+                }
               }
             }
           },
-          "type": "math_fraction",
-          "x": 600
+          "x": 50,
+          "y": 50
         },
         {
-          "y": 150,
+          "type": "math_fraction",
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_cos"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
           "type": "proof_step",
-          "x": 50
+          "x": 50,
+          "y": 150
         }
       ]
     }
@@ -115,92 +151,121 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "y": 50,
+          "type": "math_fraction",
           "inputs": {
-            "ANGLE": {
+            "NUMERATOR": {
               "block": {
-                "type": "term_pi_sixth"
-              }
-            }
-          },
-          "type": "term_tan_of",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
+                "type": "math_add",
                 "inputs": {
                   "A": {
                     "block": {
-                      "fields": {
-                        "NUM": 1
-                      },
-                      "type": "custom_number"
-                    }
-                  },
-                  "B": {
-                    "block": {
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "fields": {
-                                    "NUM": 2
-                                  },
-                                  "type": "custom_number"
-                                }
-                              },
-                              "B": {
-                                "block": {
-                                  "type": "term_pi_sixth"
-                                }
-                              }
-                            },
-                            "type": "math_multiply"
-                          }
-                        }
-                      },
-                      "type": "term_cos_of"
-                    }
-                  }
-                },
-                "type": "math_add"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
+                      "type": "math_add",
                       "inputs": {
                         "A": {
                           "block": {
-                            "fields": {
-                              "NUM": 2
-                            },
-                            "type": "custom_number"
+                            "type": "term_sin"
                           }
                         },
                         "B": {
                           "block": {
-                            "type": "term_pi_sixth"
+                            "type": "term_cos"
                           }
                         }
-                      },
-                      "type": "math_multiply"
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "math_negate",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "custom_number",
+                            "fields": {
+                              "NUM": 1
+                            }
+                          }
+                        }
+                      }
                     }
                   }
-                },
-                "type": "term_sin_of"
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_negate",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_cos"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  }
+                }
               }
             }
           },
+          "x": 50,
+          "y": 50
+        },
+        {
           "type": "math_fraction",
-          "x": 600
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_cos"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 600,
+          "y": 50
         },
         {
           "type": "proof_step",
@@ -209,54 +274,15 @@
           "inputs": {
             "OPERATIONS": {
               "block": {
-                "type": "replace_operation",
+                "type": "conclusion_operation",
                 "inputs": {
                   "VALUE": {
-                    "block": {
-                      "type": "term_tan_of",
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "type": "term_pi_sixth"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "FORMULA": {
-                    "block": {
-                      "type": "formula_7"
-                    }
-                  },
-                  "REPLACEMENT": {
                     "block": {
                       "type": "math_fraction",
                       "inputs": {
                         "NUMERATOR": {
                           "block": {
-                            "type": "term_sin_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "math_multiply",
-                                  "inputs": {
-                                    "A": {
-                                      "block": {
-                                        "type": "custom_number",
-                                        "fields": {
-                                          "NUM": 2
-                                        }
-                                      }
-                                    },
-                                    "B": {
-                                      "block": {
-                                        "type": "term_pi_sixth"
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                            "type": "term_sin"
                           }
                         },
                         "DENOMINATOR": {
@@ -273,271 +299,7 @@
                               },
                               "B": {
                                 "block": {
-                                  "type": "term_cos_of",
-                                  "inputs": {
-                                    "ANGLE": {
-                                      "block": {
-                                        "type": "math_multiply",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "custom_number",
-                                              "fields": {
-                                                "NUM": 2
-                                              }
-                                            }
-                                          },
-                                          "B": {
-                                            "block": {
-                                              "type": "term_pi_sixth"
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-                "next": {
-                  "block": {
-                    "type": "common_denominator_operation",
-                    "inputs": {
-                      "VALUE": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "math_multiply",
-                                      "inputs": {
-                                        "A": {
-                                          "block": {
-                                            "type": "custom_number",
-                                            "fields": {
-                                              "NUM": 2
-                                            }
-                                          }
-                                        },
-                                        "B": {
-                                          "block": {
-                                            "type": "term_pi_sixth"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "math_add",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "custom_number",
-                                      "fields": {
-                                        "NUM": 1
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_multiply",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 2
-                                                  }
-                                                }
-                                              },
-                                              "B": {
-                                                "block": {
-                                                  "type": "term_pi_sixth"
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "math_multiply",
-                                      "inputs": {
-                                        "A": {
-                                          "block": {
-                                            "type": "custom_number",
-                                            "fields": {
-                                              "NUM": 2
-                                            }
-                                          }
-                                        },
-                                        "B": {
-                                          "block": {
-                                            "type": "term_pi_sixth"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "math_add",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "custom_number",
-                                      "fields": {
-                                        "NUM": 1
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_multiply",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 2
-                                                  }
-                                                }
-                                              },
-                                              "B": {
-                                                "block": {
-                                                  "type": "term_pi_sixth"
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "term_sin_of",
-                                    "inputs": {
-                                      "ANGLE": {
-                                        "block": {
-                                          "type": "math_multiply",
-                                          "inputs": {
-                                            "A": {
-                                              "block": {
-                                                "type": "custom_number",
-                                                "fields": {
-                                                  "NUM": 2
-                                                }
-                                              }
-                                            },
-                                            "B": {
-                                              "block": {
-                                                "type": "term_pi_sixth"
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "math_add",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "custom_number",
-                                          "fields": {
-                                            "NUM": 1
-                                          }
-                                        }
-                                      },
-                                      "B": {
-                                        "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "math_multiply",
-                                                "inputs": {
-                                                  "A": {
-                                                    "block": {
-                                                      "type": "custom_number",
-                                                      "fields": {
-                                                        "NUM": 2
-                                                      }
-                                                    }
-                                                  },
-                                                  "B": {
-                                                    "block": {
-                                                      "type": "term_pi_sixth"
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
+                                  "type": "term_cos"
                                 }
                               }
                             }
@@ -553,8 +315,5 @@
         }
       ]
     }
-  },
-  "requiredFormulas": [
-    "formula_7"
-  ]
+  }
 }

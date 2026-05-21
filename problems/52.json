@@ -1,10 +1,18 @@
 {
   "id": 52,
-  "mathText": "\\[ \\tan(\\frac{\\pi}{6}) = \\frac{\\frac{1}{2}}{\\frac{\\sqrt{3}}{2}} \\]",
+  "title": "クロスタームの相殺",
+  "description": "展開して不要なものを消し去れ。",
+  "startExpression": "(\\sin\\theta + \\cos\\theta)^2 + (\\sin\\theta - \\cos\\theta)^2",
+  "goalExpression": "2",
+  "mathText": "\\[ (\\sin\\theta + \\cos\\theta)^2 + (\\sin\\theta - \\cos\\theta)^2 = 2 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
     "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
+  ],
+  "requiredFormulas": [
+    "formula_9",
+    "formula_1"
   ],
   "hints": [
     "公式② \\(\\tan\\theta=\\frac{\\sin\\theta}{\\cos\\theta}\\) を使う。",
@@ -15,231 +23,52 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "y": 50,
+          "type": "math_add",
           "inputs": {
-            "ANGLE": {
+            "A": {
               "block": {
-                "type": "term_pi_sixth"
-              }
-            }
-          },
-          "type": "term_tan_of",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
-                "type": "term_sqrt3_half"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
-                "type": "term_half_value"
-              }
-            }
-          },
-          "type": "math_fraction",
-          "x": 600
-        },
-        {
-          "y": 150,
-          "type": "proof_step",
-          "x": 50
-        }
-      ]
-    }
-  },
-  "answerState": {
-    "blocks": {
-      "languageVersion": 0,
-      "blocks": [
-        {
-          "y": 50,
-          "inputs": {
-            "ANGLE": {
-              "block": {
-                "type": "term_pi_sixth"
-              }
-            }
-          },
-          "type": "term_tan_of",
-          "x": 50
-        },
-        {
-          "y": 50,
-          "inputs": {
-            "DENOMINATOR": {
-              "block": {
-                "type": "term_sqrt3_half"
-              }
-            },
-            "NUMERATOR": {
-              "block": {
-                "type": "term_half_value"
-              }
-            }
-          },
-          "type": "math_fraction",
-          "x": 600
-        },
-        {
-          "type": "proof_step",
-          "x": 50,
-          "y": 150,
-          "inputs": {
-            "OPERATIONS": {
-              "block": {
-                "type": "replace_operation",
+                "type": "math_square",
                 "inputs": {
-                  "VALUE": {
+                  "A": {
                     "block": {
-                      "type": "term_tan_of",
+                      "type": "math_add",
                       "inputs": {
-                        "ANGLE": {
+                        "A": {
                           "block": {
-                            "type": "term_pi_quarter"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "FORMULA": {
-                    "block": {
-                      "type": "formula_2"
-                    }
-                  },
-                  "REPLACEMENT": {
-                    "block": {
-                      "type": "math_fraction",
-                      "inputs": {
-                        "NUMERATOR": {
-                          "block": {
-                            "type": "term_sin_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_pi_quarter"
-                                }
-                              }
-                            }
+                            "type": "term_sin"
                           }
                         },
-                        "DENOMINATOR": {
+                        "B": {
                           "block": {
-                            "type": "term_cos_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_pi_quarter"
-                                }
-                              }
-                            }
+                            "type": "term_cos"
                           }
                         }
                       }
                     }
                   }
-                },
-                "next": {
-                  "block": {
-                    "type": "common_denominator_operation",
-                    "inputs": {
-                      "VALUE": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_pi_quarter"
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "term_cos_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_pi_quarter"
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_sin"
                           }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_pi_quarter"
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "term_cos_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_pi_quarter"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "term_sin_of",
-                                    "inputs": {
-                                      "ANGLE": {
-                                        "block": {
-                                          "type": "term_pi_quarter"
-                                        }
-                                      }
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "term_cos_of",
-                                    "inputs": {
-                                      "ANGLE": {
-                                        "block": {
-                                          "type": "term_pi_quarter"
-                                        }
-                                      }
-                                    }
-                                  }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_negate",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_cos"
                                 }
                               }
                             }
@@ -251,12 +80,123 @@
                 }
               }
             }
-          }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "custom_number",
+          "fields": {
+            "NUM": 2
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 150
         }
       ]
     }
   },
-  "requiredFormulas": [
-    "formula_2"
-  ]
+  "answerState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "math_add",
+          "inputs": {
+            "A": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_negate",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_cos"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "custom_number",
+          "fields": {
+            "NUM": 2
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 150,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "conclusion_operation",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
 }
