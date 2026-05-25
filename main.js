@@ -30,9 +30,30 @@ let currentHighlightTargetNode = null;
 let currentHighlightInputObj = null;
 let highlightTrackingFrameId = 0;
 
+// ===== 新機能: 公式アンロック状態 =====
+const UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
+
+function loadUnlockedFormulasFromStorage() {
+  try {
+    const raw = localStorage.getItem(UNLOCKED_FORMULAS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveUnlockedFormulasToStorage(formulaIds) {
+  const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
+  localStorage.setItem(UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
+}
+
+let unlockedFormulas = loadUnlockedFormulasFromStorage();
+
 const MAX_STAGE_NUMBER = 100;
-const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6'];
-const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress'];
+const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
+const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', UNLOCKED_FORMULAS_STORAGE_KEY];
 const MAP_WORLD_MIN_WIDTH = 3600;
 const MAP_WORLD_MIN_HEIGHT = 2400;
 const MAP_NODE_SIZE = 94;
@@ -117,49 +138,151 @@ function getTutorialBannerText(stageId) {
 
 function requiresCommonDenominator(problemData) {
   if (!problemData) return false;
-  const requiredTypes = getAnswerOperationTypeSequence(problemData) || [];
+
+  const requiredTypes = parseRequiredBlockTypes(problemData.requiredBlocks || []);
   return requiredTypes.includes('common_denominator_operation');
+}
+
+function getTutorialOperationLabel(type) {
+  if (type === 'replace_operation') return '置き換え';
+  if (type === 'common_denominator_operation') return '通分';
+  if (type === 'conclusion_operation') return 'よって';
+  return type || '操作';
+}
+
+function sortBlocksByPosition(blocks) {
+  return (blocks || []).slice().sort((first, second) => {
+    const firstPos = first?.getRelativeToSurfaceXY?.() || { x: 0, y: 0 };
+    const secondPos = second?.getRelativeToSurfaceXY?.() || { x: 0, y: 0 };
+    if (firstPos.y !== secondPos.y) return firstPos.y - secondPos.y;
+    return firstPos.x - secondPos.x;
+  });
+}
+
+function getTutorialOperationMissingHole(type, block) {
+  if (!block) return null;
+  if (type === 'replace_operation') {
+    if (!block.getInputTargetBlock('VALUE')) {
+      return { key: 'fill-replace-value', text: '【目標】『置き換え』ブロックの「式」の穴を埋めましょう。' };
+    }
+    if (!block.getInputTargetBlock('FORMULA')) {
+      return { key: 'fill-replace-formula', text: '【目標】『置き換え』ブロックの「公式」の穴を埋めましょう。' };
+    }
+    if (!block.getInputTargetBlock('REPLACEMENT')) {
+      return { key: 'fill-replace-result', text: '【目標】『置き換え』ブロックの「結果」の穴を埋めましょう。' };
+    }
+  }
+  if (type === 'common_denominator_operation') {
+    if (!block.getInputTargetBlock('VALUE') || !block.getInputTargetBlock('REPLACEMENT')) {
+      return { key: 'fill-common', text: '【目標】『通分』ブロックの空いている穴を埋めましょう。' };
+    }
+  }
+  if (type === 'conclusion_operation') {
+    if (!block.getInputTargetBlock('VALUE')) {
+      return { key: 'fill-conclusion-value', text: '【目標】『よって〜となる』ブロックの空いている穴を埋めましょう。' };
+    }
+  }
+  return null;
+}
+
+function getTutorialTargetOperationState(stageId) {
+  if (!isTutorialStageId(stageId) || !workspace || !currentProblemData) return null;
+
+  const requiredTypes = parseRequiredBlockTypes(currentProblemData.requiredBlocks || []);
+  if (requiredTypes.length === 0) return { isComplete: true, requiredTypes: [] };
+
+  const blocksByType = Object.create(null);
+  requiredTypes.forEach((type) => {
+    if (!blocksByType[type]) {
+      blocksByType[type] = sortBlocksByPosition(workspace.getBlocksByType(type, false));
+    }
+  });
+
+  const usedCounts = Object.create(null);
+  for (const type of requiredTypes) {
+    const index = usedCounts[type] || 0;
+    const block = (blocksByType[type] || [])[index] || null;
+    if (!block) {
+      return { isComplete: false, type, block: null, isMissing: true };
+    }
+
+    const missingHole = getTutorialOperationMissingHole(type, block);
+    if (missingHole) {
+      return { isComplete: false, type, block, isMissing: false };
+    }
+
+    usedCounts[type] = index + 1;
+  }
+
+  return { isComplete: true, requiredTypes };
 }
 
 function getTutorialGoalState(stageId) {
   if (!isTutorialStageId(stageId)) return null;
 
-  const replaceOp = findTutorialReplaceOperation();
-  const hasReplace = !!replaceOp;
-  const hasReplaceValue = !!replaceOp?.getInputTargetBlock('VALUE');
-  const hasReplaceResult = !!replaceOp?.getInputTargetBlock('REPLACEMENT');
-  const hasFormula = !!replaceOp?.getInputTargetBlock('FORMULA');
-  const commonOp = findTutorialCommonDenominatorOperation();
-  const hasCommon = !!commonOp;
-  const hasCommonValue = !!commonOp?.getInputTargetBlock('VALUE');
-  const hasCommonResult = !!commonOp?.getInputTargetBlock('REPLACEMENT');
-  const formulaType = getTutorialExpectedFormulaType(stageId);
-  const hasFormulaBlock = !!(formulaType && findTopLevelBlockByType(workspace, formulaType));
-  const hasAnyMathBlock = getTopLevelMathBlocksSortedByY(workspace).length > 0;
-  const needsCommon = requiresCommonDenominator(currentProblemData);
+  const targetState = getTutorialTargetOperationState(stageId);
+  if (!targetState || targetState.isComplete) {
+    return { key: 'ready-check', text: '【目標】必要な穴が埋まったら、「チェックする！」ボタンを押しましょう。' };
+  }
 
-  if (!hasReplace) {
-    return { key: 'pull-replace', text: '【目標】置き換えの式を引き出す' };
+  const targetType = targetState.type;
+  const targetLabel = getTutorialOperationLabel(targetType);
+  const targetBlock = targetState.block;
+
+  if (targetState.isMissing || !targetBlock) {
+    const key = targetType === 'replace_operation'
+      ? 'pull-replace'
+      : targetType === 'common_denominator_operation'
+        ? 'pull-common'
+        : targetType === 'conclusion_operation'
+          ? 'pull-conclusion'
+          : 'pull-operation';
+    return { key, text: `【目標】左のメニューから『${targetLabel}』ブロックを引き出しましょう。` };
   }
-  if (!hasAnyMathBlock || (formulaType && !hasFormulaBlock)) {
-    return { key: 'pull-needed', text: '【目標】必要なブロックを引き出す' };
+
+  const missingHole = getTutorialOperationMissingHole(targetType, targetBlock);
+  const isFormulaHole = targetType === 'replace_operation'
+    && missingHole
+    && missingHole.key === 'fill-replace-formula';
+
+  const requiredFormulaIdsRaw = typeof getRequiredFormulaIdsForProblem === 'function'
+    ? getRequiredFormulaIdsForProblem(currentProblemData)
+    : [];
+  const requiredFormulaIds = requiredFormulaIdsRaw
+    .map((id) => String(id))
+    .filter((id) => !!id)
+    .filter((id) => (typeof isSupportedFormulaId === 'function' ? isSupportedFormulaId(id) : true));
+
+  const hasFloatingFormula = workspace.getTopBlocks(false).some((block) => {
+    const type = String(block.type || '');
+    if (!type.startsWith('formula_')) return false;
+    if (requiredFormulaIds.length === 0) return true;
+    return requiredFormulaIds.includes(type);
+  });
+
+  if (targetType === 'replace_operation') {
+    const formulaMissing = !targetBlock.getInputTargetBlock('FORMULA');
+    if (formulaMissing && !hasFloatingFormula) {
+      return { key: 'pull-formula', text: '【目標】左のメニューから必要な「公式」ブロックを引き出しましょう。' };
+    }
   }
-  if (!hasReplaceValue) {
-    return { key: 'fill-replace-value', text: '【目標】置き換えブロック:式の穴を埋める' };
+
+  const hasFloatingMath = workspace.getTopBlocks(false).some((block) =>
+    !isProofOrOperationBlockType(block.type) && !String(block.type || '').startsWith('formula_')
+  );
+
+  if (missingHole && !hasFloatingMath && !isFormulaHole) {
+    if (targetType === 'conclusion_operation') {
+      return { key: 'pull-math-conclusion', text: '【目標】左のメニューから基本にある問題の式から、よってに入る「数式」ブロックを引き出しましょう。' };
+    }
+    return { key: 'pull-math-parts', text: '【目標】左のメニューから、穴を埋めるための「数式」ブロックを引き出しましょう。' };
   }
-  if (!hasFormula) {
-    return { key: 'fill-replace-formula', text: '【目標】置き換えブロック:公式の穴を埋める' };
+
+  if (missingHole) {
+    return missingHole;
   }
-  if (!hasReplaceResult) {
-    return { key: 'fill-replace-result', text: '【目標】置き換えブロック:結果の穴を埋める' };
-  }
-  if (needsCommon && !hasCommon) {
-    return { key: 'pull-common', text: '【目標】通分ブロックを引き出す' };
-  }
-  if (needsCommon && hasCommon && (!hasCommonValue || !hasCommonResult)) {
-    return { key: 'fill-common', text: '【目標】通分の穴を埋める' };
-  }
-  return { key: 'ready-check', text: '【目標】必要な部分の穴が埋まったらチェックを押してみよう' };
+
+  return { key: 'ready-check', text: '【目標】必要な穴が埋まったら、「チェックする！」ボタンを押しましょう。' };
 }
 
 function isTutorialPullModeStage(stageId) {
@@ -178,12 +301,13 @@ function getTutorialAllowedBlockTypes(stageId) {
   
   // 各ステージでの許可ブロック
   const stageRestrictions = {
-    '0-1': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
-    '0-2': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2'] },
-    '0-3': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
-    '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
-    '0-5': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_2', 'formula_3'] },
-    '0-6': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
+    '0-1': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-2': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
+    '0-3': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_3'] },
+    '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-5': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
+    '0-6': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-7': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
   };
   
   const restriction = stageRestrictions[stage] || null;
@@ -296,10 +420,13 @@ function updateTutorialProgress(stageId) {
 
 function getTutorialExpectedFormulaType(stageId) {
   const stage = String(stageId);
-  if (stage === '0-1') return 'formula_2';
-  if (stage === '0-2') return 'formula_1';
+  if (stage === '0-1') return 'formula_1';
+  if (stage === '0-2') return 'formula_2';
   if (stage === '0-3') return 'formula_3';
+  if (stage === '0-4') return 'formula_1';
   if (stage === '0-5') return 'formula_2';
+  if (stage === '0-6') return 'formula_1';
+  if (stage === '0-7') return 'formula_1';
   return null;
 }
 
@@ -347,55 +474,47 @@ function findTutorialCommonDenominatorOperation() {
 function getTutorialHighlightTargets(stageId) {
   if (!isTutorialStageId(stageId)) return null;
   const replaceOp = findTutorialReplaceOperation();
-  const formulaType = getTutorialExpectedFormulaType(stageId);
-  const toolboxLabel = getTutorialToolboxCategoryLabel('証明') || getTutorialToolboxElement();
-  const hasAnyMathBlock = getTopLevelMathBlocksSortedByY(workspace).length > 0;
-  const hasFormulaBlock = !!(formulaType && findTopLevelBlockByType(workspace, formulaType));
   const commonOp = findTutorialCommonDenominatorOperation();
+  const conclusionOp = findTutorialConclusionOperation();
+  const toolboxLabel = getTutorialToolboxCategoryLabel('証明') || getTutorialToolboxElement();
   const goal = getTutorialGoalState(stageId);
   const goalKey = goal?.key || '';
 
-  if (goalKey === 'pull-replace' || goalKey === 'pull-needed' || goalKey === 'pull-common') {
+  // メニューを引かせる場合のハイライト
+  if (goalKey.startsWith('pull-math-')) {
+    const mathCat = getTutorialToolboxCategoryLabel('基本') || toolboxLabel;
+    return { source: mathCat, target: mathCat };
+  }
+  if (goalKey === 'pull-formula') {
+    const formulaCat = getTutorialToolboxCategoryLabel('公式') || toolboxLabel;
+    return { source: formulaCat, target: formulaCat };
+  }
+  if (goalKey.startsWith('pull-')) {
     return { source: toolboxLabel, target: toolboxLabel };
   }
 
-  if (!replaceOp) {
-    return { source: toolboxLabel, target: toolboxLabel };
+  // 穴埋めのハイライト
+  if (goalKey === 'fill-replace-value' && replaceOp) {
+    return { source: toolboxLabel, target: getInputConnectionRect(replaceOp, 'VALUE') || toolboxLabel };
   }
-
-  if (!hasAnyMathBlock || (formulaType && !hasFormulaBlock)) {
-    return { source: toolboxLabel, target: toolboxLabel };
+  if (goalKey === 'fill-replace-formula' && replaceOp) {
+    return { source: toolboxLabel, target: getInputConnectionRect(replaceOp, 'FORMULA') || toolboxLabel };
   }
-
-  const replaceValueRect = getInputConnectionRect(replaceOp, 'VALUE');
-  if (!replaceOp.getInputTargetBlock('VALUE')) {
-    const target = replaceValueRect || toolboxLabel;
-    return { source: target, target };
+  if (goalKey === 'fill-replace-result' && replaceOp) {
+    return { source: toolboxLabel, target: getInputConnectionRect(replaceOp, 'REPLACEMENT') || toolboxLabel };
   }
-
-  const formulaRect = getInputConnectionRect(replaceOp, 'FORMULA');
-  if (!replaceOp.getInputTargetBlock('FORMULA')) {
-    const target = formulaRect || toolboxLabel;
-    return { source: target, target };
-  }
-
-  const replaceResultRect = getInputConnectionRect(replaceOp, 'REPLACEMENT');
-  if (!replaceOp.getInputTargetBlock('REPLACEMENT')) {
-    const target = replaceResultRect || toolboxLabel;
-    return { source: target, target };
-  }
-
   if (goalKey === 'fill-common' && commonOp) {
-    const commonValueRect = getInputConnectionRect(commonOp, 'VALUE');
-    const commonResultRect = getInputConnectionRect(commonOp, 'REPLACEMENT');
     if (!commonOp.getInputTargetBlock('VALUE')) {
-      const target = commonValueRect || toolboxLabel;
-      return { source: target, target };
+      return { source: toolboxLabel, target: getInputConnectionRect(commonOp, 'VALUE') || toolboxLabel };
     }
     if (!commonOp.getInputTargetBlock('REPLACEMENT')) {
-      const target = commonResultRect || toolboxLabel;
-      return { source: target, target };
+      return { source: toolboxLabel, target: getInputConnectionRect(commonOp, 'REPLACEMENT') || toolboxLabel };
     }
+  }
+  
+  // 👇✨ 新規追加：結論の穴埋めハイライト
+  if (goalKey === 'fill-conclusion-value' && conclusionOp) {
+    return { source: toolboxLabel, target: getInputConnectionRect(conclusionOp, 'VALUE') || toolboxLabel };
   }
 
   if (goalKey === 'ready-check') {
@@ -436,59 +555,15 @@ function updateTutorialHighlightUI(stageNumber) {
   if (sourcePulse) sourcePulse.classList.add('hidden');
   if (targetPulse) targetPulse.classList.add('hidden');
 
-  // 1. 足りないブロック（ツールボックスから出すべき公式等）があるかチェック
-  const existingTypes = workspace.getAllBlocks(false).map(b => b.type);
-  const requiredFormulas = currentProblemData.requiredFormulas || [];
-  const requiredBlocks = parseRequiredBlockTypes(currentProblemData.requiredBlocks || []);
-  const missingFormulas = requiredFormulas.filter(f => !existingTypes.includes(f));
-  const missingBlocks = requiredBlocks.filter(t => !existingTypes.includes(t));
+  const goalState = getTutorialGoalState(stageNumber);
+  const goalText = goalState?.text || '';
+  const highlightTargets = getTutorialHighlightTargets(stageNumber);
 
-  // 2. 盤面の「穴」がすべて埋まっているかチェック（未接続のインプットを探す）
-  let hasEmptyHoles = false;
-  let emptyInput = null;
-  let emptyInputObj = null;
-  const proofBlocks = workspace.getBlocksByType('proof_step', false);
-  if (proofBlocks.length > 0) {
-    const allConnected = proofBlocks[0].getDescendants(false);
-    for (const block of allConnected) {
-      for (const input of block.inputList) {
-        if (input.connection && !input.connection.targetConnection) {
-          if (input.type === Blockly.INPUT_VALUE || input.type === Blockly.NEXT_STATEMENT) {
-            emptyInput = block;
-            emptyInputObj = input;
-            break;
-          }
-        }
-      }
-      if (emptyInput) break;
-    }
-  }
-  hasEmptyHoles = !!emptyInput || proofBlocks.length === 0;
+  currentHighlightTargetNode = null;
+  currentHighlightInputObj = null;
 
-  // ===== 3段階のステート判定とハイライトの適用 =====
-  let goalText = '';
-  if (missingFormulas.length > 0 || missingBlocks.length > 0) {
-    // 【フェーズ1】ブロックを引き出す（ツールボックス全体を強調）
-    goalText = "【目標】左のデッキ（メニュー）から必要な公式ブロックを場に出そう！";
-    const toolbox = document.querySelector('.blocklyToolboxDiv');
-    currentHighlightTargetNode = toolbox;
-    currentHighlightInputObj = null;
-    if (targetPulse) targetPulse.classList.remove('hidden');
-  } else if (hasEmptyHoles) {
-    // 【フェーズ2】穴を埋める（空いている穴のあるブロックを強調）
-    const customText = getTutorialBannerText(stageNumber);
-    goalText = customText || "【目標】空いている穴にブロックをはめよう！";
-    if (emptyInput && targetPulse) {
-      currentHighlightTargetNode = emptyInput.getSvgRoot();
-      currentHighlightInputObj = emptyInputObj;
-      targetPulse.classList.remove('hidden');
-    }
-  } else {
-    // 【フェーズ3】すべての穴が埋まった（チェックボタンを強調）
-    goalText = "【目標】すべての穴が埋まったよ！「チェックする！」を押そう！";
-    const btnSubmit = document.getElementById('btn-submit');
-    currentHighlightTargetNode = btnSubmit;
-    currentHighlightInputObj = null;
+  if (highlightTargets?.target) {
+    currentHighlightTargetNode = highlightTargets.target;
     if (targetPulse) targetPulse.classList.remove('hidden');
   }
 
@@ -512,7 +587,9 @@ function startHighlightTracking() {
   function track() {
     const pulseElement = document.getElementById('tutorial-highlight-target');
     if (pulseElement && currentHighlightTargetNode && !pulseElement.classList.contains('hidden')) {
-      const rect = currentHighlightTargetNode.getBoundingClientRect();
+      const rect = typeof currentHighlightTargetNode.getBoundingClientRect === 'function'
+        ? currentHighlightTargetNode.getBoundingClientRect()
+        : currentHighlightTargetNode;
       if (rect.width > 0 && rect.height > 0) {
         let left = rect.left;
         let top = rect.top;
@@ -569,6 +646,7 @@ function resetAppStateForGoLiveIfNeeded() {
   currentStageSolved = false;
   currentSkipOffer = null;
   pendingSkipChallenge = null;
+  unlockedFormulas = [];
 }
 
 const DIFFICULTY_THRESHOLDS = {
@@ -630,27 +708,7 @@ function applyProblemDataToWorkspace(problemData, stageLabel) {
     MathJax.typesetPromise();
   }
 
-  const updatedToolbox = JSON.parse(JSON.stringify(toolboxConfig));
-  const problemBlocksCategory = { kind: 'category', name: '✨問題の式', contents: [] };
-
-  if (problemData.initialState?.blocks?.blocks) {
-    problemData.initialState.blocks.blocks.forEach((block) => {
-      if (block.type !== 'proof_step') {
-        const blockCopy = JSON.parse(JSON.stringify(block));
-        blockCopy.kind = 'block';
-        delete blockCopy.x;
-        delete blockCopy.y;
-        delete blockCopy.id;
-        problemBlocksCategory.contents.push(blockCopy);
-      }
-    });
-  }
-
-  if (problemBlocksCategory.contents.length > 0) {
-    updatedToolbox.contents[0].contents.unshift(problemBlocksCategory);
-  }
-
-  workspace.updateToolbox(updatedToolbox);
+  workspace.updateToolbox(buildToolboxConfig(problemData));
   workspace.clear();
   Blockly.serialization.workspaces.load(problemData.initialState, workspace);
 
@@ -686,6 +744,7 @@ async function loadTutorialFlowProblem(index) {
   const safeIndex = Math.max(0, Math.min(index, tutorialFlowProblems.length - 1));
   tutorialFlowIndex = safeIndex;
   currentProblemData = tutorialFlowProblems[safeIndex];
+  await ensureFormulasUnlockedForProblem(currentProblemData);
   applyProblemDataToWorkspace(currentProblemData, `チュートリアル ${safeIndex + 1}/${tutorialFlowProblems.length}`);
   tutorialStepIndex = safeIndex;
   
@@ -810,6 +869,17 @@ const FORMULA_BLOCK_DEFS = [
   ['formula_6', '公式⑥ cos(x)² = (1+cos(2*x))/2'],
   ['formula_7', '公式⑦ tan(x) = sin(2*x)/(1+cos(2*x))'],
   ['formula_8', '公式⑧ tan(x)² = (1-cos(2*x))/(1+cos(2*x))'],
+  ['formula_9', '公式⑨ (sin(x)+cos(x))² = sin(x)² + 2sin(x)cos(x) + cos(x)²'],
+  ['formula_10', '公式⑩ sin(x)⁴ + cos(x)⁴ + 2sin(x)²cos(x)² = (sin(x)² + cos(x)²)²'],
+  ['formula_11', '公式⑪ sin(x)⁶ + cos(x)⁶ = (sin(x)² + cos(x)²)(sin(x)⁴ - sin(x)²cos(x)² + cos(x)⁴)'],
+  ['formula_12', '公式⑫ sin(3*x) = 3sin(x) - 4sin(x)³'],
+  ['formula_13', '公式⑬ cos(3*x) = 4cos(x)³ - 3cos(x)'],
+  ['formula_14', '公式⑭ sin(x)+sin(y) = 2sin((x+y)/2)cos((x-y)/2)'],
+  ['formula_15', '公式⑮ sin(x)cos(y) = (sin(x+y)+sin(x-y))/2'],
+  ['formula_16', '公式⑯ tan(2*x) = (2tan(x))/(1-tan(x)²)'],
+  ['formula_addition_sin', '加法公式 sin(x+y) = sin(x)cos(y) + cos(x)sin(y)'],
+  ['formula_addition_cos', '加法公式 cos(x+y) = cos(x)cos(y) - sin(x)sin(y)'],
+  ['formula_addition_tan', '加法公式 tan(x+y) = (tan(x)+tan(y))/(1-tan(x)tan(y))'],
 ];
 
 function defineMathBlocks() {
@@ -1013,83 +1083,157 @@ function defineMathBlocks() {
 
 defineMathBlocks();
 
-const toolboxConfig = {
-  kind: 'categoryToolbox',
-  contents: [
-    {
-      kind: 'category',
-      name: '基本',
-      colour: '#3f51b5',
-      contents: [
-        { kind: 'block', type: 'custom_number' },
-        { kind: 'block', type: 'term_sin' },
-        { kind: 'block', type: 'term_cos' },
-        { kind: 'block', type: 'term_tan' },
-        { kind: 'block', type: 'term_sin2' },
-        { kind: 'block', type: 'term_cos2' },
-      ],
-    },
-    {
-      kind: 'category',
-      name: '角度',
-      colour: '#00897b',
-      contents: [
-        { kind: 'block', type: 'term_pi' },
-        { kind: 'block', type: 'term_theta' },
-        { kind: 'block', type: 'term_two_theta' },
-        { kind: 'block', type: 'term_three_theta' },
-        { kind: 'block', type: 'term_four_theta' },
-        { kind: 'block', type: 'term_five_theta' },
-        { kind: 'block', type: 'term_pi_sixth' },
-        { kind: 'block', type: 'term_pi_quarter' },
-        { kind: 'block', type: 'term_pi_third' },
-        { kind: 'block', type: 'term_pi_half' },
-        { kind: 'block', type: 'term_two_pi_thirds' },
-        { kind: 'block', type: 'term_three_pi_quarters' },
-        { kind: 'block', type: 'term_five_pi_sixths' },
-        { kind: 'block', type: 'term_half_value' },
-        { kind: 'block', type: 'term_sqrt2_half' },
-        { kind: 'block', type: 'term_sqrt3_half' },
-        { kind: 'block', type: 'term_sin_of' },
-        { kind: 'block', type: 'term_cos_of' },
-        { kind: 'block', type: 'term_tan_of' },
-      ],
-    },
-    {
-      kind: 'category',
-      name: '演算',
-      colour: '#ef6c00',
-      contents: [
-        { kind: 'block', type: 'math_add' },
-        { kind: 'block', type: 'math_negate' },
-        { kind: 'block', type: 'math_multiply' },
-        { kind: 'block', type: 'math_fraction' },
-        { kind: 'block', type: 'math_square' },
-      ],
-    },
-    {
-      kind: 'category',
-      name: '公式',
-      colour: '#8e24aa',
-      contents: FORMULA_BLOCK_DEFS.map(([type]) => ({ kind: 'block', type })),
-    },
-    {
-      kind: 'category',
-      name: '証明',
-      colour: '#2e7d32',
-      contents: [
-        { kind: 'block', type: 'proof_step' },
-        { kind: 'block', type: 'replace_operation' },
-        { kind: 'block', type: 'common_denominator_operation' },
-        { kind: 'block', type: 'conclusion_operation' },
-      ],
-    },
-  ],
-};
+function getKnownFormulaIds() {
+  return FORMULA_BLOCK_DEFS.map(([type]) => type);
+}
+
+function sanitizeUnlockedFormulas(formulaIds) {
+  const known = new Set(getKnownFormulaIds());
+  const raw = Array.isArray(formulaIds) ? formulaIds : [];
+  const sanitized = Array.from(new Set(raw.map((id) => String(id))))
+    .filter((id) => known.has(id));
+  return sanitized;
+}
+
+function getUnlockedFormulaIds() {
+  const sanitized = sanitizeUnlockedFormulas(unlockedFormulas);
+  if (sanitized.length !== unlockedFormulas.length) {
+    unlockedFormulas = sanitized;
+    saveUnlockedFormulasToStorage(unlockedFormulas);
+  }
+  return sanitized;
+}
+
+function buildFormulaToolboxBlocks() {
+  const unlockedSet = new Set(getUnlockedFormulaIds());
+  return FORMULA_BLOCK_DEFS
+    .map(([type]) => type)
+    .filter((type) => unlockedSet.has(type))
+    .map((type) => ({ kind: 'block', type }));
+}
+
+function buildProblemBlocksCategory(problemData) {
+  const category = { kind: 'category', name: '✨問題の式', contents: [] };
+  const blocks = problemData?.initialState?.blocks?.blocks;
+  if (!Array.isArray(blocks)) return null;
+
+  blocks.forEach((block) => {
+    if (!block || block.type === 'proof_step') return;
+    const blockCopy = JSON.parse(JSON.stringify(block));
+    blockCopy.kind = 'block';
+    delete blockCopy.x;
+    delete blockCopy.y;
+    delete blockCopy.id;
+    category.contents.push(blockCopy);
+  });
+
+  return category.contents.length > 0 ? category : null;
+}
+
+function buildToolboxConfig(problemData = null) {
+  const toolbox = {
+    kind: 'categoryToolbox',
+    contents: [
+      {
+        kind: 'category',
+        name: '基本',
+        colour: '#3f51b5',
+        contents: [
+          { kind: 'block', type: 'custom_number' },
+          { kind: 'block', type: 'term_sin' },
+          { kind: 'block', type: 'term_cos' },
+          { kind: 'block', type: 'term_tan' },
+          { kind: 'block', type: 'term_sin2' },
+          { kind: 'block', type: 'term_cos2' },
+        ],
+      },
+      {
+        kind: 'category',
+        name: '角度',
+        colour: '#00897b',
+        contents: [
+          { kind: 'block', type: 'term_pi' },
+          { kind: 'block', type: 'term_theta' },
+          { kind: 'block', type: 'term_two_theta' },
+          { kind: 'block', type: 'term_three_theta' },
+          { kind: 'block', type: 'term_four_theta' },
+          { kind: 'block', type: 'term_five_theta' },
+          { kind: 'block', type: 'term_pi_sixth' },
+          { kind: 'block', type: 'term_pi_quarter' },
+          { kind: 'block', type: 'term_pi_third' },
+          { kind: 'block', type: 'term_pi_half' },
+          { kind: 'block', type: 'term_two_pi_thirds' },
+          { kind: 'block', type: 'term_three_pi_quarters' },
+          { kind: 'block', type: 'term_five_pi_sixths' },
+          { kind: 'block', type: 'term_half_value' },
+          { kind: 'block', type: 'term_sqrt2_half' },
+          { kind: 'block', type: 'term_sqrt3_half' },
+          { kind: 'block', type: 'term_sin_of' },
+          { kind: 'block', type: 'term_cos_of' },
+          { kind: 'block', type: 'term_tan_of' },
+        ],
+      },
+      {
+        kind: 'category',
+        name: '演算',
+        colour: '#ef6c00',
+        contents: [
+          { kind: 'block', type: 'math_add' },
+          { kind: 'block', type: 'math_negate' },
+          { kind: 'block', type: 'math_multiply' },
+          { kind: 'block', type: 'math_fraction' },
+          { kind: 'block', type: 'math_square' },
+        ],
+      },
+      {
+        kind: 'category',
+        name: '公式',
+        colour: '#8e24aa',
+        contents: buildFormulaToolboxBlocks(),
+      },
+      {
+        kind: 'category',
+        name: '証明',
+        colour: '#2e7d32',
+        contents: [
+          { kind: 'block', type: 'proof_step' },
+          { kind: 'block', type: 'replace_operation' },
+          { kind: 'block', type: 'common_denominator_operation' },
+          { kind: 'block', type: 'conclusion_operation' },
+        ],
+      },
+    ],
+  };
+
+  const problemBlocksCategory = buildProblemBlocksCategory(problemData);
+  if (problemBlocksCategory) {
+    // 既存実装と同様、基本カテゴリの先頭に「問題の式」サブカテゴリを差し込む
+    toolbox.contents[0].contents.unshift(problemBlocksCategory);
+  }
+
+  return toolbox;
+}
+
+let toolboxConfig = buildToolboxConfig();
+
+// Blockly標準のテーマエンジンをハックしてダーク化
+const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
+  base: Blockly.Themes.Classic,
+  componentStyles: {
+    workspaceBackgroundColour: 'transparent',
+    toolboxBackgroundColour: 'rgba(6, 26, 58, 0.95)',
+    toolboxForegroundColour: '#ffffff',
+    flyoutBackgroundColour: 'rgba(8, 22, 44, 0.92)',
+    flyoutForegroundColour: '#ffffff',
+    scrollbarColour: 'rgba(56, 189, 248, 0.65)',
+    scrollbarOpacity: 1,
+  },
+});
 
 const workspace = Blockly.inject('l', {
   toolbox: toolboxConfig,
   renderer: 'zelos',
+  theme: mathDarkTheme,
   trashcan: true,
   move: { scrollbars: true, drag: true, wheel: true },
   zoom: { controls: true, wheel: true, startScale: 1, maxScale: 2, minScale: 0.5, scaleSpeed: 1.1 },
@@ -1225,28 +1369,19 @@ function getCurrentMapFocusStage() {
 
 function centerMapCameraOnStage(stageNumber, animate = true) {
   const viewport = document.getElementById('map-viewport');
-  const world = document.getElementById('map-world');
-  if (!viewport || !world) return;
+  if (!viewport) return;
 
-  const targetNode = world.querySelector(`.map-node[data-stage="${stageNumber}"]`);
+  const targetNode = document.querySelector(`#map-nodes .map-node[data-stage="${stageNumber}"]`);
   if (!targetNode) return;
 
-  const nodeCenterX = targetNode.offsetLeft + targetNode.offsetWidth / 2;
-  const nodeCenterY = targetNode.offsetTop + targetNode.offsetHeight / 2;
-
-  const maxX = Math.max(0, world.offsetWidth - viewport.clientWidth);
-  const maxY = Math.max(0, world.offsetHeight - viewport.clientHeight);
-
-  const targetX = Math.max(0, Math.min(maxX, nodeCenterX - viewport.clientWidth / 2));
-  const targetY = Math.max(0, Math.min(maxY, nodeCenterY - viewport.clientHeight / 2));
-
-  viewport.style.scrollBehavior = animate ? 'smooth' : 'auto';
-  viewport.scrollLeft = targetX;
-  viewport.scrollTop = targetY;
-  if (!animate) {
-    requestAnimationFrame(() => {
-      viewport.style.scrollBehavior = 'auto';
+  try {
+    targetNode.scrollIntoView({
+      behavior: animate ? 'smooth' : 'auto',
+      block: 'nearest',
+      inline: 'center',
     });
+  } catch (_) {
+    // ignore
   }
 }
 
@@ -1254,20 +1389,10 @@ function centerMapCameraOnCurrentStage(animate = true) {
   centerMapCameraOnStage(getCurrentMapFocusStage(), animate);
 }
 
-function drawMapLinks(svg, positions) {
+function drawMapLinks(svg, _positions) {
+  // 横スクロール型ステージ列に変更したため、リンク描画は使わない
   if (!svg) return;
   svg.innerHTML = '';
-
-  for (let i = 1; i < positions.length; i += 1) {
-    const prev = positions[i - 1];
-    const curr = positions[i];
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', String(prev.x + MAP_NODE_SIZE / 2));
-    line.setAttribute('y1', String(prev.y + MAP_NODE_SIZE / 2));
-    line.setAttribute('x2', String(curr.x + MAP_NODE_SIZE / 2));
-    line.setAttribute('y2', String(curr.y + MAP_NODE_SIZE / 2));
-    svg.appendChild(line);
-  }
 }
 
 async function renderStageMap() {
@@ -1277,50 +1402,57 @@ async function renderStageMap() {
   const progressLabel = document.getElementById('map-progress');
   const overallBar = document.getElementById('overall-progress');
   const progressText = document.getElementById('progress-text');
-  if (!nodeRoot || !links || !mapWorld) return;
+  if (!nodeRoot || !mapWorld) return;
 
   const unlockedLimit = getUnlockLimit();
-  const positions = Array.from({ length: MAX_STAGE_NUMBER }, (_, i) => buildStageNodePosition(i));
-  const lastPosition = positions[positions.length - 1] || { x: 0, y: 0 };
-  const worldWidth = Math.max(MAP_WORLD_MIN_WIDTH, lastPosition.x + 700);
-  const worldHeight = Math.max(MAP_WORLD_MIN_HEIGHT, lastPosition.y + 520);
+  const focusStage = getCurrentMapFocusStage();
 
-  mapWorld.style.width = `${worldWidth}px`;
-  mapWorld.style.height = `${worldHeight}px`;
-  links.setAttribute('viewBox', `0 0 ${worldWidth} ${worldHeight}`);
-
-  drawMapLinks(links, positions);
+  if (links) {
+    drawMapLinks(links, []);
+  }
 
   nodeRoot.innerHTML = '';
-  positions.forEach(({ x, y }, idx) => {
-    const stage = idx + 1;
+
+  for (let stage = 1; stage <= MAX_STAGE_NUMBER; stage += 1) {
     const isCleared = clearedStages.includes(stage);
     const isUnlocked = unlockAll || stage <= unlockedLimit;
+    const isFocus = stage === focusStage;
 
     const node = document.createElement('button');
     node.type = 'button';
-    node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
-    node.style.left = `${x}px`;
-    node.style.top = `${y}px`;
+    node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isFocus ? ' current' : ''}`;
     node.dataset.stage = String(stage);
-    node.textContent = String(stage);
+
+    const number = document.createElement('div');
+    number.className = 'map-node-number';
+    number.textContent = String(stage);
+    node.appendChild(number);
+
+    const label = document.createElement('div');
+    label.className = 'map-node-label';
+    label.textContent = `STAGE ${stage}`;
+    node.appendChild(label);
+
     if (isUnlocked) {
       node.onclick = async () => {
         currentStageNumber = stage;
         switchScreen('p');
         await loadStage(stage);
       };
+    } else {
+      node.disabled = true;
     }
 
-    const label = document.createElement('div');
-    label.className = 'map-node-label';
-    label.textContent = `Stage ${stage}`;
-    node.appendChild(label);
-
     nodeRoot.appendChild(node);
-  });
 
-  const clearCount = clearedStages.filter((stage) => stage >= 1 && stage <= MAX_STAGE_NUMBER).length;
+    if (stage < MAX_STAGE_NUMBER) {
+      const road = document.createElement('div');
+      road.className = `map-road ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
+      nodeRoot.appendChild(road);
+    }
+  }
+
+  const clearCount = clearedStages.filter((s) => s >= 1 && s <= MAX_STAGE_NUMBER).length;
   if (progressLabel) progressLabel.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} CLEAR`;
   if (overallBar) overallBar.style.width = `${(clearCount / MAX_STAGE_NUMBER) * 100}%`;
   if (progressText) progressText.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} クリア`;
@@ -1339,13 +1471,22 @@ function unlockAllStages() {
 function resetSaveData() {
   APP_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
   localStorage.removeItem('unlock_all');
+
   clearedStages = [];
   unlockAll = false;
+  unlockedFormulas = [];
+  saveUnlockedFormulasToStorage(unlockedFormulas);
+
   currentStreak = 0;
   tutorialProgressCount = 0;
   pendingSkipChallenge = null;
   currentSkipOffer = null;
   updateStreakCounter(false);
+
+  if (workspace) {
+    workspace.updateToolbox(buildToolboxConfig(currentProblemData));
+  }
+
   renderStageMap();
 }
 
@@ -1579,6 +1720,14 @@ function getAnswerGreenOperationSequence(problemData) {
   return getAnswerOperationTypeSequence(problemData).filter((type) => GREEN_OPERATION_TYPES.has(type));
 }
 
+function getRequiredGreenOperationSequence(problemData) {
+  const required = getAnswerGreenOperationSequence(problemData);
+  if (requiresCommonDenominator(problemData) && !required.includes('common_denominator_operation')) {
+    required.push('common_denominator_operation');
+  }
+  return required;
+}
+
 function getMissingTypesByRequiredOrder(requiredTypes, actualTypes) {
   const actualCounts = Object.create(null);
   actualTypes.forEach((type) => {
@@ -1602,7 +1751,7 @@ function getMissingTypesByRequiredOrder(requiredTypes, actualTypes) {
 function formatOperationTypeLabel(type) {
   if (type === 'replace_operation') return '置き換え';
   if (type === 'common_denominator_operation') return '通分';
-  if (type === 'conclusion_operation') return '結論';
+  if (type === 'conclusion_operation') return 'よって';
   return type;
 }
 
@@ -1619,7 +1768,7 @@ function summarizeTypeCounts(types) {
 }
 
 function ensureAnswerGreenBlocksPlaced(targetWorkspace, problemData) {
-  const requiredGreenTypes = getAnswerGreenOperationSequence(problemData);
+  const requiredGreenTypes = getRequiredGreenOperationSequence(problemData);
   if (requiredGreenTypes.length === 0 || !targetWorkspace) return;
 
   let proofStep = targetWorkspace.getTopBlocks(false).find((b) => b.type === 'proof_step');
@@ -1804,6 +1953,7 @@ function applyConditionalInitialStateGeneration(targetWorkspace) {
 
   const overwriteButton = document.getElementById('btn-overwrite-permission');
   const isOverwriteOn = !!overwriteButton && !overwriteButton.classList.contains('off');
+  const needsCommonDenominator = requiresCommonDenominator(currentProblemData);
 
   const proofStep = getOrCreateProofStep(targetWorkspace);
   const operationInputConnection = proofStep.getInput('OPERATIONS')?.connection;
@@ -1817,6 +1967,9 @@ function applyConditionalInitialStateGeneration(targetWorkspace) {
 
   if (isOverwriteOn) {
     let replaceOp = operations.find((op) => op.type === 'replace_operation') || null;
+    let commonOp = needsCommonDenominator
+      ? operations.find((op) => op.type === 'common_denominator_operation') || null
+      : null;
     let conclusionOp = operations.find((op) => op.type === 'conclusion_operation') || null;
 
     if (!replaceOp) {
@@ -1824,15 +1977,35 @@ function applyConditionalInitialStateGeneration(targetWorkspace) {
       ensureStatementConnected(operationInputConnection, replaceOp);
     }
 
+    if (needsCommonDenominator && !commonOp) {
+      commonOp = createOperationBlock(targetWorkspace, 'common_denominator_operation');
+    }
+
     if (!conclusionOp) {
       conclusionOp = createOperationBlock(targetWorkspace, 'conclusion_operation');
-      if (replaceOp.nextConnection) {
+    }
+
+    if (needsCommonDenominator && commonOp) {
+      if (replaceOp.nextConnection && commonOp.previousConnection) {
         const existingAfterReplace = replaceOp.nextConnection.targetBlock();
-        if (existingAfterReplace && existingAfterReplace !== conclusionOp) {
+        if (existingAfterReplace && existingAfterReplace !== commonOp) {
           existingAfterReplace.unplug(true);
         }
-        replaceOp.nextConnection.connect(conclusionOp.previousConnection);
+        replaceOp.nextConnection.connect(commonOp.previousConnection);
       }
+      if (commonOp.nextConnection && conclusionOp.previousConnection) {
+        const existingAfterCommon = commonOp.nextConnection.targetBlock();
+        if (existingAfterCommon && existingAfterCommon !== conclusionOp) {
+          existingAfterCommon.unplug(true);
+        }
+        commonOp.nextConnection.connect(conclusionOp.previousConnection);
+      }
+    } else if (replaceOp.nextConnection && conclusionOp.previousConnection) {
+      const existingAfterReplace = replaceOp.nextConnection.targetBlock();
+      if (existingAfterReplace && existingAfterReplace !== conclusionOp) {
+        existingAfterReplace.unplug(true);
+      }
+      replaceOp.nextConnection.connect(conclusionOp.previousConnection);
     }
 
     connectMathToInputIfEmpty(replaceOp, 'VALUE', leftExpressionBlock);
@@ -1885,6 +2058,172 @@ function removeTutorialRedundantConclusionExpression(targetWorkspace) {
 }
 
 // ===== UIヘルパー =====
+
+// ===== 新機能: 画面ごとの背景切り替え =====
+const ASSET_BASE_CANDIDATES = ['assets', 'asset'];
+let resolvedAssetBase = null;
+const assetUrlCache = new Map();
+let backgroundUpdateToken = 0;
+
+function preloadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(url);
+    img.onerror = () => reject(new Error('IMAGE_LOAD_FAILED'));
+    img.src = url;
+  });
+}
+
+async function getAssetUrl(filename) {
+  const key = String(filename || '').trim();
+  if (!key) return '';
+  if (assetUrlCache.has(key)) return assetUrlCache.get(key);
+
+  const bases = resolvedAssetBase
+    ? [resolvedAssetBase, ...ASSET_BASE_CANDIDATES.filter((b) => b !== resolvedAssetBase)]
+    : ASSET_BASE_CANDIDATES;
+
+  for (const base of bases) {
+    const url = `${base}/${key}`;
+    try {
+      await preloadImage(url);
+      resolvedAssetBase = base;
+      assetUrlCache.set(key, url);
+      return url;
+    } catch (_) {
+      // try next
+    }
+  }
+
+  // 最後の手段: そのまま返す（開発時のパスずれを許容）
+  const fallback = `${ASSET_BASE_CANDIDATES[0]}/${key}`;
+  assetUrlCache.set(key, fallback);
+  return fallback;
+}
+
+async function setAppBackgroundByKey(key) {
+  const filename = key === 'stage'
+    ? 'bg_stage.png'
+    : key === 'select'
+      ? 'bg_select.png'
+      : 'bg_title.png';
+
+  const token = ++backgroundUpdateToken;
+  const url = await getAssetUrl(filename);
+  if (token !== backgroundUpdateToken) return;
+  if (!url) return;
+
+  document.body.style.backgroundImage = `url("${url}")`;
+}
+
+function updateBackgroundForScreen(screenId) {
+  if (screenId === 'p') {
+    setAppBackgroundByKey('stage');
+    return;
+  }
+  if (screenId === 'stage-map-screen' || screenId === 'c') {
+    // 👈✨ ここを 'select' から 'stage' に変更するだけ！
+    setAppBackgroundByKey('stage'); 
+    return;
+  }
+  // 👇 1番目の画面（タイトル）はそのまま
+  setAppBackgroundByKey('title');
+}
+
+// ===== 新機能: 公式アンロック（初回ポップアップ） =====
+function unlockFormulaIds(formulaIds) {
+  const current = getUnlockedFormulaIds();
+  const incoming = sanitizeUnlockedFormulas(formulaIds);
+  const merged = sanitizeUnlockedFormulas([...current, ...incoming]);
+  unlockedFormulas = merged;
+  saveUnlockedFormulasToStorage(unlockedFormulas);
+}
+
+function getRequiredFormulasFromProblem(problemData) {
+  const required = problemData?.requiredFormulas;
+  if (!Array.isArray(required)) return [];
+  return required.map((id) => String(id)).filter((id) => !!id);
+}
+
+function getFormulaUnlockModalNodes() {
+  return {
+    modal: document.getElementById('formula-unlock-modal'),
+    title: document.getElementById('formula-unlock-title'),
+    meta: document.getElementById('formula-unlock-meta'),
+    image: document.getElementById('formula-unlock-image'),
+    fallback: document.getElementById('formula-unlock-fallback'),
+    closeButton: document.getElementById('btn-formula-unlock-close'),
+  };
+}
+
+async function showFormulaUnlockModal(formulaIds) {
+  const ids = Array.from(new Set((Array.isArray(formulaIds) ? formulaIds : []).map((id) => String(id)).filter(Boolean)));
+  if (ids.length === 0) return;
+
+  const { modal, title, meta, image, fallback, closeButton } = getFormulaUnlockModalNodes();
+  if (!modal || !title || !meta || !image || !fallback || !closeButton) {
+    return;
+  }
+
+  modal.classList.remove('hidden');
+
+  await new Promise((resolve) => {
+    let index = 0;
+
+    const render = async () => {
+      const formulaId = ids[index];
+      const label = typeof formulaIdToLabel === 'function' ? formulaIdToLabel(formulaId) : formulaId;
+      title.textContent = '新しい公式を覚えよう！';
+      meta.textContent = `UNLOCK: ${label}  (${index + 1} / ${ids.length})`;
+      fallback.style.display = 'none';
+      fallback.textContent = '';
+
+      image.style.display = 'block';
+      image.alt = label;
+      image.onerror = () => {
+        image.style.display = 'none';
+        fallback.textContent = `画像が見つかりませんでした。\n\n${label}`;
+        fallback.style.display = 'block';
+      };
+
+      const imageUrl = await getAssetUrl(`${formulaId}.png`);
+      image.src = imageUrl;
+
+      closeButton.textContent = index >= ids.length - 1 ? '確認して開始' : '次へ';
+    };
+
+    closeButton.onclick = () => {
+      index += 1;
+      if (index >= ids.length) {
+        modal.classList.add('hidden');
+        closeButton.onclick = null;
+        resolve();
+        return;
+      }
+      render();
+    };
+
+    render();
+  });
+}
+
+async function ensureFormulasUnlockedForProblem(problemData) {
+  const required = sanitizeUnlockedFormulas(getRequiredFormulasFromProblem(problemData))
+    .filter((id) => (typeof isSupportedFormulaId === 'function' ? isSupportedFormulaId(id) : true));
+
+  if (required.length === 0) return [];
+
+  const unlocked = new Set(getUnlockedFormulaIds());
+  const newlyFound = required.filter((id) => !unlocked.has(id));
+  if (newlyFound.length === 0) return [];
+
+  // 初回遭遇: 画像ポップアップを出してからアンロック
+  await showFormulaUnlockModal(newlyFound);
+  unlockFormulaIds(newlyFound);
+
+  return newlyFound;
+}
+
 function switchScreen(screenId) {
   document.querySelectorAll('.a').forEach((screen) => screen.classList.remove('b'));
   const target = document.getElementById(screenId);
@@ -1905,6 +2244,8 @@ function switchScreen(screenId) {
       centerMapCameraOnCurrentStage(true);
     });
   }
+
+  updateBackgroundForScreen(screenId);
 }
 
 // toast-message がある場合はトースト表示。
@@ -2035,19 +2376,53 @@ function getTutorialActionGateState() {
 function getTutorialGateAllowedTypes(stageId) {
   if (!isTutorialStageId(stageId)) return { allowAll: true, types: null };
 
-  const gate = getTutorialActionGateState();
-  if (!gate.hasReplace) {
-    return { allowAll: false, types: new Set(['replace_operation', 'proof_step']) };
+  const targetState = getTutorialTargetOperationState(stageId);
+  if (!targetState || targetState.isComplete) return { allowAll: true, types: null };
+
+  const targetType = targetState.type;
+  const targetBlock = targetState.block;
+
+  const formulaBlockTypes = typeof getKnownFormulaIds === 'function'
+    ? getKnownFormulaIds()
+    : ['formula_1', 'formula_2', 'formula_3', 'formula_4', 'formula_5', 'formula_6', 'formula_7', 'formula_8'];
+  const mathBlockTypes = ['custom_number', 'term_sin', 'term_cos', 'term_tan', 'term_sin2', 'term_cos2',
+    'math_add', 'math_negate', 'math_multiply', 'math_fraction', 'math_square'];
+
+  if (targetState.isMissing || !targetBlock) {
+    return { allowAll: false, types: new Set([targetType]) };
   }
-  if (!gate.hasConclusion) {
-    return { allowAll: false, types: new Set(['conclusion_operation', 'proof_step']) };
+
+  const requiredFormulaIdsRaw = typeof getRequiredFormulaIdsForProblem === 'function'
+    ? getRequiredFormulaIdsForProblem(currentProblemData)
+    : [];
+  const requiredFormulaIds = requiredFormulaIdsRaw
+    .map((id) => String(id))
+    .filter((id) => !!id)
+    .filter((id) => (typeof isSupportedFormulaId === 'function' ? isSupportedFormulaId(id) : true));
+
+  const hasFloatingFormula = workspace.getTopBlocks(false).some((block) => {
+    const type = String(block.type || '');
+    if (!type.startsWith('formula_')) return false;
+    if (requiredFormulaIds.length === 0) return true;
+    return requiredFormulaIds.includes(type);
+  });
+
+  const formulaMissing = targetType === 'replace_operation'
+    && !targetBlock.getInputTargetBlock('FORMULA');
+  if (formulaMissing && !hasFloatingFormula) {
+    return { allowAll: false, types: new Set([...formulaBlockTypes, targetType]) };
   }
-  if (!gate.hasFormula) {
-    return { allowAll: false, types: new Set(['proof_step', 'formula_1', 'formula_2', 'formula_3', 'formula_4', 'formula_5', 'formula_6', 'formula_7', 'formula_8']) };
-  }
-  if (!gate.hasExpressions) {
-    return { allowAll: false, types: new Set(['custom_number', 'term_sin', 'term_cos', 'term_tan', 'term_sin2', 'term_cos2',
-      'math_add', 'math_negate', 'math_multiply', 'math_fraction', 'math_square']) };
+
+  const missingHole = getTutorialOperationMissingHole(targetType, targetBlock);
+  const isFormulaHole = targetType === 'replace_operation'
+    && missingHole
+    && missingHole.key === 'fill-replace-formula';
+  const hasFloatingMath = workspace.getTopBlocks(false).some((block) =>
+    !isProofOrOperationBlockType(block.type) && !String(block.type || '').startsWith('formula_')
+  );
+
+  if (missingHole && !hasFloatingMath && !isFormulaHole) {
+    return { allowAll: false, types: new Set([...mathBlockTypes, targetType]) };
   }
 
   return { allowAll: true, types: null };
@@ -2067,8 +2442,13 @@ function closeGameEntrance() {
 
 function openGameEntrance() {
   const entrance = document.getElementById('game-entrance');
-  if (entrance) entrance.classList.remove('hidden');
+  if (entrance) {
+    entrance.classList.remove('hidden');
+    entrance.classList.remove('show-choices');
+  }
   hideTutorialOverlay();
+  // 起動画面はタイトル背景へ
+  setAppBackgroundByKey('title');
 }
 
 function hideTutorialOverlay() {
@@ -2256,6 +2636,9 @@ async function loadStage(stageNumber) {
     if (!sanitizedText) throw new Error('EMPTY_JSON');
     currentProblemData = JSON.parse(sanitizedText);
 
+    // requiredFormulas に応じて「初回公式アンロック」ポップアップを表示
+    await ensureFormulasUnlockedForProblem(currentProblemData);
+
     currentStageSolved = false;
     currentSkipOffer = null;
     closeSkipChallengeModal();
@@ -2279,28 +2662,8 @@ async function loadStage(stageNumber) {
       MathJax.typesetPromise();
     }
 
-    // 問題式カテゴリをツールボックス先頭に追加
-    const updatedToolbox = JSON.parse(JSON.stringify(toolboxConfig));
-    const problemBlocksCategory = { kind: 'category', name: '✨問題の式', contents: [] };
-
-    if (currentProblemData.initialState?.blocks?.blocks) {
-      currentProblemData.initialState.blocks.blocks.forEach((block) => {
-        if (block.type !== 'proof_step') {
-          const blockCopy = JSON.parse(JSON.stringify(block));
-          blockCopy.kind = 'block';
-          delete blockCopy.x;
-          delete blockCopy.y;
-          delete blockCopy.id;
-          problemBlocksCategory.contents.push(blockCopy);
-        }
-      });
-    }
-
-    if (problemBlocksCategory.contents.length > 0) {
-      updatedToolbox.contents[0].contents.unshift(problemBlocksCategory);
-    }
-
-    workspace.updateToolbox(updatedToolbox);
+    // ツールボックスをアンロック済み公式 + 問題の式 から動的生成
+    workspace.updateToolbox(buildToolboxConfig(currentProblemData));
     workspace.clear();
     Blockly.serialization.workspaces.load(currentProblemData.initialState, workspace);
 
@@ -2477,6 +2840,39 @@ mathGenerator.forBlock.formula_7 = function () {
 mathGenerator.forBlock.formula_8 = function () {
   return ['tan(x)^2 = (1 - cos(2 * x)) / (1 + cos(2 * x))', 0];
 };
+mathGenerator.forBlock.formula_9 = function () {
+  return ['(sin(x) + cos(x))^2 = sin(x)^2 + 2 * sin(x) * cos(x) + cos(x)^2', 0];
+};
+mathGenerator.forBlock.formula_10 = function () {
+  return ['sin(x)^4 + cos(x)^4 + 2 * sin(x)^2 * cos(x)^2 = (sin(x)^2 + cos(x)^2)^2', 0];
+};
+mathGenerator.forBlock.formula_11 = function () {
+  return ['sin(x)^6 + cos(x)^6 = (sin(x)^2 + cos(x)^2) * (sin(x)^4 - sin(x)^2 * cos(x)^2 + cos(x)^4)', 0];
+};
+mathGenerator.forBlock.formula_12 = function () {
+  return ['sin(3 * x) = 3 * sin(x) - 4 * sin(x)^3', 0];
+};
+mathGenerator.forBlock.formula_13 = function () {
+  return ['cos(3 * x) = 4 * cos(x)^3 - 3 * cos(x)', 0];
+};
+mathGenerator.forBlock.formula_14 = function () {
+  return ['sin(x) + sin(y) = 2 * sin((x + y) / 2) * cos((x - y) / 2)', 0];
+};
+mathGenerator.forBlock.formula_15 = function () {
+  return ['sin(x) * cos(y) = (sin(x + y) + sin(x - y)) / 2', 0];
+};
+mathGenerator.forBlock.formula_16 = function () {
+  return ['tan(2 * x) = (2 * tan(x)) / (1 - tan(x)^2)', 0];
+};
+mathGenerator.forBlock.formula_addition_sin = function () {
+  return ['sin(x + y) = sin(x) * cos(y) + cos(x) * sin(y)', 0];
+};
+mathGenerator.forBlock.formula_addition_cos = function () {
+  return ['cos(x + y) = cos(x) * cos(y) - sin(x) * sin(y)', 0];
+};
+mathGenerator.forBlock.formula_addition_tan = function () {
+  return ['tan(x + y) = (tan(x) + tan(y)) / (1 - tan(x) * tan(y))', 0];
+};
 
 function setupEventListeners() {
   if (hasBoundEventListeners) return;
@@ -2503,7 +2899,7 @@ function setupEventListeners() {
 
   document.getElementById('btn-hint')?.addEventListener('click', () => {
     if (tutorialModeActive) {
-      showToast(getTutorialBannerText(currentStageNumber) || '【目標】空いている穴にブロックをはめよう！', true);
+      showToast(getTutorialBannerText(currentStageNumber) || '【目標】ブロックの空いている穴に、対応する式をはめ込みましょう。', true);
       updateTutorialHighlightUI(currentStageNumber);
       return;
     }
@@ -2527,6 +2923,13 @@ function setupEventListeners() {
     closeSkipChallengeModal();
     renderStageMap();
     switchScreen('stage-map-screen');
+  });
+
+  // 起動画面: START → 二択表示
+  document.getElementById('btn-entry-start')?.addEventListener('click', () => {
+    const entrance = document.getElementById('game-entrance');
+    if (entrance) entrance.classList.add('show-choices');
+    setAppBackgroundByKey('select');
   });
 
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
@@ -2658,7 +3061,7 @@ function setupEventListeners() {
       const actualGreenTypes = ast
         .map((step) => String(step.type || ''))
         .filter((type) => GREEN_OPERATION_TYPES.has(type));
-      const requiredGreenTypes = getAnswerGreenOperationSequence(currentProblemData);
+      const requiredGreenTypes = getRequiredGreenOperationSequence(currentProblemData);
       const missingGreenTypes = getMissingTypesByRequiredOrder(requiredGreenTypes, actualGreenTypes);
       if (missingGreenTypes.length > 0) {
         showToast(`<span style='color:#ff4b4b'>必須ブロックが不足しています: ${summarizeTypeCounts(missingGreenTypes)}</span>`);

@@ -63,6 +63,141 @@
       concept: 'tan_square_with_cos2',
       getSides: (thetaExpr = 'theta') => [`tan(${thetaExpr})^2`, `((1 - cos(2 * ${thetaExpr})) / (1 + cos(2 * ${thetaExpr})))`],
     },
+    formula_9: {
+      id: 'formula_9',
+      text: '(sin(x)+cos(x))^2=sin(x)^2+2*sin(x)*cos(x)+cos(x)^2',
+      label: '公式⑨',
+      concept: 'square_expansion',
+      getSides: (thetaExpr = 'theta') => [
+        `(sin(${thetaExpr}) + cos(${thetaExpr}))^2`,
+        `(sin(${thetaExpr})^2 + 2 * sin(${thetaExpr}) * cos(${thetaExpr}) + cos(${thetaExpr})^2)`,
+      ],
+    },
+    formula_10: {
+      id: 'formula_10',
+      text: 'sin(x)^4+cos(x)^4+2*sin(x)^2*cos(x)^2=(sin(x)^2+cos(x)^2)^2',
+      label: '公式⑩',
+      concept: 'perfect_square_identity',
+      getSides: (thetaExpr = 'theta') => [
+        `(sin(${thetaExpr})^4 + cos(${thetaExpr})^4 + 2 * sin(${thetaExpr})^2 * cos(${thetaExpr})^2)`,
+        `(sin(${thetaExpr})^2 + cos(${thetaExpr})^2)^2`,
+      ],
+    },
+    formula_11: {
+      id: 'formula_11',
+      text: 'sin(x)^6+cos(x)^6=(sin(x)^2+cos(x)^2)*(sin(x)^4-sin(x)^2*cos(x)^2+cos(x)^4)',
+      label: '公式⑪',
+      concept: 'sixth_power_factorization',
+      getSides: (thetaExpr = 'theta') => [
+        `(sin(${thetaExpr})^6 + cos(${thetaExpr})^6)`,
+        `(sin(${thetaExpr})^2 + cos(${thetaExpr})^2) * (sin(${thetaExpr})^4 - sin(${thetaExpr})^2 * cos(${thetaExpr})^2 + cos(${thetaExpr})^4)`,
+      ],
+    },
+    formula_12: {
+      id: 'formula_12',
+      text: 'sin(3*x)=3*sin(x)-4*sin(x)^3',
+      label: '公式⑫',
+      concept: 'triple_angle_sin',
+      getSides: (thetaExpr = 'theta') => [
+        `sin(3 * ${thetaExpr})`,
+        `(3 * sin(${thetaExpr}) - 4 * sin(${thetaExpr})^3)`,
+      ],
+    },
+    formula_13: {
+      id: 'formula_13',
+      text: 'cos(3*x)=4*cos(x)^3-3*cos(x)',
+      label: '公式⑬',
+      concept: 'triple_angle_cos',
+      getSides: (thetaExpr = 'theta') => [
+        `cos(3 * ${thetaExpr})`,
+        `(4 * cos(${thetaExpr})^3 - 3 * cos(${thetaExpr}))`,
+      ],
+    },
+    formula_14: {
+      id: 'formula_14',
+      text: 'sin(x)+sin(y)=2*sin((x+y)/2)*cos((x-y)/2)',
+      label: '公式⑭',
+      concept: 'sum_to_product',
+      getSides: (thetaExpr = 'theta') => {
+        const parts = splitAngleExpression(thetaExpr);
+        const a = parts?.a || thetaExpr;
+        const b = parts?.b || '0';
+        return [
+          `sin(${a}) + sin(${b})`,
+          `2 * sin(((${a}) + (${b})) / 2) * cos(((${a}) - (${b})) / 2)`,
+        ];
+      },
+    },
+    formula_15: {
+      id: 'formula_15',
+      text: 'sin(x)*cos(y)=(sin(x+y)+sin(x-y))/2',
+      label: '公式⑮',
+      concept: 'product_to_sum',
+      getSides: (thetaExpr = 'theta') => {
+        const parts = splitAngleExpression(thetaExpr);
+        const a = parts?.a || thetaExpr;
+        const b = parts?.b || '0';
+        return [
+          `sin(${a}) * cos(${b})`,
+          `(sin((${a}) + (${b})) + sin((${a}) - (${b}))) / 2`,
+        ];
+      },
+    },
+    formula_16: {
+      id: 'formula_16',
+      text: 'tan(2*x)=(2*tan(x))/(1-tan(x)^2)',
+      label: '公式⑯',
+      concept: 'double_angle_tan',
+      getSides: (thetaExpr = 'theta') => [
+        `tan(2 * ${thetaExpr})`,
+        `(2 * tan(${thetaExpr})) / (1 - tan(${thetaExpr})^2)`,
+      ],
+    },
+    formula_addition_sin: {
+      id: 'formula_addition_sin',
+      text: 'sin(x+y)=sin(x)*cos(y)+cos(x)*sin(y)',
+      label: '加法公式 sin',
+      concept: 'addition_sin',
+      getSides: (thetaExpr = 'theta') => {
+        const parts = splitAngleExpression(thetaExpr);
+        const a = parts?.a || thetaExpr;
+        const b = parts?.b || '0';
+        return [
+          `sin((${a}) + (${b}))`,
+          `sin(${a}) * cos(${b}) + cos(${a}) * sin(${b})`,
+        ];
+      },
+    },
+    formula_addition_cos: {
+      id: 'formula_addition_cos',
+      text: 'cos(x+y)=cos(x)*cos(y)-sin(x)*sin(y)',
+      label: '加法公式 cos',
+      concept: 'addition_cos',
+      getSides: (thetaExpr = 'theta') => {
+        const parts = splitAngleExpression(thetaExpr);
+        const a = parts?.a || thetaExpr;
+        const b = parts?.b || '0';
+        return [
+          `cos((${a}) + (${b}))`,
+          `cos(${a}) * cos(${b}) - sin(${a}) * sin(${b})`,
+        ];
+      },
+    },
+    formula_addition_tan: {
+      id: 'formula_addition_tan',
+      text: 'tan(x+y)=(tan(x)+tan(y))/(1-tan(x)*tan(y))',
+      label: '加法公式 tan',
+      concept: 'addition_tan',
+      getSides: (thetaExpr = 'theta') => {
+        const parts = splitAngleExpression(thetaExpr);
+        const a = parts?.a || thetaExpr;
+        const b = parts?.b || '0';
+        return [
+          `tan((${a}) + (${b}))`,
+          `(tan(${a}) + tan(${b})) / (1 - tan(${a}) * tan(${b}))`,
+        ];
+      },
+    },
   };
 
   const OPERATION_TO_CONCEPT = {
@@ -80,6 +215,12 @@
     '⑧': 8,
     '⑨': 9,
     '⑩': 10,
+    '⑪': 11,
+    '⑫': 12,
+    '⑬': 13,
+    '⑭': 14,
+    '⑮': 15,
+    '⑯': 16,
   };
 
   const VALIDATION_EPSILON = 0.0001;
@@ -100,27 +241,44 @@
     return FORMULA_REGISTRY[formulaId]?.label || formulaId;
   }
 
+  function splitAngleExpression(thetaExpr) {
+    const parsed = tryParseMathNode(thetaExpr);
+    if (!parsed) return null;
+
+    const normalized = unwrapParenthesisNode(parsed);
+    if (!normalized || normalized.type !== 'OperatorNode') return null;
+    if (!Array.isArray(normalized.args) || normalized.args.length !== 2) return null;
+    if (normalized.op !== '+' && normalized.op !== '-') return null;
+
+    const aExpr = nodeToExpression(normalized.args[0]);
+    const bExprRaw = nodeToExpression(normalized.args[1]);
+    if (!aExpr || !bExprRaw) return null;
+
+    const bExpr = normalized.op === '-' ? `(-(${bExprRaw}))` : bExprRaw;
+    return { a: aExpr, b: bExpr };
+  }
+
   function toFormulaIdFromToken(token) {
     if (typeof token !== 'string') return null;
     const trimmed = token.trim();
     if (!trimmed) return null;
 
-    if (/^formula_\d+$/i.test(trimmed)) {
+    if (/^formula_[a-z0-9_]+$/i.test(trimmed)) {
       return trimmed.toLowerCase();
     }
 
-    const circledMatch = trimmed.match(/[①-⑩]/);
+    const circledMatch = trimmed.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/);
     if (circledMatch) {
       const number = CIRCLED_FORMULA_DIGIT_TO_NUMBER[circledMatch[0]];
       return number ? `formula_${number}` : null;
     }
 
-    const numberMatch = trimmed.match(/^公式\s*(10|[1-9])$/);
+    const numberMatch = trimmed.match(/^公式\s*(1[0-6]|[1-9])$/);
     if (numberMatch) {
       return `formula_${numberMatch[1]}`;
     }
 
-    if (/^(10|[1-9])$/.test(trimmed)) {
+    if (/^(1[0-6]|[1-9])$/.test(trimmed)) {
       return `formula_${trimmed}`;
     }
 
@@ -141,13 +299,13 @@
     problemData.hints.forEach((hint) => {
       if (typeof hint !== 'string') return;
 
-      const circledMatches = hint.match(/[①-⑩]/g) || [];
+      const circledMatches = hint.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/g) || [];
       circledMatches.forEach((char) => {
         const number = CIRCLED_FORMULA_DIGIT_TO_NUMBER[char];
         if (number) formulaIdSet.add(`formula_${number}`);
       });
 
-      const plainMatches = hint.match(/公式\s*(10|[1-9])/g) || [];
+      const plainMatches = hint.match(/公式\s*(1[0-6]|[1-9])/g) || [];
       plainMatches.forEach((match) => {
         const formulaId = toFormulaIdFromToken(match);
         if (formulaId) formulaIdSet.add(formulaId);
