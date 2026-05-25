@@ -7,7 +7,6 @@
   "mathText": "\\[ 4\\sin\\theta\\cos\\theta\\cos 2\\theta = \\sin 4\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

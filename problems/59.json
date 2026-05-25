@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{\\sin 3\\theta}{\\sin\\theta} - \\frac{\\cos 3\\theta}{\\cos\\theta} = 2 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

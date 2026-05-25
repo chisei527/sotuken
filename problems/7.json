@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{\\tan\\theta}{\\sin\\theta} = \\frac{1}{\\cos\\theta} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -205,7 +204,7 @@
                 },
                 "next": {
                   "block": {
-                    "type": "common_denominator_operation",
+                    "type": "conclusion_operation",
                     "inputs": {
                       "VALUE": {
                         "block": {
@@ -213,13 +212,9 @@
                           "inputs": {
                             "NUMERATOR": {
                               "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
+                                "type": "custom_number",
+                                "fields": {
+                                  "NUM": 1
                                 }
                               }
                             },
@@ -230,71 +225,6 @@
                                   "ANGLE": {
                                     "block": {
                                       "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "term_cos_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "custom_number",
-                                    "fields": {
-                                      "NUM": 1
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "term_cos_of",
-                                    "inputs": {
-                                      "ANGLE": {
-                                        "block": {
-                                          "type": "term_theta"
-                                        }
-                                      }
                                     }
                                   }
                                 }

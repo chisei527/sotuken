@@ -7,7 +7,6 @@
   "mathText": "\\[ 2\\cos^2\\theta - \\cos 2\\theta = 1 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

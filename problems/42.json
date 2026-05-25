@@ -7,7 +7,6 @@
   "mathText": "\\[ \\sin^2(\\frac{\\pi}{6}) + \\cos^2(\\frac{\\pi}{6}) + \\frac{\\sin^2(\\frac{\\pi}{6})}{\\cos^2(\\frac{\\pi}{6})} = \\frac{1}{\\cos^2(\\frac{\\pi}{6})} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -644,7 +643,7 @@
                         },
                         "next": {
                           "block": {
-                            "type": "common_denominator_operation",
+                            "type": "conclusion_operation",
                             "inputs": {
                               "VALUE": {
                                 "block": {
@@ -660,104 +659,29 @@
                                     },
                                     "DENOMINATOR": {
                                       "block": {
-                                        "type": "math_square",
+                                        "type": "term_cos_of",
                                         "inputs": {
-                                          "A": {
+                                          "ANGLE": {
                                             "block": {
-                                              "type": "term_cos_of",
+                                              "type": "math_fraction",
                                               "inputs": {
-                                                "ANGLE": {
+                                                "NUMERATOR": {
                                                   "block": {
-                                                    "type": "term_theta"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "REPLACEMENT": {
-                                "block": {
-                                  "type": "math_fraction",
-                                  "inputs": {
-                                    "NUMERATOR": {
-                                      "block": {
-                                        "type": "custom_number",
-                                        "fields": {
-                                          "NUM": 1
-                                        }
-                                      }
-                                    },
-                                    "DENOMINATOR": {
-                                      "block": {
-                                        "type": "math_square",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "term_cos_of",
-                                              "inputs": {
-                                                "ANGLE": {
-                                                  "block": {
-                                                    "type": "term_theta"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "next": {
-                              "block": {
-                                "type": "conclusion_operation",
-                                "inputs": {
-                                  "VALUE": {
-                                    "block": {
-                                      "type": "math_fraction",
-                                      "inputs": {
-                                        "NUMERATOR": {
-                                          "block": {
-                                            "type": "custom_number",
-                                            "fields": {
-                                              "NUM": 1
-                                            }
-                                          }
-                                        },
-                                        "DENOMINATOR": {
-                                          "block": {
-                                            "type": "term_cos_of",
-                                            "inputs": {
-                                              "ANGLE": {
-                                                "block": {
-                                                  "type": "math_fraction",
-                                                  "inputs": {
-                                                    "NUMERATOR": {
-                                                      "block": {
-                                                        "type": "math_square",
-                                                        "inputs": {
-                                                          "A": {
-                                                            "block": {
-                                                              "type": "term_pi"
-                                                            }
-                                                          }
+                                                    "type": "math_square",
+                                                    "inputs": {
+                                                      "A": {
+                                                        "block": {
+                                                          "type": "term_pi"
                                                         }
                                                       }
-                                                    },
-                                                    "DENOMINATOR": {
-                                                      "block": {
-                                                        "type": "custom_number",
-                                                        "fields": {
-                                                          "NUM": 6
-                                                        }
-                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "DENOMINATOR": {
+                                                  "block": {
+                                                    "type": "custom_number",
+                                                    "fields": {
+                                                      "NUM": 6
                                                     }
                                                   }
                                                 }

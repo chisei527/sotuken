@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{\\cos^3\\theta - \\cos 3\\theta}{\\cos\\theta} + \\frac{\\sin^3\\theta + \\sin 3\\theta}{\\sin\\theta} = 3 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{\\frac{1}{\\sin\\theta} - \\frac{1}{\\tan\\theta}}{\\frac{1}{\\sin\\theta} + \\frac{1}{\\tan\\theta}} = \\frac{1 - \\cos\\theta}{1 + \\cos\\theta} \\\\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -497,7 +496,7 @@
                 },
                 "next": {
                   "block": {
-                    "type": "common_denominator_operation",
+                    "type": "conclusion_operation",
                     "inputs": {
                       "VALUE": {
                         "block": {
@@ -505,96 +504,27 @@
                           "inputs": {
                             "NUMERATOR": {
                               "block": {
-                                "type": "term_sin_of",
+                                "type": "math_add",
                                 "inputs": {
-                                  "ANGLE": {
+                                  "A": {
                                     "block": {
-                                      "type": "term_theta"
+                                      "type": "custom_number",
+                                      "fields": {
+                                        "NUM": 1
+                                      }
                                     }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "term_cos_of",
-                                "inputs": {
-                                  "ANGLE": {
+                                  },
+                                  "B": {
                                     "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "term_sin_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "term_cos_of",
-                                "inputs": {
-                                  "ANGLE": {
-                                    "block": {
-                                      "type": "term_theta"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "math_add",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "custom_number",
-                                          "fields": {
-                                            "NUM": 1
-                                          }
-                                        }
-                                      },
-                                      "B": {
-                                        "block": {
-                                          "type": "math_negate",
-                                          "inputs": {
-                                            "A": {
-                                              "block": {
-                                                "type": "term_cos_of",
-                                                "inputs": {
-                                                  "ANGLE": {
-                                                    "block": {
-                                                      "type": "term_theta"
-                                                    }
-                                                  }
+                                      "type": "math_negate",
+                                      "inputs": {
+                                        "A": {
+                                          "block": {
+                                            "type": "term_cos_of",
+                                            "inputs": {
+                                              "ANGLE": {
+                                                "block": {
+                                                  "type": "term_theta"
                                                 }
                                               }
                                             }
@@ -603,28 +533,28 @@
                                       }
                                     }
                                   }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "math_add",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "custom_number",
-                                          "fields": {
-                                            "NUM": 1
-                                          }
-                                        }
-                                      },
-                                      "B": {
-                                        "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
+                                }
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "math_add",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "custom_number",
+                                      "fields": {
+                                        "NUM": 1
+                                      }
+                                    }
+                                  },
+                                  "B": {
+                                    "block": {
+                                      "type": "term_cos_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_theta"
                                           }
                                         }
                                       }

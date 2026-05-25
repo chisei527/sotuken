@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{1}{\\tan\\theta} + \\tan\\theta = \\frac{2}{\\sin 2\\theta} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

@@ -7,7 +7,6 @@
   "mathText": "\\[ \\cos 3\\theta + 3\\cos\\theta = 4\\cos^3\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

@@ -70,6 +70,33 @@
           }
         },
         {
+          "type": "math_fraction",
+          "x": 760,
+          "y": 50,
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "custom_number",
+                "fields": {
+                  "NUM": 1
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_cos"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
           "type": "proof_step",
           "x": 50,
           "y": 150,
@@ -77,67 +104,10 @@
             "OPERATIONS": {
               "block": {
                 "type": "replace_operation",
-                "inputs": {
-                  "REPLACEMENT": {
-                    "block": {
-                      "type": "math_fraction",
-                      "inputs": {
-                        "NUMERATOR": {
-                          "block": {
-                            "type": "custom_number",
-                            "fields": {
-                              "NUM": 1
-                            }
-                          }
-                        },
-                        "DENOMINATOR": {
-                          "block": {
-                            "type": "math_square",
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "type": "term_cos"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
                 "next": {
                   "block": {
                     "type": "conclusion_operation",
-                    "inputs": {
-                      "VALUE": {
-                        "block": {
-                          "type": "math_fraction",
-                          "inputs": {
-                            "NUMERATOR": {
-                              "block": {
-                                "type": "custom_number",
-                                "fields": {
-                                  "NUM": 1
-                                }
-                              }
-                            },
-                            "DENOMINATOR": {
-                              "block": {
-                                "type": "math_square",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_cos"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
+                    "inputs": {}
                   }
                 }
               }

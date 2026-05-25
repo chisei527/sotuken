@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{1 + \\tan\\theta}{1 - \\tan\\theta} = \\tan(\\theta + \\frac{\\pi}{4}) \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

@@ -8,7 +8,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background-color: #f0f7ff; font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif; }
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background-color: #f0f7ff;
+          font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif;
+          /* 画面遷移に応じて main.js から backgroundImage を差し替える */
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-attachment: fixed;
+          transition: background-image 260ms ease;
+        }
         .a { display: none; height: 100%; flex-direction: column; }
         .b { display: flex; }
         #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow: hidden;}
@@ -257,12 +269,10 @@
 
         /* PC-only progression map */
         .screen { width: 100%; height: 100%; }
-        #stage-map-screen {
+                #stage-map-screen {
           position: relative;
-          background:
-            radial-gradient(circle at 12% 18%, rgba(255,255,255,0.32), transparent 34%),
-            radial-gradient(circle at 84% 80%, rgba(255,255,255,0.22), transparent 36%),
-            linear-gradient(160deg, #0b3f82 0%, #0f64b5 52%, #1988cc 100%);
+          /* 背景は body に委譲（bg_select.png を表示） */
+          background: rgba(2, 17, 39, 0.28);
           color: #e8f6ff;
           overflow: hidden;
           align-items: stretch;
@@ -334,19 +344,35 @@
             linear-gradient(132deg, #082f49 0%, #0c4a6e 36%, #0369a1 100%);
           color: white;
         }
-        #game-entrance {
-          position: fixed;
-          inset: 0;
-          z-index: 2400;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background:
-            radial-gradient(circle at 8% 14%, rgba(255,255,255,0.4), transparent 28%),
-            radial-gradient(circle at 78% 82%, rgba(255,255,255,0.22), transparent 30%),
-            linear-gradient(132deg, #082f49 0%, #0c4a6e 36%, #0369a1 100%);
-          color: white;
-        }
+                                #game-entrance {
+                                  position: fixed;
+                                  inset: 0;
+                                  z-index: 2400;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  /* 背景は body に委譲（bg_title.png を表示） */
+                                  background: rgba(2, 14, 34, 0.18);
+                                  color: white;
+                                }
+
+        /* 起動UI: START → 二択 */
+        #game-entrance:not(.show-choices) .entrance-card { display: none; }
+        #game-entrance.show-choices #btn-entry-start { display: none; }
+
+                #btn-entry-start.entrance-start-btn {
+                  position: fixed;
+                  left: 50%;
+                  bottom: 84px;
+                  transform: translateX(-50%);
+                  padding: 24px 64px;
+                  border-radius: 999px;
+                  font-size: 24px;
+                  letter-spacing: 0.16em;
+                  text-transform: uppercase;
+                  box-shadow: 0 32px 80px rgba(0,0,0,0.62);
+                  min-width: 320px;
+                }
         #game-entrance.hidden { display: none; }
         .entrance-card {
           width: 920px;
@@ -402,23 +428,504 @@
         }
         .tutorial-intro-card h2 { margin: 0 0 12px; font-size: 1.7rem; color: #0f172a; }
         .tutorial-intro-card p { margin: 0 0 16px; color: #475569; font-weight: 700; line-height: 1.6; }
+
+        /* ===== 新公式アンロック（画像ポップアップ） ===== */
+        .formula-unlock-card {
+          background: #ffffff;
+          padding: 26px;
+          border-radius: 22px;
+          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+          width: min(94vw, 760px);
+          text-align: center;
+        }
+        #formula-unlock-title {
+          margin: 0 0 14px;
+          font-size: 1.55rem;
+          font-weight: 900;
+          color: #0f172a;
+        }
+        #formula-unlock-image {
+          width: 100%;
+          max-height: 62vh;
+          object-fit: contain;
+          display: block;
+          margin: 0 auto 14px;
+          border-radius: 16px;
+          background: #f8fafc;
+          border: 2px solid #d7e7ff;
+        }
+        #formula-unlock-fallback {
+          display: none;
+          margin: 0 auto 14px;
+          padding: 16px 14px;
+          border-radius: 16px;
+          background: #f1f5f9;
+          border: 2px solid #d7e7ff;
+          font-weight: 900;
+          color: #0f172a;
+          text-align: left;
+          white-space: pre-wrap;
+        }
+                #formula-unlock-meta {
+          margin: 0 0 16px;
+          color: #475569;
+          font-weight: 800;
+          font-size: 0.95rem;
+        }
+
+        /* =====================================================
+           COOL THEME: 背景に似合うクール/スタイリッシュ統一
+           （既存CSSの上書き用: 下に書いたものが優先されます）
+           ===================================================== */
+        :root {
+          --cool-veil: rgba(2, 10, 24, 0.62);
+          --cool-veil-soft: rgba(2, 10, 24, 0.40);
+          --cool-glass: rgba(255, 255, 255, 0.10);
+          --cool-glass-strong: rgba(255, 255, 255, 0.14);
+          --cool-stroke: rgba(148, 163, 184, 0.25);
+          --cool-text: #e6f0ff;
+          --cool-muted: rgba(203, 213, 225, 0.82);
+          --cool-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+
+          --cool-accent: #38bdf8;  /* cyan */
+          --cool-accent2: #a78bfa; /* violet */
+          --cool-success: #22c55e;
+          --cool-warning: #fbbf24;
+          --cool-danger: #fb7185;
+        }
+
+        /* 全画面のベーストーン */
+        body {
+          color: var(--cool-text);
+          background-color: #050b16;
+        }
+
+        /* ステージ選択(旧)も背景はbodyへ */
+        #c {
+          background: rgba(2, 17, 39, 0.34) !important;
+          color: var(--cool-text) !important;
+        }
+
+        /* Puzzle screen wrapper */
+        #p {
+          background: transparent;
+        }
+
+        /* 上部ヘッダー（ステージ画面） */
+        #h {
+          background: linear-gradient(180deg, rgba(8, 23, 48, 0.92) 0%, rgba(3, 12, 28, 0.78) 100%);
+          border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+          backdrop-filter: blur(10px);
+        }
+        #h button {
+          background: linear-gradient(145deg, rgba(56, 189, 248, 0.16), rgba(167, 139, 250, 0.12));
+          color: var(--cool-text);
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+        }
+        #h button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+        #streak-counter {
+          background: rgba(255,255,255,0.10);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        /* 問題文カード */
+        #i {
+          background: rgba(255,255,255,0.10);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          box-shadow: var(--cool-shadow);
+          color: var(--cool-text);
+          backdrop-filter: blur(10px);
+        }
+
+        /* チュートリアル系のカードもガラス化 */
+        #tutorial-progress-shell {
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.26);
+        }
+        #tutorial-progress-meta { color: rgba(187, 247, 208, 0.92); }
+        #tutorial-progress-track { background: rgba(34, 197, 94, 0.18); }
+
+        /* オーバーレイ（モーダル背景） */
+        .overlay-screen {
+          background: rgba(2, 10, 24, 0.72);
+          backdrop-filter: blur(12px);
+        }
+
+        /* 各種モーダルカード（共通でクールに） */
+        .skip-challenge-card,
+        .unit-circle-card,
+        .tutorial-intro-card,
+        .formula-unlock-card {
+          background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%);
+          border: 1px solid rgba(148, 163, 184, 0.24);
+          box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+          color: var(--cool-text);
+          backdrop-filter: blur(14px);
+        }
+        .skip-challenge-card h2,
+        .unit-circle-card h2,
+        .tutorial-intro-card h2,
+        #formula-unlock-title {
+          color: var(--cool-text);
+          letter-spacing: 0.02em;
+        }
+        .skip-challenge-card p,
+        .unit-circle-card p,
+        .tutorial-intro-card p,
+        #formula-unlock-meta {
+          color: var(--cool-muted);
+        }
+
+        #unit-circle {
+          background: rgba(255,255,255,0.92);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        /* Action bar（下部ボタン列） */
+        .action-bar-container {
+          background: rgba(255,255,255,0.10);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          box-shadow: 0 22px 55px rgba(0,0,0,0.40);
+          backdrop-filter: blur(14px);
+        }
+
+        .action-btn {
+          color: rgba(240, 249, 255, 0.98);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.28);
+          transform: translateY(0);
+          transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+        }
+        .action-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+        .action-btn:active { transform: translateY(1px); box-shadow: 0 8px 14px rgba(0,0,0,0.22); }
+
+        .btn-primary {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(167, 139, 250, 0.95));
+          box-shadow: 0 16px 30px rgba(56, 189, 248, 0.20);
+        }
+        .btn-secondary {
+          background: linear-gradient(135deg, rgba(148, 163, 184, 0.28), rgba(148, 163, 184, 0.18));
+          color: rgba(240, 249, 255, 0.92);
+        }
+        .btn-warning {
+          background: linear-gradient(135deg, rgba(251, 191, 36, 0.92), rgba(245, 158, 11, 0.92));
+          color: rgba(15, 23, 42, 0.95);
+        }
+        .btn-danger {
+          background: linear-gradient(135deg, rgba(251, 113, 133, 0.92), rgba(244, 63, 94, 0.92));
+        }
+        #btn-next {
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.92), rgba(16, 185, 129, 0.92));
+        }
+
+        /* Toast */
+        .toast {
+          background: rgba(255,255,255,0.12);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          color: var(--cool-text);
+          backdrop-filter: blur(10px);
+        }
+
+        /* マップ画面のトップバー */
+        .map-topbar {
+          background: rgba(2, 10, 24, 0.55);
+          border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+          backdrop-filter: blur(12px);
+        }
+        .map-control-btn {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(167, 139, 250, 0.14));
+          border: 1px solid rgba(148, 163, 184, 0.24);
+        }
+
+        /* マップノード */
+        /* ===== マリオ風: 横一列ステージマップ ===== */
+        :root {
+          --map-node-size: 92px;
+          --map-road-length: 64px;
+          --map-gap: 10px;
+        }
+        #map-viewport {
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 22px;
+          scroll-snap-type: x proximity;
+          scroll-padding: 0 50vw;
+        }
+        #map-world {
+          width: max-content;
+          height: 100%;
+          min-height: 220px;
+        }
+        #map-world-atmosphere,
+        #map-links,
+        #map-worlds {
+          display: none;
+        }
+        #map-nodes {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: var(--map-gap);
+          padding: 84px 40vw; /* 端でもセンターに寄せやすい */
+          height: 100%;
+        }
+
+        .map-road {
+          flex: 0 0 var(--map-road-length);
+          width: var(--map-road-length);
+          height: 18px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(56,189,248,0.16), rgba(167,139,250,0.14));
+          border: 1px solid rgba(148, 163, 184, 0.25);
+          box-shadow: 0 16px 30px rgba(0,0,0,0.35);
+          position: relative;
+        }
+        .map-road::before {
+          content: '';
+          position: absolute;
+          inset: 3px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05));
+          opacity: 0.7;
+        }
+        .map-road::after {
+          content: '';
+          position: absolute;
+          left: 8px;
+          right: 8px;
+          top: 50%;
+          height: 2px;
+          transform: translateY(-50%);
+          background: rgba(226, 232, 240, 0.38);
+          border-radius: 999px;
+        }
+        .map-road.locked {
+          background: rgba(148, 163, 184, 0.18);
+          border-color: rgba(148, 163, 184, 0.22);
+        }
+        .map-road.unlocked {
+          background: linear-gradient(90deg, rgba(56,189,248,0.25), rgba(167,139,250,0.2));
+        }
+        .map-road.cleared {
+          background: linear-gradient(90deg, rgba(34,197,94,0.32), rgba(16,185,129,0.26));
+          border-color: rgba(34, 197, 94, 0.38);
+        }
+
+        .map-node {
+          position: relative;
+          flex: 0 0 var(--map-node-size);
+          width: var(--map-node-size);
+          height: var(--map-node-size);
+          border-radius: 999px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          gap: 6px;
+          padding: 10px;
+          scroll-snap-align: center;
+          border: 1px solid rgba(148, 163, 184, 0.26);
+          box-shadow: 0 26px 60px rgba(0,0,0,0.48);
+          cursor: pointer;
+          backdrop-filter: blur(10px);
+          transition: transform 0.18s ease, filter 0.18s ease;
+        }
+        .map-node::before {
+          content: '';
+          position: absolute;
+          inset: 8px;
+          border-radius: 999px;
+          border: 2px solid rgba(255,255,255,0.18);
+          opacity: 0.75;
+        }
+        .map-node::after {
+          content: '';
+          position: absolute;
+          top: 12px;
+          right: 14px;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.35);
+          box-shadow: 0 0 12px rgba(255,255,255,0.45);
+        }
+        .map-node.current {
+          box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.65), 0 0 32px rgba(56, 189, 248, 0.35), 0 26px 60px rgba(0,0,0,0.48);
+        }
+        .map-node-number {
+          font-size: 1.55rem;
+          font-weight: 950;
+          line-height: 1;
+        }
+        .map-node-label {
+          font-size: 0.7rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          opacity: 0.9;
+        }
+
+        .map-node.locked {
+          background: rgba(148, 163, 184, 0.14);
+          color: rgba(226, 232, 240, 0.78);
+          border-color: rgba(148, 163, 184, 0.18);
+          box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+        }
+        .map-node.unlocked {
+          background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), transparent 48%),
+            linear-gradient(140deg, rgba(56, 189, 248, 0.28), rgba(167, 139, 250, 0.2));
+          color: rgba(240, 249, 255, 0.98);
+        }
+        .map-node.unlocked:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.06);
+        }
+        .map-node.cleared {
+          background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.2), transparent 52%),
+            linear-gradient(140deg, rgba(34,197,94,0.3), rgba(16,185,129,0.22));
+          color: rgba(240, 253, 244, 0.98);
+          border-color: rgba(34, 197, 94, 0.32);
+        }
+        .map-node:disabled {
+          cursor: not-allowed;
+          opacity: 0.78;
+        }
+
+        /* ステージ一覧のガラスカード */
+        .stage-list-shell {
+          background: rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+                .stage-list-card {
+          background: rgba(255,255,255,0.10);
+          border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        /* 旧ステージ一覧(#c)のボタンも統一 */
+        #c button {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(167, 139, 250, 0.14)) !important;
+          color: rgba(240, 249, 255, 0.96) !important;
+          border: 1px solid rgba(148, 163, 184, 0.24) !important;
+          border-radius: 14px !important;
+          font-weight: 900 !important;
+          box-shadow: 0 16px 30px rgba(0,0,0,0.32) !important;
+        }
+
+        /* マップのツールチップ（存在する場合） */
+        #map-node-tooltip {
+          color: var(--cool-text);
+          background: rgba(2, 10, 24, 0.70);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 14px;
+          box-shadow: 0 24px 55px rgba(0,0,0,0.45);
+          backdrop-filter: blur(12px);
+        }
+
+
+        /* 公式アンロック画像枠をクールに */
+        #formula-unlock-image,
+        #formula-unlock-fallback {
+          background: rgba(2, 10, 24, 0.30);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        /* 入口カードも統一感 */
+        .entrance-card {
+          background: rgba(2, 10, 24, 0.62);
+          border: 1px solid rgba(148, 163, 184, 0.26);
+          box-shadow: 0 34px 90px rgba(0,0,0,0.55);
+        }
+        .entrance-choice {
+          border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+        #btn-entry-tutorial {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(37, 99, 235, 0.92));
+        }
+        #btn-entry-map {
+          background: linear-gradient(135deg, rgba(167, 139, 250, 0.92), rgba(56, 189, 248, 0.72));
+          color: rgba(240, 249, 255, 0.98);
+        }
+
+        /* ===== Blockly ツールボックスの完全ダーク化（詳細度Max） ===== */
+        #l .blocklyToolboxDiv {
+          background-color: rgba(6, 26, 58, 0.95) !important;
+          border-right: 2px solid rgba(56, 189, 248, 0.5) !important;
+        }
+
+        #l .blocklyToolboxContents {
+          background-color: transparent !important;
+        }
+
+        #l .blocklyTreeRow {
+          background-color: transparent !important;
+          height: 44px !important;
+          margin: 4px 6px !important;
+          border-radius: 12px !important;
+        }
+
+        #l .blocklyTreeRow:hover {
+          background-color: rgba(56, 189, 248, 0.2) !important;
+        }
+
+        #l .blocklyTreeRow.blocklyTreeSelected {
+          background-color: rgba(56, 189, 248, 0.4) !important;
+        }
+
+        #l .blocklyTreeLabel {
+          color: #ffffff !important;
+          font-weight: 900 !important;
+          font-size: 15px !important;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+        }
+        .blocklyFlyout {
+          filter: drop-shadow(0 18px 30px rgba(0,0,0,0.38));
+          background: rgba(2, 10, 24, 0.18);
+          border-radius: 18px;
+          width: 340px !important;
+        }
+        .blocklyFlyoutBackground {
+          /* 引き出し領域: 濃い青背景でもブロックが沈まないようコントラストを強める */
+          fill: rgba(8, 22, 44, 0.92) !important;
+          stroke: rgba(191, 219, 254, 0.35) !important;
+          stroke-width: 2.5px !important;
+          rx: 18px;
+          ry: 18px;
+          filter: drop-shadow(0 18px 34px rgba(0,0,0,0.45));
+        }
+        .blocklyFlyoutBackground:hover {
+          fill: rgba(10, 30, 60, 0.95) !important;
+        }
+
+        /* フライアウト内ブロックを丸く・見やすく（外枠の雰囲気） */
+        .blocklyFlyout .blocklyBlockSvg {
+          filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
+        }
+        .blocklyScrollbarHandle {
+          fill: rgba(56, 189, 248, 0.65) !important;
+        }
+
     </style>
 </head>
 <body>
       <div id="transition-curtain" class="curtain hidden"></div>
-    <div id="game-entrance">
+        <div id="game-entrance">
+      <button id="btn-entry-start" class="action-btn btn-primary entrance-start-btn" type="button">START</button>
+
       <div class="entrance-card">
         <p class="entrance-eyebrow">MATH BLOCK</p>
-        <h1 class="entrance-title">数式パズルの世界へ<br>ようこそ！</h1>
-        <p class="entrance-subtitle">まずは遊び方を学ぶか、いきなり挑戦するか選ぼう。</p>
+        <h1 class="entrance-title" style="font-size: 2.2rem; margin-bottom: 8px;">モードを選択</h1>
+        <p class="entrance-subtitle" style="margin-top: 0;">まずはチュートリアルで基本を学ぶか、すぐにステージへ進むか選べます。</p>
         <div class="entrance-choice-row">
           <button id="btn-entry-tutorial" class="entrance-choice" type="button">
             <h3>遊び方を学ぶ（おすすめ）</h3>
-            <p>ブロックの動かし方や、公式の使い方の基本をマスターしよう！</p>
+            <p>ブロック操作と公式の使い方を、短いステップで体験。</p>
           </button>
           <button id="btn-entry-map" class="entrance-choice" type="button">
             <h3>いきなりパズルに挑戦</h3>
-            <p>チュートリアルをスキップして、ステージ1から問題を解いていこう！</p>
+            <p>チュートリアルをスキップして、ステージ1から開始。</p>
           </button>
         </div>
       </div>
@@ -451,7 +958,7 @@
       </div>
     </div>
 
-    <div id="tutorial-intro-modal" class="overlay-screen hidden">
+        <div id="tutorial-intro-modal" class="overlay-screen hidden">
       <div class="tutorial-intro-card">
         <h2>ようこそ! まずは目標を共有</h2>
         <p>このチュートリアルでは、ブロックを使って式を変形する流れを体験します。</p>
@@ -461,6 +968,19 @@
         <div class="skip-actions" style="margin-top: 10px;">
           <button id="btn-tutorial-intro-next" class="action-btn btn-secondary">次のステップへ</button>
           <button id="btn-tutorial-intro-ok" class="action-btn btn-primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新公式アンロック（画像ポップアップ） -->
+    <div id="formula-unlock-modal" class="overlay-screen hidden">
+      <div class="formula-unlock-card">
+        <h2 id="formula-unlock-title">新しい公式を覚えよう！</h2>
+        <p id="formula-unlock-meta"></p>
+        <img id="formula-unlock-image" alt="公式" />
+        <div id="formula-unlock-fallback"></div>
+        <div class="skip-actions" style="margin-top: 14px;">
+          <button id="btn-formula-unlock-close" class="action-btn btn-primary" type="button">確認</button>
         </div>
       </div>
     </div>

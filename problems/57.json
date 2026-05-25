@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{1 - \\cos 2\\theta}{1 + \\cos 2\\theta} = \\tan^2\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

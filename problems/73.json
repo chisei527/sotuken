@@ -3,7 +3,6 @@
   "mathText": "\\[ 1 + \\tan^2(\\frac{\\pi}{6}) = \\frac{1}{\\cos^2(\\frac{\\pi}{6})} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "hints": [
@@ -219,23 +218,10 @@
                 },
                 "next": {
                   "block": {
-                    "type": "common_denominator_operation",
+                    "type": "conclusion_operation",
                     "inputs": {
                       "VALUE": {
                         "block": 3
-                      },
-                      "REPLACEMENT": {
-                        "block": 3
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": 3
-                          }
-                        }
                       }
                     }
                   }

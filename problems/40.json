@@ -7,7 +7,6 @@
   "mathText": "\\[ \\sin^2(\\frac{\\pi}{3}) (1 + \\tan^2(\\frac{\\pi}{3})) = \\tan^2(\\frac{\\pi}{3}) \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -416,108 +415,33 @@
                     },
                     "next": {
                       "block": {
-                        "type": "common_denominator_operation",
+                        "type": "conclusion_operation",
                         "inputs": {
                           "VALUE": {
                             "block": {
-                              "type": "math_fraction",
+                              "type": "term_tan_of",
                               "inputs": {
-                                "NUMERATOR": {
+                                "ANGLE": {
                                   "block": {
-                                    "type": "custom_number",
-                                    "fields": {
-                                      "NUM": 1
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "math_square",
+                                    "type": "math_fraction",
                                     "inputs": {
-                                      "A": {
+                                      "NUMERATOR": {
                                         "block": {
-                                          "type": "term_cos_of",
+                                          "type": "math_square",
                                           "inputs": {
-                                            "ANGLE": {
+                                            "A": {
                                               "block": {
-                                                "type": "term_theta"
+                                                "type": "term_pi"
                                               }
                                             }
                                           }
                                         }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "REPLACEMENT": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "custom_number",
-                                    "fields": {
-                                      "NUM": 1
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "math_square",
-                                    "inputs": {
-                                      "A": {
+                                      },
+                                      "DENOMINATOR": {
                                         "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        },
-                        "next": {
-                          "block": {
-                            "type": "conclusion_operation",
-                            "inputs": {
-                              "VALUE": {
-                                "block": {
-                                  "type": "term_tan_of",
-                                  "inputs": {
-                                    "ANGLE": {
-                                      "block": {
-                                        "type": "math_fraction",
-                                        "inputs": {
-                                          "NUMERATOR": {
-                                            "block": {
-                                              "type": "math_square",
-                                              "inputs": {
-                                                "A": {
-                                                  "block": {
-                                                    "type": "term_pi"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          },
-                                          "DENOMINATOR": {
-                                            "block": {
-                                              "type": "custom_number",
-                                              "fields": {
-                                                "NUM": 3
-                                              }
-                                            }
+                                          "type": "custom_number",
+                                          "fields": {
+                                            "NUM": 3
                                           }
                                         }
                                       }

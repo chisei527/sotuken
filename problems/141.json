@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{1}{1-\\sin(\\frac{\\pi}{4})} + \\frac{1}{1+\\sin(\\frac{\\pi}{4})} = 2(1+\\tan^2(\\frac{\\pi}{4})) \\\\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -562,132 +561,57 @@
                     },
                     "next": {
                       "block": {
-                        "type": "common_denominator_operation",
+                        "type": "conclusion_operation",
                         "inputs": {
                           "VALUE": {
                             "block": {
-                              "type": "math_fraction",
+                              "type": "math_multiply",
                               "inputs": {
-                                "NUMERATOR": {
+                                "A": {
                                   "block": {
                                     "type": "custom_number",
                                     "fields": {
-                                      "NUM": 1
+                                      "NUM": 2
                                     }
                                   }
                                 },
-                                "DENOMINATOR": {
+                                "B": {
                                   "block": {
-                                    "type": "math_square",
+                                    "type": "math_add",
                                     "inputs": {
                                       "A": {
                                         "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
+                                          "type": "custom_number",
+                                          "fields": {
+                                            "NUM": 1
                                           }
                                         }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "REPLACEMENT": {
-                            "block": {
-                              "type": "math_fraction",
-                              "inputs": {
-                                "NUMERATOR": {
-                                  "block": {
-                                    "type": "custom_number",
-                                    "fields": {
-                                      "NUM": 1
-                                    }
-                                  }
-                                },
-                                "DENOMINATOR": {
-                                  "block": {
-                                    "type": "math_square",
-                                    "inputs": {
-                                      "A": {
+                                      },
+                                      "B": {
                                         "block": {
-                                          "type": "term_cos_of",
+                                          "type": "term_tan_of",
                                           "inputs": {
                                             "ANGLE": {
                                               "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        },
-                        "next": {
-                          "block": {
-                            "type": "conclusion_operation",
-                            "inputs": {
-                              "VALUE": {
-                                "block": {
-                                  "type": "math_multiply",
-                                  "inputs": {
-                                    "A": {
-                                      "block": {
-                                        "type": "custom_number",
-                                        "fields": {
-                                          "NUM": 2
-                                        }
-                                      }
-                                    },
-                                    "B": {
-                                      "block": {
-                                        "type": "math_add",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "custom_number",
-                                              "fields": {
-                                                "NUM": 1
-                                              }
-                                            }
-                                          },
-                                          "B": {
-                                            "block": {
-                                              "type": "term_tan_of",
-                                              "inputs": {
-                                                "ANGLE": {
-                                                  "block": {
-                                                    "type": "math_fraction",
-                                                    "inputs": {
-                                                      "NUMERATOR": {
-                                                        "block": {
-                                                          "type": "math_square",
-                                                          "inputs": {
-                                                            "A": {
-                                                              "block": {
-                                                                "type": "term_pi"
-                                                              }
-                                                            }
+                                                "type": "math_fraction",
+                                                "inputs": {
+                                                  "NUMERATOR": {
+                                                    "block": {
+                                                      "type": "math_square",
+                                                      "inputs": {
+                                                        "A": {
+                                                          "block": {
+                                                            "type": "term_pi"
                                                           }
                                                         }
-                                                      },
-                                                      "DENOMINATOR": {
-                                                        "block": {
-                                                          "type": "custom_number",
-                                                          "fields": {
-                                                            "NUM": 4
-                                                          }
-                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "DENOMINATOR": {
+                                                    "block": {
+                                                      "type": "custom_number",
+                                                      "fields": {
+                                                        "NUM": 4
                                                       }
                                                     }
                                                   }

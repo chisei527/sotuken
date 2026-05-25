@@ -7,7 +7,6 @@
   "mathText": "\\[ \\sin^4\\theta + \\cos^4\\theta + 2\\sin^2\\theta\\cos^2\\theta = 1 \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

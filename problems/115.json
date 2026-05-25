@@ -7,7 +7,6 @@
   "mathText": "\\[ \\sin(\\theta + \\frac{\\pi}{6}) + \\sin(\\theta - \\frac{\\pi}{6}) = \\sqrt{3}\\sin\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
@@ -446,11 +445,11 @@
                 },
                 "next": {
                   "block": {
-                    "type": "common_denominator_operation",
+                    "type": "conclusion_operation",
                     "inputs": {
                       "VALUE": {
                         "block": {
-                          "type": "math_add",
+                          "type": "math_multiply",
                           "inputs": {
                             "A": {
                               "block": {
@@ -458,41 +457,15 @@
                                 "inputs": {
                                   "A": {
                                     "block": {
-                                      "type": "term_sin_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
+                                      "type": "custom_number",
+                                      "fields": {
+                                        "NUM": 2
                                       }
                                     }
                                   },
                                   "B": {
                                     "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_fraction",
-                                            "inputs": {
-                                              "NUMERATOR": {
-                                                "block": {
-                                                  "type": "term_pi"
-                                                }
-                                              },
-                                              "DENOMINATOR": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 4
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
+                                      "type": "term_sqrt3_half"
                                     }
                                   }
                                 }
@@ -500,190 +473,11 @@
                             },
                             "B": {
                               "block": {
-                                "type": "math_multiply",
+                                "type": "term_sin_of",
                                 "inputs": {
-                                  "A": {
+                                  "ANGLE": {
                                     "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_sin_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_fraction",
-                                            "inputs": {
-                                              "NUMERATOR": {
-                                                "block": {
-                                                  "type": "term_pi"
-                                                }
-                                              },
-                                              "DENOMINATOR": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 4
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      },
-                      "REPLACEMENT": {
-                        "block": {
-                          "type": "math_add",
-                          "inputs": {
-                            "A": {
-                              "block": {
-                                "type": "math_multiply",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_sin_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_fraction",
-                                            "inputs": {
-                                              "NUMERATOR": {
-                                                "block": {
-                                                  "type": "term_pi"
-                                                }
-                                              },
-                                              "DENOMINATOR": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 4
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "B": {
-                              "block": {
-                                "type": "math_multiply",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "B": {
-                                    "block": {
-                                      "type": "term_sin_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "math_fraction",
-                                            "inputs": {
-                                              "NUMERATOR": {
-                                                "block": {
-                                                  "type": "term_pi"
-                                                }
-                                              },
-                                              "DENOMINATOR": {
-                                                "block": {
-                                                  "type": "custom_number",
-                                                  "fields": {
-                                                    "NUM": 4
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "next": {
-                      "block": {
-                        "type": "conclusion_operation",
-                        "inputs": {
-                          "VALUE": {
-                            "block": {
-                              "type": "math_multiply",
-                              "inputs": {
-                                "A": {
-                                  "block": {
-                                    "type": "math_multiply",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "custom_number",
-                                          "fields": {
-                                            "NUM": 2
-                                          }
-                                        }
-                                      },
-                                      "B": {
-                                        "block": {
-                                          "type": "term_sqrt3_half"
-                                        }
-                                      }
-                                    }
-                                  }
-                                },
-                                "B": {
-                                  "block": {
-                                    "type": "term_sin_of",
-                                    "inputs": {
-                                      "ANGLE": {
-                                        "block": {
-                                          "type": "term_theta"
-                                        }
-                                      }
+                                      "type": "term_theta"
                                     }
                                   }
                                 }

@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{\\sin\\theta + \\cos\\theta - 1}{\\sin\\theta - \\cos\\theta + 1} = \\frac{\\sin\\theta}{1 + \\cos\\theta} \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

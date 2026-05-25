@@ -7,7 +7,6 @@
   "mathText": "\\[ \\frac{1 - \\cos 2\\theta}{\\sin 2\\theta} = \\tan\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [

@@ -7,7 +7,6 @@
   "mathText": "\\[ \\tan^2\\theta - \\sin^2\\theta = \\tan^2\\theta\\sin^2\\theta \\]",
   "requiredBlocks": [
     "\"type\":\"replace_operation\"",
-    "\"type\":\"common_denominator_operation\"",
     "\"type\":\"conclusion_operation\""
   ],
   "requiredFormulas": [
