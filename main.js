@@ -2598,6 +2598,11 @@ function showTutorialIntroModal() {
   const modal = document.getElementById('tutorial-intro-modal');
   if (!modal) return false;
   modal.classList.remove('hidden');
+  const introVideo = document.getElementById('tutorial-intro-video');
+  if (introVideo) {
+    introVideo.currentTime = 0; // 最初に戻す
+    introVideo.play().catch(e => console.log("自動再生ブロック", e));
+  }
   return true;
 }
 
