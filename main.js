@@ -961,10 +961,13 @@ function clearAutoAdvanceTimer() {
 
 function getAutoAdvanceDestination(stageNumber) {
   if (isTutorialStageId(stageNumber)) {
+    if (stageNumber === '0-7') {
+      return { kind: 'stage', target: 1 }; // チュートリアル0-7の次は本編STAGE 1へ
+    }
     const nextTutorialStage = getNextTutorialStageId(stageNumber);
     return nextTutorialStage
       ? { kind: 'stage', target: nextTutorialStage }
-      : { kind: 'map', tutorialComplete: true };
+      : { kind: 'map', tutorialComplete: true }; // それ以外のチュートリアル完了時はマップへ
   }
 
   const numericStageNumber = Math.max(1, Number(stageNumber) || 1);
@@ -2106,6 +2109,7 @@ async function loadStage(stageNumber) {
       removeTutorialRedundantConclusionExpression(workspace);
     } else {
       applyConditionalInitialStateGeneration(workspace);
+      tutorialModeActive = false; // 非チュートリアルステージではチュートリアルモードを無効化
     }
 
     forceWorkspaceLayoutSync();
