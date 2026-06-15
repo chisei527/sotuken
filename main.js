@@ -2083,6 +2083,8 @@ async function loadStage(stageNumber) {
     const sanitizedText = rawText.replace(/^\uFEFF/, '').trim();
     if (!sanitizedText) throw new Error('EMPTY_JSON');
     currentProblemData = JSON.parse(sanitizedText);
+    // ファイル名由来のステージ番号を優先し、問題データのIDを上書き
+    currentProblemData.id = numericStage;
 
     // requiredFormulas に応じて「初回公式アンロック」ポップアップを表示
     await ensureFormulasUnlockedForProblem(currentProblemData);
