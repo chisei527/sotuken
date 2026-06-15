@@ -928,8 +928,8 @@ async function getProblemsData() {
 
 function getUnlockLimit() {
   if (unlockAll) return MAX_STAGE_NUMBER;
-  if (!Array.isArray(clearedStages) || clearedStages.length === 0) return 1;
-  return Math.min(MAX_STAGE_NUMBER, Math.max(1, ...clearedStages) + 1);
+  if (!Array.isArray(clearedStages) || clearedStages.length === 0) return 60;
+  return Math.min(MAX_STAGE_NUMBER, Math.max(60, ...clearedStages) + 1);
 }
 
 function openSkipChallengeModal(currentStage, desiredTargetStage) {
@@ -970,7 +970,7 @@ function getAutoAdvanceDestination(stageNumber) {
       : { kind: 'map', tutorialComplete: true }; // それ以外のチュートリアル完了時はマップへ
   }
 
-  const numericStageNumber = Math.max(1, Number(stageNumber) || 1);
+  const numericStageNumber = Math.max(60, Number(stageNumber) || 60); // 通常ステージは60から
   return numericStageNumber < MAX_STAGE_NUMBER
     ? { kind: 'stage', target: numericStageNumber + 1 }
     : { kind: 'map', tutorialComplete: false };
@@ -1043,7 +1043,7 @@ async function transitionToStage(stageNumber) {
   if (isTutorialStageId(stageNumber)) {
     currentStageNumber = String(stageNumber);
   } else {
-    currentStageNumber = Math.max(1, Math.min(MAX_STAGE_NUMBER, Number(stageNumber) || 1));
+    currentStageNumber = Math.max(60, Math.min(MAX_STAGE_NUMBER, Number(stageNumber) || 60)); // 通常ステージは60から
   }
   switchScreen('p');
   await loadStage(currentStageNumber);
@@ -1060,7 +1060,7 @@ function buildStageNodePosition(index) {
 
 function getCurrentMapFocusStage() {
   const unlockedLimit = getUnlockLimit();
-  return Math.max(1, Math.min(MAX_STAGE_NUMBER, unlockedLimit));
+  return Math.max(60, Math.min(MAX_STAGE_NUMBER, unlockedLimit)); // 通常ステージは60から
 }
 
 function centerMapCameraOnStage(stageNumber, animate = true) {
@@ -1109,7 +1109,7 @@ async function renderStageMap() {
 
   nodeRoot.innerHTML = '';
 
-  for (let stage = 1; stage <= MAX_STAGE_NUMBER; stage += 1) {
+  for (let stage = 60; stage <= MAX_STAGE_NUMBER; stage += 1) { // 本編ステージは60から開始
     const isCleared = clearedStages.includes(stage);
     const isUnlocked = unlockAll || stage <= unlockedLimit;
     const isFocus = stage === focusStage;
@@ -1141,14 +1141,14 @@ async function renderStageMap() {
 
     nodeRoot.appendChild(node);
 
-    if (stage < MAX_STAGE_NUMBER) {
+    if (stage < MAX_STAGE_NUMBER) { // MAX_STAGE_NUMBERが本編の最終ステージであれば、この条件はそのまま
       const road = document.createElement('div');
       road.className = `map-road ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
       nodeRoot.appendChild(road);
     }
   }
 
-  const clearCount = clearedStages.filter((s) => s >= 1 && s <= MAX_STAGE_NUMBER).length;
+  const clearCount = clearedStages.filter((s) => s >= 60 && s <= MAX_STAGE_NUMBER).length; // 通常ステージは60からカウント
   if (progressLabel) progressLabel.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} CLEAR`;
   if (overallBar) overallBar.style.width = `${(clearCount / MAX_STAGE_NUMBER) * 100}%`;
   if (progressText) progressText.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} クリア`;
@@ -2073,7 +2073,7 @@ async function loadStage(stageNumber) {
     clearAutoAdvanceTimer();
     const isTutorialStage = isTutorialStageId(stageNumber);
     const stageKey = String(stageNumber);
-    const numericStage = Math.max(1, Number(stageNumber) || 1);
+    const numericStage = Math.max(60, Number(stageNumber) || 60); // 通常ステージは60から
     const stageFile = isTutorialStage
       ? `problems/tutorial/${stageKey}.json`
       : `problems/${numericStage}.json`;
@@ -2145,7 +2145,7 @@ async function loadStage(stageNumber) {
     const isHttpError = /^HTTP\s+\d+/.test(errorText);
     const isTutorialStage = isTutorialStageId(stageNumber);
     const stageKey = String(stageNumber);
-    const numericStage = Math.max(1, Number(stageNumber) || 1);
+    const numericStage = Math.max(60, Number(stageNumber) || 60); // 通常ステージは60から
     const stageFile = isTutorialStage
       ? `problems/tutorial/${stageKey}.json`
       : `problems/${numericStage}.json`;
@@ -2487,7 +2487,7 @@ function setupEventListeners() {
       showClearStamp('CLEAR!');
       showSuccessRipple();
 
-      if (!isTutorialStageId(currentStageNumber) && !clearedStages.includes(currentStageNumber) && currentStageNumber >= 1) {
+      if (!isTutorialStageId(currentStageNumber) && !clearedStages.includes(currentStageNumber) && currentStageNumber >= 60) { // 通常ステージは60から
         clearedStages.push(currentStageNumber);
         localStorage.setItem('s', JSON.stringify(clearedStages));
       }
@@ -2532,7 +2532,7 @@ async function routeToTarget() {
   const urlParams = new URLSearchParams(window.location.search);
   const stageParam = parseInt(urlParams.get('stage'), 10);
 
-  if (stageParam >= 1 && stageParam <= MAX_STAGE_NUMBER) {
+  if (stageParam >= 60 && stageParam <= MAX_STAGE_NUMBER) { // 通常ステージは60から
     currentStageNumber = stageParam;
     switchScreen('p');
     await loadStage(stageParam);
