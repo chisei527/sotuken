@@ -1,295 +1,4 @@
-// ------------------------------------------------------------
-// MathBlock main script
-// 目的:
-// - Blockly ワークスペースの初期化
-// - 問題JSONの読み込みと表示
-// - 証明判定、ヒント表示、画面遷移
-// ------------------------------------------------------------
-
-// ===== 状態管理 =====
-let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
-let unlockAll = localStorage.getItem('unlock_all') === '1';
-let currentStageNumber = 1;
-let currentProblemData = null;
-let currentStreak = 0;
-let currentStageSolved = false;
-let currentSkipOffer = null;
-let pendingSkipChallenge = null;
-let hasBoundEventListeners = false;
-let problemsDataCache = null;
-let tutorialStepIndex = 0;
-let tutorialModeActive = false;
-let tutorialAutoAdvanceFrameId = 0;
-let tutorialWorkspaceListenerBound = false;
-let tutorialFlowProblems = [];
-let tutorialFlowIndex = 0;
-let tutorialIntroIndex = 0;
-let tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
-let goalHintActive = false;
-let currentHighlightTargetNode = null;
-let currentHighlightInputObj = null;
-let highlightTrackingFrameId = 0;
-
-// ===== 新機能: 公式アンロック状態 =====
-const UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
-
-function loadUnlockedFormulasFromStorage() {
-  try {
-    const raw = localStorage.getItem(UNLOCKED_FORMULAS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function saveUnlockedFormulasToStorage(formulaIds) {
-  const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
-  localStorage.setItem(UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
-}
-
-let unlockedFormulas = loadUnlockedFormulasFromStorage();
-
-const MAX_STAGE_NUMBER = 100;
-const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
-const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', UNLOCKED_FORMULAS_STORAGE_KEY];
-const MAP_WORLD_MIN_WIDTH = 3600;
-const MAP_WORLD_MIN_HEIGHT = 2400;
-const MAP_NODE_SIZE = 94;
-
-const BLOCK_HOLE_OFFSETS = {
-  // 置き換えブロック（replace_operation） - image_51bf00.png に基づき修正
-  'replace_operation': {
-    // 入力ラベル（Blockly内部名と想定）に応じたオフセット（上からのpx）
-    'EXPRESSION': { rightOffset: -10, topOffset: 20 }, // 一番上「式:」の穴
-    'FORMULA': { rightOffset: -10, topOffset: 64 },    // 真ん中「公式:」の穴（公式②ブロックが繋がっている場所）
-    'RESULT': { rightOffset: -10, topOffset: 108 },     // 一番下「変形後:」の穴
-    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 } // 下に繋ぐ接続部分
-  },
-  // 通分ブロック（common_denominator_operation）
-  'common_denominator_operation': {
-    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
-  },
-  // 証明の枠（proof_step）
-  'proof_step': {
-    'STATEMENT': { leftOffset: 16, topOffset: 36 } // 「証明:」ラベルの右の大きな穴
-  },
-  // デフォルト（その他）
-  'default': {
-    'VALUE': { rightOffset: -10, topOffset: 'center' },
-    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 }
-  }
-};
-
-const TUTORIAL_STEPS = [
-  {
-    key: '1️⃣',
-    text: '📚 ようこそ！\n数式パズルの遊び方を覚えよう！',
-    help: '左のメニューからブロックを引っ張ってきて、式を繋げてみてね。',
-    targetId: 'l',
-  },
-  {
-    key: '2️⃣',
-    text: '🧮 公式を使ってみよう\n紫の「公式ブロック」を穴に入れてみて！',
-    help: '公式を使って、式を違う形に「置き換え」るのが基本だよ。',
-    targetId: 'l',
-  },
-  {
-    key: '3️⃣',
-    text: '✨ 公式を組み合わせる\nいろんな公式を使って、式をどんどん変身させよう！',
-    help: '目的の形になるまで、ブロックを繋げていってね。',
-    targetId: 'l',
-  },
-  {
-    key: '🎯',
-    text: '🎉 チュートリアル完了！\n遊び方はもうバッチリだね！',
-    help: 'マップ画面から好きなステージを選んで挑戦してみよう！',
-    targetId: 'l',
-  },
-];
-
-const WORLD_SEGMENTS = [
-  { start: 1, end: 25, title: 'World 1: Foundational Route', subtitle: '公式の基本連結' },
-  { start: 26, end: 50, title: 'World 2: Conversion Ridge', subtitle: '変換の往復を習得' },
-  { start: 51, end: 75, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
-  { start: 76, end: 85, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
-  { start: 86, end: 100, title: 'World 5: Apex Legend', subtitle: '最高難度の集大成' },
-];
-
-function isTutorialStageId(stageId) {
-  return TUTORIAL_STAGE_IDS.includes(String(stageId));
-}
-
-function getTutorialStageIndex(stageId) {
-  return TUTORIAL_STAGE_IDS.indexOf(String(stageId));
-}
-
-function getNextTutorialStageId(stageId) {
-  const index = getTutorialStageIndex(stageId);
-  if (index === -1) return null;
-  return TUTORIAL_STAGE_IDS[index + 1] || null;
-}
-
-function getTutorialBannerText(stageId) {
-  const state = getTutorialGoalState(stageId);
-  return state ? state.text : '';
-}
-
-function requiresCommonDenominator(problemData) {
-  if (!problemData) return false;
-
-  const requiredTypes = parseRequiredBlockTypes(problemData.requiredBlocks || []);
-  return requiredTypes.includes('common_denominator_operation');
-}
-
-function getTutorialOperationLabel(type) {
-  if (type === 'replace_operation') return '置き換え';
-  if (type === 'common_denominator_operation') return '通分';
-  if (type === 'conclusion_operation') return 'よって';
-  return type || '操作';
-}
-
-function sortBlocksByPosition(blocks) {
-  return (blocks || []).slice().sort((first, second) => {
-    const firstPos = first?.getRelativeToSurfaceXY?.() || { x: 0, y: 0 };
-    const secondPos = second?.getRelativeToSurfaceXY?.() || { x: 0, y: 0 };
-    if (firstPos.y !== secondPos.y) return firstPos.y - secondPos.y;
-    return firstPos.x - secondPos.x;
-  });
-}
-
-function getTutorialOperationMissingHole(type, block) {
-  if (!block) return null;
-  if (type === 'replace_operation') {
-    if (!block.getInputTargetBlock('VALUE')) {
-      return { key: 'fill-replace-value', text: '【目標】『置き換え』ブロックの「式」の穴を埋めましょう。' };
-    }
-    if (!block.getInputTargetBlock('FORMULA')) {
-      return { key: 'fill-replace-formula', text: '【目標】『置き換え』ブロックの「公式」の穴を埋めましょう。' };
-    }
-    if (!block.getInputTargetBlock('REPLACEMENT')) {
-      return { key: 'fill-replace-result', text: '【目標】『置き換え』ブロックの「結果」の穴を埋めましょう。' };
-    }
-  }
-  if (type === 'common_denominator_operation') {
-    if (!block.getInputTargetBlock('VALUE') || !block.getInputTargetBlock('REPLACEMENT')) {
-      return { key: 'fill-common', text: '【目標】『通分』ブロックの空いている穴を埋めましょう。' };
-    }
-  }
-  if (type === 'conclusion_operation') {
-    if (!block.getInputTargetBlock('VALUE')) {
-      return { key: 'fill-conclusion-value', text: '【目標】『よって〜となる』ブロックの空いている穴を埋めましょう。' };
-    }
-  }
-  return null;
-}
-
-function getTutorialTargetOperationState(stageId) {
-  if (!isTutorialStageId(stageId) || !workspace || !currentProblemData) return null;
-
-  const requiredTypes = parseRequiredBlockTypes(currentProblemData.requiredBlocks || []);
-  if (requiredTypes.length === 0) return { isComplete: true, requiredTypes: [] };
-
-  const blocksByType = Object.create(null);
-  requiredTypes.forEach((type) => {
-    if (!blocksByType[type]) {
-      blocksByType[type] = sortBlocksByPosition(workspace.getBlocksByType(type, false));
-    }
-  });
-
-  const usedCounts = Object.create(null);
-  for (const type of requiredTypes) {
-    const index = usedCounts[type] || 0;
-    const block = (blocksByType[type] || [])[index] || null;
-    if (!block) {
-      return { isComplete: false, type, block: null, isMissing: true };
-    }
-
-    const missingHole = getTutorialOperationMissingHole(type, block);
-    if (missingHole) {
-      return { isComplete: false, type, block, isMissing: false };
-    }
-
-    usedCounts[type] = index + 1;
-  }
-
-  return { isComplete: true, requiredTypes };
-}
-
-function getTutorialGoalState(stageId) {
-  if (!isTutorialStageId(stageId)) return null;
-
-  const targetState = getTutorialTargetOperationState(stageId);
-  if (!targetState || targetState.isComplete) {
-    return { key: 'ready-check', text: '【目標】必要な穴が埋まったら、「チェックする！」ボタンを押しましょう。' };
-  }
-
-  const targetType = targetState.type;
-  const targetLabel = getTutorialOperationLabel(targetType);
-  const targetBlock = targetState.block;
-
-  if (targetState.isMissing || !targetBlock) {
-    const key = targetType === 'replace_operation'
-      ? 'pull-replace'
-      : targetType === 'common_denominator_operation'
-        ? 'pull-common'
-        : targetType === 'conclusion_operation'
-          ? 'pull-conclusion'
-          : 'pull-operation';
-    return { key, text: `【目標】左のメニューから『${targetLabel}』ブロックを引き出しましょう。` };
-  }
-
-  const missingHole = getTutorialOperationMissingHole(targetType, targetBlock);
-  const isFormulaHole = targetType === 'replace_operation'
-    && missingHole
-    && missingHole.key === 'fill-replace-formula';
-
-  const requiredFormulaIdsRaw = typeof getRequiredFormulaIdsForProblem === 'function'
-    ? getRequiredFormulaIdsForProblem(currentProblemData)
-    : [];
-  const requiredFormulaIds = requiredFormulaIdsRaw
-    .map((id) => String(id))
-    .filter((id) => !!id)
-    .filter((id) => (typeof isSupportedFormulaId === 'function' ? isSupportedFormulaId(id) : true));
-
-  const hasFloatingFormula = workspace.getTopBlocks(false).some((block) => {
-    const type = String(block.type || '');
-    if (!type.startsWith('formula_')) return false;
-    if (requiredFormulaIds.length === 0) return true;
-    return requiredFormulaIds.includes(type);
-  });
-
-  if (targetType === 'replace_operation') {
-    const formulaMissing = !targetBlock.getInputTargetBlock('FORMULA');
-    if (formulaMissing && !hasFloatingFormula) {
-      return { key: 'pull-formula', text: '【目標】左のメニューから必要な「公式」ブロックを引き出しましょう。' };
-    }
-  }
-
-  const hasFloatingMath = workspace.getTopBlocks(false).some((block) =>
-    !isProofOrOperationBlockType(block.type) && !String(block.type || '').startsWith('formula_')
-  );
-
-  if (missingHole && !hasFloatingMath && !isFormulaHole) {
-    if (targetType === 'conclusion_operation') {
-      return { key: 'pull-math-conclusion', text: '【目標】左のメニューから基本にある問題の式から、よってに入る「数式」ブロックを引き出しましょう。' };
-    }
-    return { key: 'pull-math-parts', text: '【目標】左のメニューから、穴を埋めるための「数式」ブロックを引き出しましょう。' };
-  }
-
-  if (missingHole) {
-    return missingHole;
-  }
-
-  return { key: 'ready-check', text: '【目標】必要な穴が埋まったら、「チェックする！」ボタンを押しましょう。' };
-}
-
-function isTutorialPullModeStage(stageId) {
-  const stage = String(stageId);
-  return stage === '0-4' || stage === '0-5';
-}
-
+// Shared state and tutorial setup moved to app-state.js.
 // ===== チュートリアルブロック制限ロジック =====
 function getTutorialAllowedBlockTypes(stageId) {
   // チュートリアルステージごとに使用可能なブロックタイプを制限
@@ -306,83 +15,9 @@ function getTutorialAllowedBlockTypes(stageId) {
     '0-3': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_3'] },
     '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
     '0-5': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
-    '0-6': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-6': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
     '0-7': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
   };
-  
-  const restriction = stageRestrictions[stage] || null;
-  if (!restriction) return { allowed: true, types: null }; // 非チュートリアル、制限なし
-  
-  return {
-    allowed: false,
-    basicBlocks,
-    operationBlocks: restriction.operations,
-    formulaBlocks: restriction.formulas
-  };
-}
-
-function isBlockAllowedInTutorial(blockType, stageId) {
-  if (!isTutorialStageId(stageId)) return true;
-  
-  const restriction = getTutorialAllowedBlockTypes(stageId);
-  if (restriction.allowed !== false) return true; // 制限なし
-  
-  // 基本ブロックは常に許可
-  if (restriction.basicBlocks?.includes(blockType)) return true;
-  
-  // 操作・数式ブロックは制限
-  if (restriction.operationBlocks?.includes(blockType)) return true;
-  if (restriction.formulaBlocks?.includes(blockType)) return true;
-  
-  return false;
-}
-
-function applyTutorialBlockRestrictions() {
-  if (!isTutorialStageId(currentStageNumber)) return;
-  if (!workspace) return;
-  
-  // ツールボックスをフィルタリング
-  const restriction = getTutorialAllowedBlockTypes(currentStageNumber);
-  if (restriction.allowed !== false) return; // 制限なし
-  
-  // 利用可能なブロックタイプ
-  const allowedTypes = new Set([
-    ...restriction.basicBlocks,
-    ...restriction.operationBlocks,
-    ...restriction.formulaBlocks
-  ]);
-  
-  // ツールボックスカテゴリをフィルタリング
-  const toolboxElement = workspace.getToolbox();
-  if (!toolboxElement) return;
-
-  const categories = typeof toolboxElement.getCategories === 'function'
-    ? toolboxElement.getCategories()
-    : typeof toolboxElement.getToolboxItems === 'function'
-      ? toolboxElement.getToolboxItems()
-      : [];
-
-  categories.forEach((category) => {
-    const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
-    blocks.forEach((block) => {
-      if (!block || !block.type || typeof block.setDisabled !== 'function') return;
-      if (!allowedTypes.has(block.type)) {
-        block.setDisabled(true);
-      }
-    });
-  });
-}
-
-function clearTutorialBlockRestrictions() {
-  if (!workspace) return;
-  const toolboxElement = workspace.getToolbox();
-  if (!toolboxElement) return;
-
-  const categories = typeof toolboxElement.getCategories === 'function'
-    ? toolboxElement.getCategories()
-    : typeof toolboxElement.getToolboxItems === 'function'
-      ? toolboxElement.getToolboxItems()
-      : [];
 
   categories.forEach((category) => {
     const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
@@ -474,7 +109,6 @@ function findTutorialCommonDenominatorOperation() {
 function getTutorialHighlightTargets(stageId) {
   if (!isTutorialStageId(stageId)) return null;
   const replaceOp = findTutorialReplaceOperation();
-  const commonOp = findTutorialCommonDenominatorOperation();
   const conclusionOp = findTutorialConclusionOperation();
   const toolboxLabel = getTutorialToolboxCategoryLabel('証明') || getTutorialToolboxElement();
   const goal = getTutorialGoalState(stageId);
@@ -503,15 +137,7 @@ function getTutorialHighlightTargets(stageId) {
   if (goalKey === 'fill-replace-result' && replaceOp) {
     return { source: toolboxLabel, target: getInputConnectionRect(replaceOp, 'REPLACEMENT') || toolboxLabel };
   }
-  if (goalKey === 'fill-common' && commonOp) {
-    if (!commonOp.getInputTargetBlock('VALUE')) {
-      return { source: toolboxLabel, target: getInputConnectionRect(commonOp, 'VALUE') || toolboxLabel };
-    }
-    if (!commonOp.getInputTargetBlock('REPLACEMENT')) {
-      return { source: toolboxLabel, target: getInputConnectionRect(commonOp, 'REPLACEMENT') || toolboxLabel };
-    }
-  }
-  
+
   // 👇✨ 新規追加：結論の穴埋めハイライト
   if (goalKey === 'fill-conclusion-value' && conclusionOp) {
     return { source: toolboxLabel, target: getInputConnectionRect(conclusionOp, 'VALUE') || toolboxLabel };
@@ -690,6 +316,7 @@ function parseRequiredConcepts(requiredConcepts) {
 }
 
 function applyProblemDataToWorkspace(problemData, stageLabel) {
+  clearAutoAdvanceTimer();
   currentStageSolved = false;
   currentSkipOffer = null;
   closeSkipChallengeModal();
@@ -717,12 +344,8 @@ function applyProblemDataToWorkspace(problemData, stageLabel) {
   arrangeBlocks();
 
   const submitBtn = document.getElementById('btn-submit');
-  const nextBtn = document.getElementById('btn-next');
   if (submitBtn) submitBtn.style.display = 'inline-block';
-  if (nextBtn) {
-    nextBtn.style.display = 'none';
-    nextBtn.innerText = '次の問題へ';
-  }
+  updateSubmitButtonState();
 
   if (!tutorialModeActive) {
     hideGoalHintForStage();
@@ -1329,6 +952,76 @@ function openSkipChallengeModal(currentStage, desiredTargetStage) {
   if (modal) modal.classList.remove('hidden');
 }
 
+function clearAutoAdvanceTimer() {
+  if (autoAdvanceTimerId) {
+    clearTimeout(autoAdvanceTimerId);
+    autoAdvanceTimerId = 0;
+  }
+}
+
+function getAutoAdvanceDestination(stageNumber) {
+  if (isTutorialStageId(stageNumber)) {
+    const nextTutorialStage = getNextTutorialStageId(stageNumber);
+    return nextTutorialStage
+      ? { kind: 'stage', target: nextTutorialStage }
+      : { kind: 'map', tutorialComplete: true };
+  }
+
+  const numericStageNumber = Math.max(1, Number(stageNumber) || 1);
+  return numericStageNumber < MAX_STAGE_NUMBER
+    ? { kind: 'stage', target: numericStageNumber + 1 }
+    : { kind: 'map', tutorialComplete: false };
+}
+
+async function navigateAfterAutoClear(destination) {
+  if (!destination) return;
+
+  if (destination.kind === 'stage') {
+    await transitionToStage(destination.target);
+    return;
+  }
+
+  if (destination.tutorialComplete) {
+    localStorage.setItem('tutorial_seen', 'true');
+    updateTutorialBanner('');
+  }
+
+  await renderStageMap();
+  switchScreen('stage-map-screen');
+}
+
+function scheduleAutoAdvanceAfterClear() {
+  clearAutoAdvanceTimer();
+  const destination = getAutoAdvanceDestination(currentStageNumber);
+  const stampDuration = typeof CLEAR_STAMP_DURATION_MS === 'number' ? CLEAR_STAMP_DURATION_MS : 1200;
+  // 演出後すぐに遷移する（余分な待ち時間を削除）
+  const advanceDelayMs = stampDuration;
+
+  autoAdvanceTimerId = window.setTimeout(() => {
+    autoAdvanceTimerId = 0;
+    void navigateAfterAutoClear(destination);
+  }, advanceDelayMs);
+}
+
+if (typeof showClearStamp !== 'function') {
+  window.showClearStamp = function showClearStamp(text = 'CLEAR!') {
+    const existingStamp = document.querySelector('.clear-stamp-effect');
+    if (existingStamp) existingStamp.remove();
+
+    const stamp = document.createElement('div');
+    stamp.className = 'clear-stamp-effect';
+    stamp.textContent = text;
+    document.body.appendChild(stamp);
+
+    const stampDuration = typeof CLEAR_STAMP_DURATION_MS === 'number' ? CLEAR_STAMP_DURATION_MS : 1200;
+    window.setTimeout(() => {
+      stamp.remove();
+    }, stampDuration);
+
+    return stamp;
+  };
+}
+
 function applyPendingSkipClearIfNeeded() {
   if (!pendingSkipChallenge) return;
   if (currentStageNumber !== pendingSkipChallenge.targetStage) return;
@@ -1510,6 +1203,49 @@ function getTutorialCompletionState(astArray) {
   }
 
   return { isComplete: false, firstMissingIndex };
+}
+
+function isProofReadyForJudging(astArray) {
+  if (!Array.isArray(astArray) || astArray.length === 0) return false;
+
+  let hasProofOperation = false;
+  for (const stepData of astArray) {
+    const operationType = String(stepData?.type || '');
+    if (!operationType) continue;
+
+    if (operationType === 'replace_operation' || operationType === 'common_denominator_operation' || operationType === 'conclusion_operation') {
+      hasProofOperation = true;
+    }
+
+    if (operationType === 'replace_operation' || operationType === 'common_denominator_operation') {
+      if (!String(stepData?.before || '').trim()) return false;
+      if (!String(stepData?.after || '').trim()) return false;
+    }
+
+    if (operationType === 'replace_operation' && !String(stepData?.formula || '').trim()) {
+      return false;
+    }
+
+    if (operationType === 'conclusion_operation' && !String(stepData?.before || '').trim()) {
+      return false;
+    }
+  }
+
+  return hasProofOperation;
+}
+
+function updateSubmitButtonState() {
+  const submitBtn = document.getElementById('btn-submit');
+  if (!submitBtn) return;
+
+  let ast = [];
+  try {
+    ast = parseBlocksToAST(workspace, mathGenerator);
+  } catch (_) {
+    ast = [];
+  }
+
+  submitBtn.disabled = !isProofReadyForJudging(ast);
 }
 
 async function completeTutorialAndOpenMap() {
@@ -2057,240 +1793,7 @@ function removeTutorialRedundantConclusionExpression(targetWorkspace) {
   rightmost.dispose(true);
 }
 
-// ===== UIヘルパー =====
-
-// ===== 新機能: 画面ごとの背景切り替え =====
-const ASSET_BASE_CANDIDATES = ['assets', 'asset'];
-let resolvedAssetBase = null;
-const assetUrlCache = new Map();
-let backgroundUpdateToken = 0;
-
-function preloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(url);
-    img.onerror = () => reject(new Error('IMAGE_LOAD_FAILED'));
-    img.src = url;
-  });
-}
-
-async function getAssetUrl(filename) {
-  const key = String(filename || '').trim();
-  if (!key) return '';
-  if (assetUrlCache.has(key)) return assetUrlCache.get(key);
-
-  const bases = resolvedAssetBase
-    ? [resolvedAssetBase, ...ASSET_BASE_CANDIDATES.filter((b) => b !== resolvedAssetBase)]
-    : ASSET_BASE_CANDIDATES;
-
-  for (const base of bases) {
-    const url = `${base}/${key}`;
-    try {
-      await preloadImage(url);
-      resolvedAssetBase = base;
-      assetUrlCache.set(key, url);
-      return url;
-    } catch (_) {
-      // try next
-    }
-  }
-
-  // 最後の手段: そのまま返す（開発時のパスずれを許容）
-  const fallback = `${ASSET_BASE_CANDIDATES[0]}/${key}`;
-  assetUrlCache.set(key, fallback);
-  return fallback;
-}
-
-async function setAppBackgroundByKey(key) {
-  const filename = key === 'stage'
-    ? 'bg_stage.png'
-    : key === 'select'
-      ? 'bg_select.png'
-      : 'bg_title.png';
-
-  const token = ++backgroundUpdateToken;
-  const url = await getAssetUrl(filename);
-  if (token !== backgroundUpdateToken) return;
-  if (!url) return;
-
-  document.body.style.backgroundImage = `url("${url}")`;
-}
-
-function updateBackgroundForScreen(screenId) {
-  if (screenId === 'p') {
-    setAppBackgroundByKey('stage');
-    return;
-  }
-  if (screenId === 'stage-map-screen' || screenId === 'c') {
-    // 👈✨ ここを 'select' から 'stage' に変更するだけ！
-    setAppBackgroundByKey('stage'); 
-    return;
-  }
-  // 👇 1番目の画面（タイトル）はそのまま
-  setAppBackgroundByKey('title');
-}
-
-// ===== 新機能: 公式アンロック（初回ポップアップ） =====
-function unlockFormulaIds(formulaIds) {
-  const current = getUnlockedFormulaIds();
-  const incoming = sanitizeUnlockedFormulas(formulaIds);
-  const merged = sanitizeUnlockedFormulas([...current, ...incoming]);
-  unlockedFormulas = merged;
-  saveUnlockedFormulasToStorage(unlockedFormulas);
-}
-
-function getRequiredFormulasFromProblem(problemData) {
-  const required = problemData?.requiredFormulas;
-  if (!Array.isArray(required)) return [];
-  return required.map((id) => String(id)).filter((id) => !!id);
-}
-
-function getFormulaUnlockModalNodes() {
-  return {
-    modal: document.getElementById('formula-unlock-modal'),
-    title: document.getElementById('formula-unlock-title'),
-    meta: document.getElementById('formula-unlock-meta'),
-    image: document.getElementById('formula-unlock-image'),
-    fallback: document.getElementById('formula-unlock-fallback'),
-    closeButton: document.getElementById('btn-formula-unlock-close'),
-  };
-}
-
-async function showFormulaUnlockModal(formulaIds) {
-  const ids = Array.from(new Set((Array.isArray(formulaIds) ? formulaIds : []).map((id) => String(id)).filter(Boolean)));
-  if (ids.length === 0) return;
-
-  const { modal, title, meta, image, fallback, closeButton } = getFormulaUnlockModalNodes();
-  if (!modal || !title || !meta || !image || !fallback || !closeButton) {
-    return;
-  }
-
-  modal.classList.remove('hidden');
-
-  await new Promise((resolve) => {
-    let index = 0;
-
-    const render = async () => {
-      const formulaId = ids[index];
-      const label = typeof formulaIdToLabel === 'function' ? formulaIdToLabel(formulaId) : formulaId;
-      title.textContent = '新しい公式を覚えよう！';
-      meta.textContent = `UNLOCK: ${label}  (${index + 1} / ${ids.length})`;
-      fallback.style.display = 'none';
-      fallback.textContent = '';
-
-      image.style.display = 'block';
-      image.alt = label;
-      image.onerror = () => {
-        image.style.display = 'none';
-        fallback.textContent = `画像が見つかりませんでした。\n\n${label}`;
-        fallback.style.display = 'block';
-      };
-
-      const imageUrl = await getAssetUrl(`${formulaId}.png`);
-      image.src = imageUrl;
-
-      closeButton.textContent = index >= ids.length - 1 ? '確認して開始' : '次へ';
-    };
-
-    closeButton.onclick = () => {
-      index += 1;
-      if (index >= ids.length) {
-        modal.classList.add('hidden');
-        closeButton.onclick = null;
-        resolve();
-        return;
-      }
-      render();
-    };
-
-    render();
-  });
-}
-
-async function ensureFormulasUnlockedForProblem(problemData) {
-  const required = sanitizeUnlockedFormulas(getRequiredFormulasFromProblem(problemData))
-    .filter((id) => (typeof isSupportedFormulaId === 'function' ? isSupportedFormulaId(id) : true));
-
-  if (required.length === 0) return [];
-
-  const unlocked = new Set(getUnlockedFormulaIds());
-  const newlyFound = required.filter((id) => !unlocked.has(id));
-  if (newlyFound.length === 0) return [];
-
-  // 初回遭遇: 画像ポップアップを出してからアンロック
-  await showFormulaUnlockModal(newlyFound);
-  unlockFormulaIds(newlyFound);
-
-  return newlyFound;
-}
-
-function switchScreen(screenId) {
-  document.querySelectorAll('.a').forEach((screen) => screen.classList.remove('b'));
-  const target = document.getElementById(screenId);
-  if (target) target.classList.add('b');
-
-  if (screenId !== 'p') {
-    hideTutorialOverlay();
-  }
-
-  if (screenId === 'p') {
-    requestAnimationFrame(() => {
-      forceWorkspaceLayoutSync();
-    });
-  }
-
-  if (screenId === 'stage-map-screen') {
-    requestAnimationFrame(() => {
-      centerMapCameraOnCurrentStage(true);
-    });
-  }
-
-  updateBackgroundForScreen(screenId);
-}
-
-// toast-message がある場合はトースト表示。
-// ない場合は result-display にフォールバックする。
-function showToast(htmlContent, isAutoClose = true) {
-  const toastElement = document.getElementById('toast-message');
-  const fallbackResult = document.getElementById('result-display');
-
-  if (toastElement) {
-    toastElement.innerHTML = htmlContent;
-    toastElement.classList.remove('hidden');
-
-    if (isAutoClose) {
-      setTimeout(() => {
-        toastElement.classList.add('hidden');
-      }, 3000);
-    }
-    return;
-  }
-
-  if (fallbackResult) {
-    fallbackResult.innerHTML = htmlContent;
-  }
-}
-
-function updateStreakCounter(shouldAnimate = false) {
-  const streakCounter = document.getElementById('streak-counter');
-  if (!streakCounter) return;
-
-  streakCounter.textContent = `🔥 ${currentStreak}`;
-  streakCounter.classList.remove('streak-bounce');
-  if (!shouldAnimate) return;
-
-  // Use rAF to restart animation without forcing synchronous layout.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      streakCounter.classList.add('streak-bounce');
-    });
-  });
-}
-
-function closeSkipChallengeModal() {
-  const skipModal = document.getElementById('skip-challenge-modal');
-  if (skipModal) skipModal.classList.add('hidden');
-}
+// UI helpers moved to app-ui.js.
 
 function updateTutorialBanner(stageId) {
   updateTutorialProgress(stageId);
@@ -2435,80 +1938,6 @@ function isTutorialGateAllowed(blockType, stageId) {
   return gate.types?.has(blockType);
 }
 
-function closeGameEntrance() {
-  const entrance = document.getElementById('game-entrance');
-  if (entrance) entrance.classList.add('hidden');
-}
-
-function openGameEntrance() {
-  const entrance = document.getElementById('game-entrance');
-  if (entrance) {
-    entrance.classList.remove('hidden');
-    entrance.classList.remove('show-choices');
-  }
-  hideTutorialOverlay();
-  // 起動画面はタイトル背景へ
-  setAppBackgroundByKey('title');
-}
-
-function hideTutorialOverlay() {
-  tutorialModeActive = false;
-  updateTutorialBanner('');
-  hideTutorialHighlights();
-  
-  // チュートリアル終了時は行動制限を解除
-  clearTutorialBlockRestrictions();
-  
-  if (tutorialAutoAdvanceFrameId) {
-    cancelAnimationFrame(tutorialAutoAdvanceFrameId);
-    tutorialAutoAdvanceFrameId = 0;
-  }
-
-}
-
-function updateTutorialIntroStep() {
-  const title = document.getElementById('tutorial-intro-step-title');
-  const body = document.getElementById('tutorial-intro-step-body');
-  const help = document.getElementById('tutorial-intro-step-help');
-  const nextBtn = document.getElementById('btn-tutorial-intro-next');
-  const okBtn = document.getElementById('btn-tutorial-intro-ok');
-  if (!title || !body || !help || !nextBtn || !okBtn) return;
-
-  const safeIndex = Math.max(0, Math.min(tutorialIntroIndex, TUTORIAL_STEPS.length - 1));
-  const step = TUTORIAL_STEPS[safeIndex];
-  const headline = String(step.text || '').split('\n')[0] || 'チュートリアルの流れ';
-  const bodyLines = String(step.text || '').split('\n').slice(1).join('\n').trim();
-  const detailText = String(step.help || '').trim();
-
-  title.textContent = headline;
-  body.textContent = bodyLines || 'ブロックを動かして、式を変形していくよ。';
-  help.textContent = detailText || '次のステップへ進んでみよう。';
-
-  const isLast = safeIndex >= TUTORIAL_STEPS.length - 1;
-  nextBtn.style.display = isLast ? 'none' : 'inline-block';
-  okBtn.style.display = isLast ? 'inline-block' : 'none';
-}
-
-function showGoalHintForStage() {
-  goalHintActive = true;
-  const hintButton = document.getElementById('btn-hint');
-  if (hintButton) hintButton.textContent = 'ヒントを消す';
-  updateTutorialHighlightUI(currentStageNumber);
-}
-
-function hideGoalHintForStage() {
-  goalHintActive = false;
-  const hintButton = document.getElementById('btn-hint');
-  if (hintButton) hintButton.textContent = 'ヒント';
-  const underProblem = document.getElementById('tutorial-next-under-problem');
-  if (underProblem) {
-    underProblem.textContent = '';
-    underProblem.classList.remove('visible');
-    underProblem.classList.remove('pulse');
-  }
-  hideTutorialHighlights();
-}
-
 function showTutorialStep() {
   if (!isTutorialStageId(currentStageNumber)) return;
   updateTutorialBanner(currentStageNumber);
@@ -2628,6 +2057,7 @@ async function advanceTutorialFlowOrComplete() {
  */
 async function loadStage(stageNumber) {
   try {
+    clearAutoAdvanceTimer();
     const isTutorialStage = isTutorialStageId(stageNumber);
     const stageKey = String(stageNumber);
     const numericStage = Math.max(1, Number(stageNumber) || 1);
@@ -2694,12 +2124,8 @@ async function loadStage(stageNumber) {
     }
 
     const submitBtn = document.getElementById('btn-submit');
-    const nextBtn = document.getElementById('btn-next');
     if (submitBtn) submitBtn.style.display = 'inline-block';
-    if (nextBtn) {
-      nextBtn.style.display = 'none';
-      nextBtn.innerText = '次の問題へ';
-    }
+    updateSubmitButtonState();
   } catch (error) {
     const errorText = error && error.message ? String(error.message) : '';
     const isHttpError = /^HTTP\s+\d+/.test(errorText);
@@ -2916,12 +2342,13 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-answer')?.addEventListener('click', () => {
-    if (!currentProblemData?.answerState) return showToast('解答はありません', false);
+    if (!currentProblemData?.answerState) return showToast('まだ解答例はありません', false);
     workspace.clear();
     Blockly.serialization.workspaces.load(currentProblemData.answerState, workspace);
     forceWorkspaceLayoutSync();
     arrangeBlocks();
-    showToast('解答を表示しました');
+    updateSubmitButtonState();
+    showToast('解答例を表示しました');
   });
 
   document.getElementById('btn-back')?.addEventListener('click', () => {
@@ -2964,11 +2391,6 @@ function setupEventListeners() {
   document.getElementById('btn-skip-challenge-cancel')?.addEventListener('click', () => {
     closeSkipChallengeModal();
     currentSkipOffer = null;
-    const nextBtn = document.getElementById('btn-next');
-    if (nextBtn) {
-      nextBtn.style.display = 'inline-block';
-      nextBtn.innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次の問題へ';
-    }
   });
 
   document.getElementById('btn-skip-challenge-accept')?.addEventListener('click', () => {
@@ -2985,55 +2407,8 @@ function setupEventListeners() {
 
     closeSkipChallengeModal();
     currentSkipOffer = null;
-
-    const nextBtn = document.getElementById('btn-next');
-    if (nextBtn) nextBtn.style.display = 'none';
     document.getElementById('btn-submit').style.display = 'inline-block';
     transitionToStage(targetStage);
-  });
-
-  document.getElementById('btn-unit-circle')?.addEventListener('click', () => {
-    const modal = document.getElementById('unit-circle-modal');
-    const slider = document.getElementById('unit-circle-angle');
-    if (modal) modal.classList.remove('hidden');
-    drawUnitCircle(Number(slider?.value || 0));
-  });
-
-  document.getElementById('btn-unit-circle-close')?.addEventListener('click', () => {
-    const modal = document.getElementById('unit-circle-modal');
-    if (modal) modal.classList.add('hidden');
-  });
-
-  document.getElementById('unit-circle-angle')?.addEventListener('input', (event) => {
-    const angle = Number(event?.target?.value || 0);
-    drawUnitCircle(angle);
-  });
-
-  document.getElementById('btn-next')?.addEventListener('click', () => {
-    closeSkipChallengeModal();
-    currentSkipOffer = null;
-    document.getElementById('btn-next').style.display = 'none';
-    document.getElementById('btn-submit').style.display = 'inline-block';
-
-    if (isTutorialStageId(currentStageNumber)) {
-      const nextTutorialStage = getNextTutorialStageId(currentStageNumber);
-      if (nextTutorialStage) {
-        transitionToStage(nextTutorialStage);
-      } else {
-        localStorage.setItem('tutorial_seen', 'true');
-        updateTutorialBanner('');
-        renderStageMap();
-        switchScreen('stage-map-screen');
-      }
-      return;
-    }
-
-    if (currentStageNumber < MAX_STAGE_NUMBER) {
-      transitionToStage(currentStageNumber + 1);
-    } else {
-      renderStageMap();
-      switchScreen('stage-map-screen');
-    }
   });
 
   document.getElementById('btn-submit')?.addEventListener('click', async () => {
@@ -3048,7 +2423,7 @@ function setupEventListeners() {
         .filter((formulaId) => !usedFormulaIds.has(formulaId));
       if (missingFormulaIds.length > 0) {
         const labels = missingFormulaIds.map((formulaId) => formulaIdToLabel(formulaId)).join('、');
-        showToast(`<span style='color:#ff4b4b'>必要な公式が不足しています: ${labels}</span>`);
+        showToast(`<span style='color:#ff4b4b'>証明に必要な公式がまだそろっていません: ${labels}</span>`);
         return;
       }
     }
@@ -3059,7 +2434,7 @@ function setupEventListeners() {
       const missingConcepts = requiredConcepts.filter((conceptId) => !achievedConcepts.has(conceptId));
       if (missingConcepts.length > 0) {
         const labels = missingConcepts.map((conceptId) => getConceptLabel(conceptId)).join('、');
-        showToast(`<span style='color:#ff4b4b'>必要な考え方が不足しています: ${labels}</span>`);
+        showToast(`<span style='color:#ff4b4b'>証明に必要な考え方がまだそろっていません: ${labels}</span>`);
         return;
       }
     } else {
@@ -3069,7 +2444,7 @@ function setupEventListeners() {
       const requiredGreenTypes = getRequiredGreenOperationSequence(currentProblemData);
       const missingGreenTypes = getMissingTypesByRequiredOrder(requiredGreenTypes, actualGreenTypes);
       if (missingGreenTypes.length > 0) {
-        showToast(`<span style='color:#ff4b4b'>必須ブロックが不足しています: ${summarizeTypeCounts(missingGreenTypes)}</span>`);
+        showToast(`<span style='color:#ff4b4b'>証明に必要なブロックがまだそろっていません: ${summarizeTypeCounts(missingGreenTypes)}</span>`);
         return;
       }
     }
@@ -3089,42 +2464,18 @@ function setupEventListeners() {
       currentStageSolved = true;
 
       showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
-      if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 150,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#58cc02', '#1cb0f6', '#ffc800', '#ff4b4b'],
-        });
-      }
+      showClearStamp('CLEAR!');
+      showSuccessRipple();
 
       if (!isTutorialStageId(currentStageNumber) && !clearedStages.includes(currentStageNumber) && currentStageNumber >= 1) {
         clearedStages.push(currentStageNumber);
         localStorage.setItem('s', JSON.stringify(clearedStages));
       }
 
-      if (isTutorialStageId(currentStageNumber)) {
-        document.getElementById('btn-submit').style.display = 'none';
-        const nextBtn = document.getElementById('btn-next');
-        if (nextBtn) {
-          nextBtn.style.display = 'inline-block';
-          nextBtn.innerText = getNextTutorialStageId(currentStageNumber) ? '次の問題へ' : 'マップへ進む';
-        }
-        return;
-      }
-
       applyPendingSkipClearIfNeeded();
 
-      // 強制遷移を廃止し、ボタンを切り替える
       document.getElementById('btn-submit').style.display = 'none';
-      const canOfferSkip = currentStreak === 5 && currentStageNumber + 3 <= MAX_STAGE_NUMBER;
-      if (canOfferSkip) {
-        document.getElementById('btn-next').style.display = 'none';
-        openSkipChallengeModal(currentStageNumber, currentStageNumber + 3);
-      } else {
-        document.getElementById('btn-next').style.display = 'inline-block';
-        document.getElementById('btn-next').innerText = currentStageNumber === MAX_STAGE_NUMBER ? '一覧へ戻る' : '次の問題へ';
-      }
+      scheduleAutoAdvanceAfterClear();
     } else {
       currentStreak = 0;
       updateStreakCounter(false);
@@ -3133,7 +2484,7 @@ function setupEventListeners() {
         validation.errorStepIndex,
         validation.suggestions,
       );
-      showToast(`<span style='color:#ff4b4b'>不正解。${userMessage}</span>`);
+      showToast(`<span style='color:#ff4b4b'>証明がまだ整っていません。${userMessage}</span>`);
       return;
     }
   });
@@ -3175,11 +2526,13 @@ async function routeToTarget() {
  * 初回チュートリアル判定を含むアプリ起動シーケンス。
  */
 async function bootApplication() {
+    updateSubmitButtonState();
   resetAppStateForGoLiveIfNeeded();
 
   setupEventListeners();
   bindTutorialWorkspaceAutoAdvance();
   updateStreakCounter(false);
+    updateSubmitButtonState();
   updateOverwritePermissionButton();
 
   const tutorialSeenFlag = localStorage.getItem('tutorial_seen');
