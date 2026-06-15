@@ -962,7 +962,7 @@ function clearAutoAdvanceTimer() {
 function getAutoAdvanceDestination(stageNumber) {
   if (isTutorialStageId(stageNumber)) {
     if (stageNumber === '0-7') {
-      return { kind: 'stage', target: 1 }; // チュートリアル0-7の次は本編STAGE 1へ
+      return { kind: 'stage', target: 60 }; // チュートリアル0-7の次は本編STAGE 60へ
     }
     const nextTutorialStage = getNextTutorialStageId(stageNumber);
     return nextTutorialStage
