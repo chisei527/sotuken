@@ -6,7 +6,9 @@
     <script src="https://unpkg.com/blockly/blockly.min.js"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="app-state.js"></script>
+    <script src="app-ui.js"></script>
+    <script src="app-effects.js"></script>
     <style>
         html, body {
           height: 100%;
@@ -135,16 +137,109 @@
         .blocklyFieldRect { display: none !important; }
         .blocklyFieldGroup rect { fill: transparent !important; stroke: none !important; }
         .blocklyText, .blocklyEditableText { font-family: 'Times New Roman', serif !important; font-style: italic !important; font-size: 14px !important; }
-        .action-bar-container { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; background: rgba(255, 255, 255, 0.95); padding: 12px 16px; border-radius: 20px; border: 2px solid #d5e6ff; box-shadow: 0 6px 0 #cfe2ff, 0 12px 24px rgba(10,37,64,0.18); backdrop-filter: blur(5px); z-index: 1000; }
-        .action-btn { font-family: inherit; font-weight: 900; font-size: 15px; padding: 12px 20px; border: none; border-radius: 16px; cursor: pointer; color: white; transition: all 0.1s ease; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); outline: none; }
-        .action-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2); }
-        .btn-primary { background-color: #58cc02; box-shadow: 0 4px 0 #4a9d00; }
-        .btn-warning { background-color: #ffc800; box-shadow: 0 4px 0 #e5b400; color: #333; }
-        .btn-secondary { background-color: #e5e5e5; box-shadow: 0 4px 0 #cccccc; color: #777; }
-        .btn-danger { background-color: #ff4b4b; box-shadow: 0 4px 0 #cc0000; }
-        .btn-primary:hover, .btn-warning:hover { filter: brightness(1.1); }
-        .btn-secondary:hover { filter: brightness(0.95); }
-        #btn-next { display: none; background-color: #1cb0f6; box-shadow: 0 4px 0 #1899d6; }
+        .action-bar-container {
+          position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+          display: flex; gap: 12px; padding: 12px 16px; z-index: 1000;
+          background: linear-gradient(135deg, rgba(10, 15, 29, 0.86), rgba(20, 28, 48, 0.74));
+          border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 20px;
+          box-shadow: 0 18px 40px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08);
+          backdrop-filter: blur(14px);
+        }
+        .action-btn {
+          font-family: inherit; font-weight: 900; font-size: 15px; padding: 12px 20px;
+          border-radius: 14px; cursor: pointer; outline: none; border: 1px solid rgba(148, 163, 184, 0.2);
+          color: rgba(240, 249, 255, 0.96); letter-spacing: 0.02em;
+          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+          transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, border-color 0.16s ease;
+        }
+        .action-btn:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.06) saturate(1.05);
+          border-color: rgba(186, 230, 253, 0.46);
+          box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24), 0 0 18px rgba(56, 189, 248, 0.18), inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+        .action-btn:active { transform: translateY(1px); box-shadow: 0 8px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08); }
+        .btn-primary { background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(99, 102, 241, 0.9)); }
+        .btn-warning { background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 0.9)); color: rgba(15, 23, 42, 0.95); text-shadow: none; }
+        .btn-secondary { background: linear-gradient(135deg, rgba(71, 85, 105, 0.84), rgba(100, 116, 139, 0.68)); }
+        .btn-danger { background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.9)); }
+        .success-ripple {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          border: 4px solid #38bdf8;
+          box-shadow: 0 0 20px rgba(56, 189, 248, 0.75), inset 0 0 12px rgba(34, 211, 238, 0.35);
+          backface-visibility: hidden;
+          pointer-events: none;
+          z-index: 3000;
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 0.95;
+          animation: successRipple 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes successRipple {
+          0% {
+            transform: translate(-50%, -50%) scale(0.5);
+            opacity: 0.95;
+          }
+          100% {
+            width: 300px;
+            height: 300px;
+            transform: translate(-50%, -50%) scale(2.5);
+            opacity: 0;
+          }
+        }
+        .clear-stamp-effect {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 9999;
+          pointer-events: none;
+          color: #66f7d6;
+          font-family: 'Arial Black', 'M PLUS Rounded 1c', sans-serif;
+          font-size: clamp(64px, 10vw, 132px);
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-shadow:
+            0 0 8px rgba(102, 247, 214, 0.95),
+            0 0 24px rgba(56, 189, 248, 0.9),
+            0 0 42px rgba(34, 211, 238, 0.75),
+            0 0 64px rgba(16, 185, 129, 0.45);
+          -webkit-text-stroke: 3px rgba(10, 20, 30, 0.55);
+          text-transform: uppercase;
+          white-space: nowrap;
+          user-select: none;
+          animation: clearStampPop 1.2s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
+          filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.2));
+        }
+        @keyframes clearStampPop {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(3) rotate(-12deg);
+            filter: blur(8px) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+          }
+          20% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
+            filter: blur(0) drop-shadow(0 10px 24px rgba(0, 0, 0, 0.2));
+          }
+          35% {
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+          }
+          80% {
+            opacity: 1;
+            transform: translate(-50%, calc(-50% - 4px)) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, calc(-50% - 18px)) scale(0.9);
+            filter: blur(2px) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+          }
+        }
         .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(240, 244, 248, 0.95); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 2000; transition: opacity 0.4s ease, visibility 0.4s ease; }
         .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
         .start-content { text-align: center; animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -557,7 +652,6 @@
 
         /* 各種モーダルカード（共通でクールに） */
         .skip-challenge-card,
-        .unit-circle-card,
         .tutorial-intro-card,
         .formula-unlock-card {
           background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%);
@@ -567,22 +661,15 @@
           backdrop-filter: blur(14px);
         }
         .skip-challenge-card h2,
-        .unit-circle-card h2,
         .tutorial-intro-card h2,
         #formula-unlock-title {
           color: var(--cool-text);
           letter-spacing: 0.02em;
         }
         .skip-challenge-card p,
-        .unit-circle-card p,
         .tutorial-intro-card p,
         #formula-unlock-meta {
           color: var(--cool-muted);
-        }
-
-        #unit-circle {
-          background: rgba(255,255,255,0.92);
-          border: 1px solid rgba(148, 163, 184, 0.22);
         }
 
         /* Action bar（下部ボタン列） */
@@ -598,28 +685,29 @@
           border: 1px solid rgba(148, 163, 184, 0.22);
           box-shadow: 0 12px 24px rgba(0,0,0,0.28);
           transform: translateY(0);
-          transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+          transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
         }
-        .action-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+        .action-btn:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.06) saturate(1.04);
+          border-color: rgba(186, 230, 253, 0.5);
+          box-shadow: 0 16px 30px rgba(0,0,0,0.28), 0 0 18px rgba(56, 189, 248, 0.18);
+        }
         .action-btn:active { transform: translateY(1px); box-shadow: 0 8px 14px rgba(0,0,0,0.22); }
 
         .btn-primary {
-          background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(167, 139, 250, 0.95));
-          box-shadow: 0 16px 30px rgba(56, 189, 248, 0.20);
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(99, 102, 241, 0.9));
         }
         .btn-secondary {
-          background: linear-gradient(135deg, rgba(148, 163, 184, 0.28), rgba(148, 163, 184, 0.18));
-          color: rgba(240, 249, 255, 0.92);
+          background: linear-gradient(135deg, rgba(71, 85, 105, 0.82), rgba(100, 116, 139, 0.64));
         }
         .btn-warning {
-          background: linear-gradient(135deg, rgba(251, 191, 36, 0.92), rgba(245, 158, 11, 0.92));
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 0.9));
           color: rgba(15, 23, 42, 0.95);
+          text-shadow: none;
         }
         .btn-danger {
-          background: linear-gradient(135deg, rgba(251, 113, 133, 0.92), rgba(244, 63, 94, 0.92));
-        }
-        #btn-next {
-          background: linear-gradient(135deg, rgba(34, 197, 94, 0.92), rgba(16, 185, 129, 0.92));
+          background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.9));
         }
 
         /* Toast */
@@ -942,22 +1030,6 @@
       </div>
     </div>
 
-    <div id="unit-circle-modal" class="overlay-screen hidden">
-      <div class="unit-circle-card">
-        <h2>Interactive Unit Circle</h2>
-        <p style="margin: 0; color: #4b5563;">角度スライダーを動かして、sin/cos/tan の幾何的な意味を確認できます。</p>
-        <canvas id="unit-circle" width="560" height="420"></canvas>
-        <div class="unit-circle-controls">
-          <span style="font-weight:700; color:#1f2937;">0°</span>
-          <input id="unit-circle-angle" type="range" min="0" max="360" value="0">
-          <span style="font-weight:700; color:#1f2937;">360°</span>
-        </div>
-        <div class="skip-actions" style="margin-top: 16px;">
-          <button id="btn-unit-circle-close" class="action-btn btn-secondary">閉じる</button>
-        </div>
-      </div>
-    </div>
-
         <div id="tutorial-intro-modal" class="overlay-screen hidden">
       <div class="tutorial-intro-card" style="max-width: 800px;">
         <h2>ようこそ! まずは目標を共有</h2>
@@ -1049,9 +1121,7 @@
           <button id="btn-reset" class="action-btn btn-secondary">リセット</button>
           <button id="btn-answer" class="action-btn btn-danger">答え</button>
           <button id="btn-hint" class="action-btn btn-warning">ヒント</button>
-          <button id="btn-unit-circle" class="action-btn btn-secondary">単位円</button>
-          <button id="btn-submit" class="action-btn btn-primary">チェックする！</button>
-          <button id="btn-next" class="action-btn btn-primary">次の問題へ</button>
+          <button id="btn-submit" class="action-btn btn-primary">正解をチェック</button>
         </div>
     </div>
 
