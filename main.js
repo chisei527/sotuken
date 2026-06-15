@@ -2060,6 +2060,16 @@ async function advanceTutorialFlowOrComplete() {
  */
 async function loadStage(stageNumber) {
   try {
+    // 新しいステージロード時に操作ボタンを有効化
+    const hintBtn = document.getElementById('btn-hint');
+    if (hintBtn) hintBtn.disabled = false;
+    const answerBtn = document.getElementById('btn-answer');
+    if (answerBtn) answerBtn.disabled = false;
+    const resetBtn = document.getElementById('btn-reset');
+    if (resetBtn) resetBtn.disabled = false;
+    const overwriteBtn = document.getElementById('btn-overwrite-permission');
+    if (overwriteBtn) overwriteBtn.disabled = false;
+
     clearAutoAdvanceTimer();
     const isTutorialStage = isTutorialStageId(stageNumber);
     const stageKey = String(stageNumber);
@@ -2466,6 +2476,12 @@ function setupEventListeners() {
         }
       }
       currentStageSolved = true;
+
+      // 正解時、一時的に他の操作ボタンを無効化
+      document.getElementById('btn-hint').disabled = true;
+      document.getElementById('btn-answer').disabled = true;
+      document.getElementById('btn-reset').disabled = true;
+      document.getElementById('btn-overwrite-permission').disabled = true;
 
       showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
       showClearStamp('CLEAR!');
