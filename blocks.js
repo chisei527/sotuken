@@ -1,7 +1,13 @@
 const FORMULA_BLOCK_DEFS = [
-  // ここに FORMULA_BLOCK_DEFS の定義を追加
+  ['formula_1', '公式①'], ['formula_2', '公式②'], ['formula_3', '公式③'],
+  ['formula_4', '公式④'], ['formula_5', '公式⑤'], ['formula_6', '公式⑥'],
+  ['formula_7', '公式⑦'], ['formula_8', '公式⑧'], ['formula_9', '公式⑨'],
+  ['formula_10', '公式⑩'], ['formula_11', '公式⑪'], ['formula_12', '公式⑫'],
+  ['formula_13', '公式⑬'], ['formula_14', '公式⑭'], ['formula_15', '公式⑮'],
+  ['formula_16', '公式⑯']
 ];
-  Blockly.Blocks.custom_number = {
+
+function defineMathBlocks() {
     init() {
       this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
       this.setOutput(true, null);
@@ -197,4 +203,5 @@ const FORMULA_BLOCK_DEFS = [
     },
   };
 
+}
 defineMathBlocks();

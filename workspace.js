@@ -1,5 +1,36 @@
 function buildToolboxConfig() {
-  // ここに buildToolboxConfig の定義を追加
+  return {
+    kind: 'categoryToolbox',
+    contents: [
+      {
+        kind: 'category', name: '基本', colour: '200',
+        contents: [
+          { kind: 'block', type: 'custom_number' },
+          { kind: 'block', type: 'term_sin' },
+          { kind: 'block', type: 'term_cos' },
+          { kind: 'block', type: 'term_tan' },
+          { kind: 'block', type: 'term_theta' },
+          { kind: 'block', type: 'math_add' },
+          { kind: 'block', type: 'math_negate' },
+          { kind: 'block', type: 'math_multiply' },
+          { kind: 'block', type: 'math_fraction' },
+          { kind: 'block', type: 'math_square' }
+        ]
+      },
+      {
+        kind: 'category', name: '公式', colour: '260',
+        contents: Array.from({length: 16}, (_, i) => ({kind: 'block', type: `formula_${i+1}`}))
+      },
+      {
+        kind: 'category', name: '操作', colour: '120',
+        contents: [
+          { kind: 'block', type: 'replace_operation' },
+          { kind: 'block', type: 'common_denominator_operation' },
+          { kind: 'block', type: 'conclusion_operation' }
+        ]
+      }
+    ]
+  };
 }
 
 let toolboxConfig = buildToolboxConfig();
