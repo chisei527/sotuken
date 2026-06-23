@@ -50,10 +50,11 @@ function setupEventListeners() {
     switchScreen('stage-map-screen');
   });
 
-  document.getElementById('btn-entry-start')?.addEventListener('click', () => {
+  document.getElementById('btn-entry-start')?.addEventListener('click', async () => {
     const entrance = document.getElementById('game-entrance');
     if (entrance) entrance.classList.add('show-choices');
     setAppBackgroundByKey('select');
+    await routeToTarget();
   });
 
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
@@ -214,12 +215,10 @@ async function bootApplication() {
   const tutorialSeenFlag = localStorage.getItem('tutorial_seen');
   if (tutorialSeenFlag === null) {
     openGameEntrance();
-    return;
+  } else {
+    closeGameEntrance();
+    await routeToTarget();
   }
-
-  closeGameEntrance();
-
-  await routeToTarget();
 }
 
 bootApplication();
