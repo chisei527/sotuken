@@ -1,8 +1,6 @@
 window.hasBoundEventListeners = false;
 
 // app-state.js の機能を追加
-let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
-let unlockAll = localStorage.getItem('unlock_all') === '1';
 let currentStageNumber = 1;
 let currentProblemData = null;
 let currentStreak = 0;
