@@ -216,3 +216,6 @@ const WORLD_SEGMENTS = [
   { start: 76, end: 85, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
   { start: 86, end: 100, title: 'World 5: Apex Legend', subtitle: '最高難度の集大成' },
 ];
+window.currentStageNumber = 0;
+window.workspace = null;
+window.tutorialModeActive = false;
