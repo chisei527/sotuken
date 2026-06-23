@@ -209,14 +209,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateSubmitButtonState() {
-  // ここに updateSubmitButtonState の実装を追加
+  // ボタンの状態を更新するロジックを実装
+  const submitButton = document.getElementById('btn-submit');
+  if (!submitButton) return;
+
+  const isReadyToSubmit = checkIfReadyToSubmit(); // 例: 提出可能かどうかを確認する関数
+  submitButton.disabled = !isReadyToSubmit;
 }
 
 function resetAppStateForGoLiveIfNeeded() {
-  // ここに resetAppStateForGoLiveIfNeeded の実装を追加
+  // アプリの状態をリセットするロジックを実装
+  const goLiveFlag = localStorage.getItem('go_live_flag');
+  if (goLiveFlag) {
+    // 必要に応じて状態をリセット
+    localStorage.removeItem('go_live_flag');
+    resetApplicationState(); // 例: アプリの状態をリセットする関数
+  }
 }
 
 async function bootApplication() {
+  // アプリケーションの初期化ロジックを実装
   updateSubmitButtonState();
   resetAppStateForGoLiveIfNeeded();
 
