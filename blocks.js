@@ -8,6 +8,7 @@ const FORMULA_BLOCK_DEFS = [
 ];
 
 function defineMathBlocks() {
+  Blockly.Blocks.custom_number = {
     init() {
       this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
       this.setOutput(true, null);

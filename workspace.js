@@ -30,8 +30,6 @@ function buildToolboxConfig() {
         ]
       }
     ]
-  };
-}
 
 let toolboxConfig = buildToolboxConfig();
 
