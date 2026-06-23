@@ -212,6 +212,10 @@ function updateSubmitButtonState() {
   // ここに updateSubmitButtonState の実装を追加
 }
 
+function resetAppStateForGoLiveIfNeeded() {
+  // ここに resetAppStateForGoLiveIfNeeded の実装を追加
+}
+
 async function bootApplication() {
   updateSubmitButtonState();
   resetAppStateForGoLiveIfNeeded();
