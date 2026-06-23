@@ -10,7 +10,7 @@ window.currentStageNumber = 0;
     centerMapCameraOnStage(targetStage, false);
   } else {
     transitionToStage(targetStage);
-  }
+}
 }
 
 async function transitionToStage(stageNumber) {

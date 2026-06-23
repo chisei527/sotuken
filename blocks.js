@@ -196,6 +196,5 @@ const FORMULA_BLOCK_DEFS = [
       this.setColour(20);
     },
   };
-}
 
 defineMathBlocks();
