@@ -208,6 +208,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   await bootApplication();
 });
 
+function updateSubmitButtonState() {
+  // ここに updateSubmitButtonState の実装を追加
+}
+
 async function bootApplication() {
   updateSubmitButtonState();
   resetAppStateForGoLiveIfNeeded();
