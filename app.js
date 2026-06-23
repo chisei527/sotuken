@@ -1,3 +1,5 @@
+let hasBoundEventListeners = false;
+
 function setupEventListeners() {
   if (hasBoundEventListeners) return;
   hasBoundEventListeners = true;

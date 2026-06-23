@@ -1,3 +1,5 @@
+let currentStageNumber = 0;
+
 function routeToTarget() {
   const targetStage = getCurrentMapFocusStage();
   if (targetStage >= 60) {
