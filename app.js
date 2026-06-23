@@ -214,6 +214,17 @@ function checkIfReadyToSubmit() {
   return true; // 仮の実装として常に true を返す
 }
 
+function updateOverwritePermissionButton() {
+  // ボタンの状態を更新するロジックを実装
+  const button = document.getElementById('btn-overwrite-permission');
+  if (!button) return;
+
+  const currentMode = getProofScaffoldMode();
+  button.textContent = `ガイド機能: ${currentMode === 'guided' ? 'ON' : 'OFF'}`;
+  button.classList.toggle('on', currentMode === 'guided');
+  button.classList.toggle('off', currentMode !== 'guided');
+}
+
 function updateSubmitButtonState() {
   // ボタンの状態を更新するロジックを実装
   const submitButton = document.getElementById('btn-submit');
