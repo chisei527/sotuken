@@ -351,9 +351,9 @@ async function getProblemsData() {
 }
 
 function getUnlockLimit() {
-  if (unlockAll) return MAX_STAGE_NUMBER;
+  if (unlockAll) return Math.max(60, ...clearedStages) + 1;
   if (!Array.isArray(clearedStages) || clearedStages.length === 0) return 60;
-  return Math.min(MAX_STAGE_NUMBER, Math.max(60, ...clearedStages) + 1);
+  return Math.max(60, ...clearedStages) + 1;
 }
 
 function openSkipChallengeModal(currentStage, desiredTargetStage) {
@@ -533,7 +533,7 @@ async function renderStageMap() {
 
   nodeRoot.innerHTML = '';
 
-  for (let stage = 60; stage <= MAX_STAGE_NUMBER; stage += 1) { // 本編ステージは60から開始
+  for (let stage = 60; stage <= unlockedLimit; stage += 1) { // 本編ステージは60から開始
     const isCleared = clearedStages.includes(stage);
     const isUnlocked = unlockAll || stage <= unlockedLimit;
     const isFocus = stage === focusStage;
@@ -565,17 +565,17 @@ async function renderStageMap() {
 
     nodeRoot.appendChild(node);
 
-    if (stage < MAX_STAGE_NUMBER) { // MAX_STAGE_NUMBERが本編の最終ステージであれば、この条件はそのまま
+    if (stage < unlockedLimit) {
       const road = document.createElement('div');
       road.className = `map-road ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
       nodeRoot.appendChild(road);
     }
   }
 
-  const clearCount = clearedStages.filter((s) => s >= 60 && s <= MAX_STAGE_NUMBER).length; // 通常ステージは60からカウント
-  if (progressLabel) progressLabel.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} CLEAR`;
-  if (overallBar) overallBar.style.width = `${(clearCount / MAX_STAGE_NUMBER) * 100}%`;
-  if (progressText) progressText.textContent = `${clearCount} / ${MAX_STAGE_NUMBER} クリア`;
+  const clearCount = clearedStages.filter((s) => s >= 60).length; // 通常ステージは60からカウント
+  if (progressLabel) progressLabel.textContent = `${clearCount} CLEAR`;
+  if (overallBar) overallBar.style.width = `${(clearCount / unlockedLimit) * 100}%`;
+  if (progressText) progressText.textContent = `${clearCount} クリア`;
 
   requestAnimationFrame(() => {
     centerMapCameraOnCurrentStage(false);
@@ -1502,7 +1502,14 @@ async function loadStage(stageNumber) {
       ? `problems/tutorial/${stageKey}.json`
       : `problems/${numericStage}.json`;
     const response = await fetch(stageFile);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        showToast('✨ 全ステージクリア！次のアップデートをお待ちください', true);
+        switchScreen('stage-map-screen');
+        return;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
     const rawText = await response.text();
     const sanitizedText = rawText.replace(/^\uFEFF/, '').trim();
     if (!sanitizedText) throw new Error('EMPTY_JSON');
