@@ -1,5 +1,105 @@
 window.hasBoundEventListeners = false;
 
+// app-state.js の機能を追加
+let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
+let unlockAll = localStorage.getItem('unlock_all') === '1';
+let currentStageNumber = 1;
+let currentProblemData = null;
+let currentStreak = 0;
+let currentStageSolved = false;
+let currentSkipOffer = null;
+let pendingSkipChallenge = null;
+let hasBoundEventListeners = false;
+let autoAdvanceTimerId = 0;
+let problemsDataCache = null;
+let tutorialStepIndex = 0;
+let tutorialModeActive = false;
+let tutorialAutoAdvanceFrameId = 0;
+let tutorialWorkspaceListenerBound = false;
+let tutorialFlowProblems = [];
+let tutorialFlowIndex = 0;
+let tutorialIntroIndex = 0;
+let tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
+let goalHintActive = false;
+let currentHighlightTargetNode = null;
+let currentHighlightInputObj = null;
+let highlightTrackingFrameId = 0;
+
+const UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
+
+function loadUnlockedFormulasFromStorage() {
+  try {
+    const raw = localStorage.getItem(UNLOCKED_FORMULAS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveUnlockedFormulasToStorage(formulaIds) {
+  const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
+  localStorage.setItem(UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
+}
+
+let unlockedFormulas = loadUnlockedFormulasFromStorage();
+
+const MAX_STAGE_NUMBER = 100;
+const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
+const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', UNLOCKED_FORMULAS_STORAGE_KEY];
+const MAP_WORLD_MIN_WIDTH = 3600;
+const MAP_WORLD_MIN_HEIGHT = 2400;
+const MAP_NODE_SIZE = 94;
+
+function isTutorialStageId(stageId) {
+  return TUTORIAL_STAGE_IDS.includes(String(stageId));
+}
+
+// math-logic.js の機能を追加
+const FORMULA_REGISTRY = {
+  formula_1: {
+    id: 'formula_1',
+    text: 'sin(x)^2+cos(x)^2=1',
+    label: '公式①',
+    concept: 'pythagorean_identity',
+    getSides: (thetaExpr = 'theta') => [`sin(${thetaExpr})^2 + cos(${thetaExpr})^2`, '1'],
+  },
+  // 他の公式定義を追加
+};
+
+function formulaTextToId(formulaText) {
+  const normalized = normalizeFormulaText(formulaText);
+  const matched = Object.values(FORMULA_REGISTRY).find((entry) => entry.text === normalized);
+  return matched ? matched.id : null;
+}
+
+// tutorial.js の機能を追加
+function updateTutorialProgress(stageId) {
+  const shell = document.getElementById('tutorial-progress-shell');
+  const fill = document.getElementById('tutorial-progress-fill');
+  const label = document.getElementById('tutorial-progress-label');
+  const rate = document.getElementById('tutorial-progress-rate');
+  if (!shell || !fill || !label || !rate) return;
+
+  if (!isTutorialStageId(stageId)) {
+    shell.classList.remove('visible');
+    fill.style.width = '0%';
+    label.textContent = 'チュートリアル';
+    rate.textContent = '0%';
+    return;
+  }
+
+  const totalSteps = TUTORIAL_STAGE_IDS.length;
+  const step = Math.max(0, Math.min(tutorialProgressCount, totalSteps));
+  const percent = Math.round((step / totalSteps) * 100);
+
+  shell.classList.add('visible');
+  fill.style.width = `${percent}%`;
+  label.textContent = `TUTORIAL ${step}/${totalSteps}`;
+  rate.textContent = `${percent}%`;
+}
+
 function setupEventListeners() {
   if (hasBoundEventListeners) return;
   hasBoundEventListeners = true;
