@@ -1,4 +1,6 @@
-function defineMathBlocks() {
+const FORMULA_BLOCK_DEFS = [
+  // ここに FORMULA_BLOCK_DEFS の定義を追加
+];
   Blockly.Blocks.custom_number = {
     init() {
       this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');

@@ -1,3 +1,7 @@
+function buildToolboxConfig() {
+  // ここに buildToolboxConfig の定義を追加
+}
+
 let toolboxConfig = buildToolboxConfig();
 
 // Blockly標準のテーマエンジンをハックしてダーク化

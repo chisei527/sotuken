@@ -1,6 +1,8 @@
-window.currentStageNumber = 0;
+function buildToolboxConfig() {
+  // ここに buildToolboxConfig の定義を追加
+}
 
-function routeToTarget() {
+window.currentStageNumber = 0;
   const targetStage = getCurrentMapFocusStage();
   if (targetStage >= 60) {
     switchScreen('stage-map-screen');
