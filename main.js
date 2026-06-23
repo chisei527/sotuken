@@ -1,4 +1,4 @@
-let currentStageNumber = 0;
+window.currentStageNumber = 0;
 
 function routeToTarget() {
   const targetStage = getCurrentMapFocusStage();

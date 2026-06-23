@@ -1,4 +1,4 @@
-let hasBoundEventListeners = false;
+window.hasBoundEventListeners = false;
 
 function setupEventListeners() {
   if (hasBoundEventListeners) return;
