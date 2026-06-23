@@ -10,11 +10,7 @@ function routeToTarget() {
 }
 
 async function transitionToStage(stageNumber) {
-  if (isTutorialStageId(stageNumber)) {
-    currentStageNumber = String(stageNumber);
-  } else {
-    currentStageNumber = Math.max(60, Math.min(Number(stageNumber) || 60, getUnlockLimit()));
-  }
+  currentStageNumber = Math.max(60, Number(stageNumber) || 60);
   switchScreen('p');
   await loadStage(currentStageNumber);
 }
@@ -39,7 +35,7 @@ async function renderStageMap() {
   const progressText = document.getElementById('progress-text');
   if (!nodeRoot || !mapWorld) return;
 
-  const unlockedLimit = getUnlockLimit();
+  const maxClearedStage = Math.max(60, Math.max(...clearedStages.filter(s => s >= 60)) + 1);
   const focusStage = getCurrentMapFocusStage();
 
   if (links) {
@@ -48,7 +44,7 @@ async function renderStageMap() {
 
   nodeRoot.innerHTML = '';
 
-  for (let stage = 60; stage <= unlockedLimit; stage += 1) {
+  for (let stage = 60; stage <= maxClearedStage; stage += 1) {
     const isCleared = clearedStages.includes(stage);
     const isUnlocked = unlockAll || stage <= unlockedLimit;
     const isFocus = stage === focusStage;
@@ -89,7 +85,7 @@ async function renderStageMap() {
 
   const clearCount = clearedStages.filter((s) => s >= 60).length;
   if (progressLabel) progressLabel.textContent = `${clearCount} CLEAR`;
-  if (overallBar) overallBar.style.width = `${(clearCount / unlockedLimit) * 100}%`;
+  if (overallBar) overallBar.style.display = 'none';
   if (progressText) progressText.textContent = `${clearCount} クリア`;
 
   requestAnimationFrame(() => {
