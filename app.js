@@ -208,6 +208,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await bootApplication();
 });
 
+function checkIfReadyToSubmit() {
+  // 提出可能かどうかを確認するロジックを実装
+  // 例: 必要な条件を満たしているかどうかをチェック
+  return true; // 仮の実装として常に true を返す
+}
+
 function updateSubmitButtonState() {
   // ボタンの状態を更新するロジックを実装
   const submitButton = document.getElementById('btn-submit');
