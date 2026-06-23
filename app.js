@@ -202,6 +202,10 @@ function setupEventListeners() {
   }, { passive: true });
 }
 
+document.addEventListener('DOMContentLoaded', async () => {
+  await bootApplication();
+});
+
 async function bootApplication() {
   updateSubmitButtonState();
   resetAppStateForGoLiveIfNeeded();
@@ -220,5 +224,3 @@ async function bootApplication() {
     await routeToTarget();
   }
 }
-
-bootApplication();
