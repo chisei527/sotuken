@@ -1,26 +1,26 @@
-function buildToolboxConfig() {
-  // ここに buildToolboxConfig の定義を追加
-}
+window.currentStageNumber = window.currentStageNumber || 0;
 
-window.currentStageNumber = 0;
-  const targetStage = getCurrentMapFocusStage();
+function routeToTarget() {
+  const targetStage = typeof getCurrentMapFocusStage === 'function' ? getCurrentMapFocusStage() : 60;
   if (targetStage >= 60) {
-    switchScreen('stage-map-screen');
-    renderStageMap();
-    centerMapCameraOnStage(targetStage, false);
+    if (typeof switchScreen === 'function') switchScreen('stage-map-screen');
+    if (typeof renderStageMap === 'function') renderStageMap();
+    if (typeof centerMapCameraOnStage === 'function') centerMapCameraOnStage(targetStage, false);
   } else {
     transitionToStage(targetStage);
-}
+  }
 }
 
 async function transitionToStage(stageNumber) {
   currentStageNumber = Math.max(60, Number(stageNumber) || 60);
   switchScreen('p');
-  await loadStage(currentStageNumber);
+  if (typeof loadStage === 'function') {
+    await loadStage(currentStageNumber);
+  }
 }
 
 function switchScreen(screenId) {
-  const screens = document.querySelectorAll('.screen');
+  const screens = document.querySelectorAll('.screen, .a');
   screens.forEach((screen) => {
     if (screen.id === screenId) {
       screen.classList.add('b');
@@ -37,20 +37,24 @@ async function renderStageMap() {
   const progressLabel = document.getElementById('map-progress');
   const overallBar = document.getElementById('overall-progress');
   const progressText = document.getElementById('progress-text');
+  
   if (!nodeRoot || !mapWorld) return;
 
-  const maxClearedStage = Math.max(60, Math.max(...clearedStages.filter(s => s >= 60)) + 1);
-  const focusStage = getCurrentMapFocusStage();
+  const maxClearedStage = typeof clearedStages !== 'undefined' && clearedStages.length > 0
+    ? Math.max(60, Math.max(...clearedStages.filter(s => s >= 60)) + 1)
+    : 60;
+  
+  const focusStage = typeof getCurrentMapFocusStage === 'function' ? getCurrentMapFocusStage() : 60;
 
-  if (links) {
+  if (links && typeof drawMapLinks === 'function') {
     drawMapLinks(links, []);
   }
 
   nodeRoot.innerHTML = '';
 
   for (let stage = 60; stage <= maxClearedStage; stage += 1) {
-    const isCleared = clearedStages.includes(stage);
-    const isUnlocked = unlockAll || stage <= unlockedLimit;
+    const isCleared = typeof clearedStages !== 'undefined' && clearedStages.includes(stage);
+    const isUnlocked = (typeof unlockAll !== 'undefined' && unlockAll) || (typeof unlockedLimit !== 'undefined' && stage <= unlockedLimit);
     const isFocus = stage === focusStage;
 
     const node = document.createElement('button');
@@ -72,27 +76,23 @@ async function renderStageMap() {
       node.onclick = async () => {
         currentStageNumber = stage;
         switchScreen('p');
-        await loadStage(stage);
+        if (typeof loadStage === 'function') await loadStage(stage);
       };
     } else {
       node.disabled = true;
     }
 
     nodeRoot.appendChild(node);
-
-    if (stage < unlockedLimit) {
-      const road = document.createElement('div');
-      road.className = `map-road ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
-      nodeRoot.appendChild(road);
-    }
   }
 
-  const clearCount = clearedStages.filter((s) => s >= 60).length;
+  const clearCount = typeof clearedStages !== 'undefined' ? clearedStages.filter((s) => s >= 60).length : 0;
   if (progressLabel) progressLabel.textContent = `${clearCount} CLEAR`;
   if (overallBar) overallBar.style.display = 'none';
   if (progressText) progressText.textContent = `${clearCount} クリア`;
 
   requestAnimationFrame(() => {
-    centerMapCameraOnCurrentStage(false);
+    if (typeof centerMapCameraOnCurrentStage === 'function') {
+      centerMapCameraOnCurrentStage(false);
+    }
   });
 }
