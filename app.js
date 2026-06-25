@@ -1,8 +1,9 @@
-var hasBoundEventListeners = false;
+// ===== app.js =====
+window._appEventsBound = window._appEventsBound || false;
 
 function setupEventListeners() {
-  if (hasBoundEventListeners) return;
-  hasBoundEventListeners = true;
+  if (window._appEventsBound) return;
+  window._appEventsBound = true;
 
   document.getElementById('btn-overwrite-permission')?.addEventListener('click', () => {
     if (typeof getProofScaffoldMode !== 'function') return;
@@ -16,6 +17,11 @@ function setupEventListeners() {
     }
     showToast(nextMode === 'guided' ? 'ガイド機能を ON にしました' : 'ガイド機能を OFF にしました');
   });
+
+  // ガイド機能の状態管理
+window.proofScaffoldMode = 'standard';
+window.getProofScaffoldMode = function() { return window.proofScaffoldMode; };
+window.setProofScaffoldMode = function(mode) { window.proofScaffoldMode = mode; };
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
     if (typeof currentStreak !== 'undefined') window.currentStreak = 0;
@@ -54,12 +60,13 @@ function setupEventListeners() {
     if (typeof closeSkipChallengeModal === 'function') closeSkipChallengeModal();
     if (typeof renderStageMap === 'function') renderStageMap();
     if (typeof switchScreen === 'function') switchScreen('stage-map-screen');
+    if (typeof setAppBackgroundByKey === 'function') setAppBackgroundByKey('select'); // マップ画面の背景へ切り替え
   });
 
   document.getElementById('btn-entry-start')?.addEventListener('click', async () => {
     const entrance = document.getElementById('game-entrance');
     if (entrance) entrance.classList.add('show-choices');
-    if (typeof setAppBackgroundByKey === 'function') setAppBackgroundByKey('select');
+    if (typeof setAppBackgroundByKey === 'function') setAppBackgroundByKey('select'); // モード選択肢が見えるタイミングでマップ背景へ予備切り替え
   });
 
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
@@ -76,7 +83,9 @@ function setupEventListeners() {
   document.getElementById('btn-entry-map')?.addEventListener('click', async () => {
     localStorage.setItem('tutorial_seen', 'true');
     if (typeof closeGameEntrance === 'function') closeGameEntrance();
-    if (typeof transitionToStage === 'function') await transitionToStage(1);
+    if (typeof routeToTarget === 'function') {
+      await routeToTarget(); // スキップせず最新の進捗マップ、またはステージへ進行
+    }
   });
 
   document.getElementById('btn-tutorial-intro-next')?.addEventListener('click', () => {
@@ -106,11 +115,8 @@ async function bootApplication() {
   if (typeof updateStreakCounter === 'function') updateStreakCounter(false);
   if (typeof updateOverwritePermissionButton === 'function') updateOverwritePermissionButton();
 
-  const tutorialSeenFlag = localStorage.getItem('tutorial_seen');
-  if (tutorialSeenFlag === null) {
-    if (typeof openGameEntrance === 'function') openGameEntrance();
-  } else {
-    if (typeof closeGameEntrance === 'function') closeGameEntrance();
-    if (typeof routeToTarget === 'function') await routeToTarget();
+  // 【重要】起動時は自動スキップせず、必ず綺麗にデザインされたスタート画面から開始させます
+  if (typeof openGameEntrance === 'function') {
+    openGameEntrance();
   }
 }

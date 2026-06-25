@@ -1,3 +1,6 @@
+// ===== workspace.js =====
+// Blocklyのツールボックス（パレット）定義、テーマ、ワークスペースの初期化およびブロックの自動整列を担当します
+
 function buildToolboxConfig() {
   return {
     kind: 'categoryToolbox',
@@ -30,6 +33,8 @@ function buildToolboxConfig() {
         ]
       }
     ]
+  };
+}
 
 let toolboxConfig = buildToolboxConfig();
 

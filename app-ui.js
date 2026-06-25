@@ -1,6 +1,14 @@
 // ===== app-ui.js =====
 // UI制御、ボタン状態、トースト通知、モーダルなどの描画・演出を担当します
 
+
+let toastTimeoutId = null;
+const BACKGROUNDS = {
+  'title': 'asset/bg_title.png',   // スタート（タイトル）画面
+  'select': 'asset/bg_select.png', // 問題選択（マップ）画面
+  'stage': 'asset/bg_stage.png'    // 問題（パズル）画面
+};
+
 function updateSubmitButtonState() {
   const submitBtn = document.getElementById('btn-submit');
   if (!submitBtn) return;
@@ -93,6 +101,7 @@ function openGameEntrance() {
     entrance.classList.remove('hidden', 'show-choices');
     document.getElementById('btn-entry-start').style.display = 'block';
   }
+  setAppBackgroundByKey('title');
 }
 
 function closeGameEntrance() {

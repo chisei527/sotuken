@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>MathBlock - 数式パズル</title>
+    
     <script src="https://unpkg.com/blockly/blockly.min.js"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
-    <script src="app-state.js"></script>
-    <script src="blocks.js"></script>
-    <script src="workspace.js"></script>
-    <script src="tutorial.js"></script>
-    <script src="main.js"></script>
+
+    <script defer src="app-state.js"></script>
+    <script defer src="math-logic.js"></script>
+    <script defer src="app-effects.js"></script>
+    <script defer src="app-ui.js"></script>
+    <script defer src="blocks.js"></script>
+    <script defer src="workspace.js"></script>
+    <script defer src="main.js"></script>      
+    <script defer src="tutorial.js"></script>  
+    <script defer src="app.js"></script>
+
     <style> html, body {
             height: 100%;
             margin: 0;
@@ -1103,7 +1110,6 @@
       </div>
     </div>
 
-    <!-- 新公式アンロック（画像ポップアップ） -->
     <div id="formula-unlock-modal" class="overlay-screen hidden">
       <div class="formula-unlock-card">
         <h2 id="formula-unlock-title">新しい公式を覚えよう！</h2>
@@ -1185,7 +1191,5 @@
     <div id="tutorial-highlight-source" class="tutorial-pulse-source hidden"></div>
     <div id="tutorial-highlight-target" class="tutorial-pulse-target hidden"></div>
     
-    <script src="math-logic.js"></script>
-    <script src="main.js"></script>
 </body>
 </html>
