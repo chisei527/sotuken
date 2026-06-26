@@ -19,3 +19,17 @@ function showClearStamp(text) {
     if (stamp.parentNode) stamp.parentNode.removeChild(stamp);
   }, 1500);
 }
+
+// 正解時のエフェクトをまとめて再生する（波紋＋スタンプ＋紙吹雪）
+function playClearEffects(text) {
+  showSuccessRipple();
+  showClearStamp(text);
+  if (typeof confetti === 'function') {
+    confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+  }
+}
+
+// 他ファイル（app.js）から呼べるよう window に登録
+window.showSuccessRipple = showSuccessRipple;
+window.showClearStamp = showClearStamp;
+window.playClearEffects = playClearEffects;

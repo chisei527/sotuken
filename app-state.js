@@ -84,8 +84,8 @@ function getTutorialTargetOperationState(stageId) {
   }
 
   const targetType = 'replace_operation';
-  const primaryBlock = typeof findTutorialReplaceOperation === 'function' ? findTutorialReplaceOperation() : null;
-  const conclusionBlock = typeof findTutorialConclusionOperation === 'function' ? findTutorialConclusionOperation() : null;
+  const primaryBlock = typeof window.findTutorialReplaceOperation === 'function' ? window.findTutorialReplaceOperation() : null;
+  const conclusionBlock = typeof window.findTutorialConclusionOperation === 'function' ? window.findTutorialConclusionOperation() : null;
 
   if (!primaryBlock) {
     return { type: targetType, block: null, isMissing: true, isComplete: false };
@@ -219,3 +219,19 @@ const WORLD_SEGMENTS = [
 window.currentStageNumber = 0;
 window.workspace = null;
 window.tutorialModeActive = false;
+
+// ------------------------------------------------------------
+// 状態変数を window に橋渡し（重要）
+// app.js / main.js / workspace.js は window.xxx で状態を読み書きするが、
+// 上の let 宣言だけでは window に乗らず window.clearedStages 等が undefined になり、
+// app.js の正解処理が例外で止まっていた。ここで実体を window に同期する。
+// ------------------------------------------------------------
+window.clearedStages = clearedStages;
+window.unlockAll = unlockAll;
+window.currentStreak = currentStreak;
+window.currentProblemData = currentProblemData;
+window.currentStageSolved = currentStageSolved;
+window.unlockedFormulas = unlockedFormulas;
+window.goalHintActive = false;
+window.TUTORIAL_STAGE_IDS = TUTORIAL_STAGE_IDS;
+window.MAX_STAGE_NUMBER = MAX_STAGE_NUMBER;

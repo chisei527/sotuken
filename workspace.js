@@ -1,7 +1,8 @@
 // ===== workspace.js =====
-// Blocklyのツールボックス（パレット）定義、テーマ、ワークスペースの初期化およびブロックの自動整列を担当します
+// ブロックを並べる「ワークスペース（机）」の環境設定と整列を担当
 
-function buildToolboxConfig() {
+// 1. パレット（ツールボックス）の中身を定義
+window.buildToolboxConfig = function(problemData) {
   return {
     kind: 'categoryToolbox',
     contents: [
@@ -12,6 +13,8 @@ function buildToolboxConfig() {
           { kind: 'block', type: 'term_sin' },
           { kind: 'block', type: 'term_cos' },
           { kind: 'block', type: 'term_tan' },
+          { kind: 'block', type: 'term_sin2' },
+          { kind: 'block', type: 'term_cos2' },
           { kind: 'block', type: 'term_theta' },
           { kind: 'block', type: 'math_add' },
           { kind: 'block', type: 'math_negate' },
@@ -34,11 +37,9 @@ function buildToolboxConfig() {
       }
     ]
   };
-}
+};
 
-let toolboxConfig = buildToolboxConfig();
-
-// Blockly標準のテーマエンジンをハックしてダーク化
+// 2. サイバーデザインのダークテーマ設定
 const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
   base: Blockly.Themes.Classic,
   componentStyles: {
@@ -52,60 +53,52 @@ const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
   },
 });
 
-const workspace = Blockly.inject('l', {
-  toolbox: toolboxConfig,
+// 3. ワークスペースの起動（机を画面に置く）
+window.workspace = Blockly.inject('l', {
+  toolbox: window.buildToolboxConfig(),
   renderer: 'zelos',
   theme: mathDarkTheme,
   trashcan: true,
   move: { scrollbars: true, drag: true, wheel: true },
   zoom: { controls: true, wheel: true, startScale: 1, maxScale: 2, minScale: 0.5, scaleSpeed: 1.1 },
 });
-window.workspace = workspace;
 
-function forceWorkspaceLayoutSync() {
-  if (!workspace) return;
-  Blockly.svgResize(workspace);
-  workspace.resizeContents();
-  workspace.render();
-}
+// 4. ブロックを綺麗に整列させる機能
+window.forceWorkspaceLayoutSync = function() {
+  if (!window.workspace) return;
+  Blockly.svgResize(window.workspace);
+  window.workspace.resizeContents();
+  window.workspace.render();
+};
 
-function arrangeBlocks() {
-  if (!workspace) return;
+window.arrangeBlocks = function() {
+  if (!window.workspace) return;
+  window.forceWorkspaceLayoutSync();
+  const metrics = window.workspace.getMetrics();
+  const leftInset = Math.max(250, (metrics?.absoluteMetrics?.left || 0) + (metrics?.toolboxWidth || 0) + 24);
+  const topInset = 24;
 
-  forceWorkspaceLayoutSync();
-  const metrics = workspace.getMetrics();
-  const toolboxWidth = Math.max(0, metrics?.toolboxWidth || 0);
-  const flyoutWidth = Math.max(0, metrics?.flyoutWidth || 0);
-  const absoluteLeft = Math.max(0, metrics?.absoluteMetrics?.left || 0);
-  const absoluteTop = Math.max(0, metrics?.absoluteMetrics?.top || 0);
+  const topBlocks = window.workspace.getTopBlocks(true);
+  const nonProofBlocks = topBlocks.filter(b => b.type !== 'proof_step');
+  const proofBlocks = topBlocks.filter(b => b.type === 'proof_step');
 
-  // ツールボックスと重ならない最小マージンを保証する。
-  const leftInset = Math.max(250, absoluteLeft + toolboxWidth + flyoutWidth + 24);
-  const topInset = Math.max(absoluteTop + 24, 24);
-  const gap = 26;
+  nonProofBlocks.sort((a, b) => a.getRelativeToSurfaceXY().x - b.getRelativeToSurfaceXY().x);
 
-  const topBlocks = workspace.getTopBlocks(true);
-  const nonProofBlocks = topBlocks.filter((block) => block && block.type !== 'proof_step');
-  const proofBlocks = topBlocks.filter((block) => block && block.type === 'proof_step');
-
-  nonProofBlocks.sort((firstBlock, secondBlock) => firstBlock.getRelativeToSurfaceXY().x - secondBlock.getRelativeToSurfaceXY().x);
-
-  let nonProofBlockX = leftInset;
-  let nonProofRowMaxHeight = 0;
-  nonProofBlocks.forEach((mathBlock) => {
-    const mathBlockPosition = mathBlock.getRelativeToSurfaceXY();
-    const mathBlockSize = mathBlock.getHeightWidth();
-    mathBlock.moveBy(nonProofBlockX - mathBlockPosition.x, topInset - mathBlockPosition.y);
-    nonProofBlockX += mathBlockSize.width + gap;
-    nonProofRowMaxHeight = Math.max(nonProofRowMaxHeight, mathBlockSize.height);
+  let currentX = leftInset;
+  let rowMaxHeight = 0;
+  nonProofBlocks.forEach((block) => {
+    const pos = block.getRelativeToSurfaceXY();
+    const size = block.getHeightWidth();
+    block.moveBy(currentX - pos.x, topInset - pos.y);
+    currentX += size.width + 26;
+    rowMaxHeight = Math.max(rowMaxHeight, size.height);
   });
 
-  const proofRowStartY = topInset + Math.max(150, nonProofRowMaxHeight + 80);
-  let proofBlockY = proofRowStartY;
-  proofBlocks.forEach((proofBlock) => {
-    const proofBlockPosition = proofBlock.getRelativeToSurfaceXY();
-    const proofBlockSize = proofBlock.getHeightWidth();
-    proofBlock.moveBy(leftInset - proofBlockPosition.x, proofBlockY - proofBlockPosition.y);
-    proofBlockY += Math.max(40, proofBlockSize.height) + gap;
+  let proofY = topInset + Math.max(150, rowMaxHeight + 80);
+  proofBlocks.forEach((block) => {
+    const pos = block.getRelativeToSurfaceXY();
+    const size = block.getHeightWidth();
+    block.moveBy(leftInset - pos.x, proofY - pos.y);
+    proofY += size.height + 26;
   });
-}
+};

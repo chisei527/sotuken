@@ -1,3 +1,21 @@
+class FieldSpacer extends Blockly.Field {
+  constructor(width) {
+    super('');
+    this.width_ = width || 10;
+    // 見た目専用フィールドなので保存対象外（コンソール警告を解消）
+    this.SERIALIZABLE = false;
+  }
+  initView() {
+    this.size_ = new Blockly.utils.Size(this.width_, 24);
+  }
+  getSize() {
+    return new Blockly.utils.Size(this.width_, 24);
+  }
+}
+
+// ---------------------------------------------------
+// （ここから下は、元からある const FORMULA_BLOCK_DEFS = ... などのコードをそのまま残してください）
+
 const FORMULA_BLOCK_DEFS = [
   ['formula_1', '公式①'], ['formula_2', '公式②'], ['formula_3', '公式③'],
   ['formula_4', '公式④'], ['formula_5', '公式⑤'], ['formula_6', '公式⑥'],

@@ -379,10 +379,40 @@
     const ast = [];
     if (!targetWorkspace) return ast;
 
-    const proofSteps = targetWorkspace
-      .getAllBlocks(false)
-      .filter((block) => block.type === 'proof_step');
+    // ライブのワークスペースを Blockly 標準 JSON にシリアライズし、
+    // 保存データ用と同じ expressionFromSerializedBlock で式へ変換する。
+    // （旧実装は未定義の mathGenerator に依存していたため常に空文字になっていた）
+    let serialized = null;
+    try {
+      serialized = Blockly.serialization.workspaces.save(targetWorkspace);
+    } catch (error) {
+      serialized = null;
+    }
+    if (!serialized || !serialized.blocks || !Array.isArray(serialized.blocks.blocks)) {
+      return ast;
+    }
 
+    const exprFromInput = (operationBlock, inputName) => {
+      const inputBlock = readInputBlock(operationBlock, inputName);
+      if (!inputBlock) return '';
+      return expressionFromSerializedBlock(inputBlock) || '';
+    };
+
+    // FORMULA 入力には公式ブロック（formula_1 など）が入る。
+    // expressionFromSerializedBlock は公式ブロック非対応なので、
+    // ブロック type から FORMULA_REGISTRY の数式テキストを直接引く。
+    const formulaTextFromInput = (operationBlock) => {
+      const inputBlock = readInputBlock(operationBlock, 'FORMULA');
+      const type = inputBlock && typeof inputBlock.type === 'string' ? inputBlock.type : '';
+      if (type && FORMULA_REGISTRY[type] && typeof FORMULA_REGISTRY[type].text === 'string') {
+        return FORMULA_REGISTRY[type].text;
+      }
+      return '';
+    };
+
+    const proofSteps = serialized.blocks.blocks.filter(
+      (block) => block && block.type === 'proof_step',
+    );
     if (proofSteps.length === 0) {
       return ast;
     }
@@ -390,27 +420,29 @@
     let stepIndex = 1;
 
     proofSteps.forEach((proofStep) => {
-      let currentOperation = proofStep.getInputTargetBlock('OPERATIONS');
+      let currentOperation = proofStep?.inputs?.OPERATIONS?.block || null;
 
       while (currentOperation) {
-        const before = safeValueToCode(currentOperation, 'VALUE', '', generator);
-        const formula = currentOperation.type === 'replace_operation'
-          ? safeValueToCode(currentOperation, 'FORMULA', null, generator)
+        const type = String(currentOperation.type || '');
+
+        const before = exprFromInput(currentOperation, 'VALUE');
+        const formula = type === 'replace_operation'
+          ? formulaTextFromInput(currentOperation)
           : null;
-        const after = currentOperation.type === 'conclusion_operation'
+        const after = type === 'conclusion_operation'
           ? null
-          : safeValueToCode(currentOperation, 'REPLACEMENT', null, generator);
+          : exprFromInput(currentOperation, 'REPLACEMENT');
 
         ast.push({
           step: stepIndex,
-          type: String(currentOperation.type || ''),
+          type,
           before: before == null ? '' : String(before),
           formula: formula == null ? null : String(formula),
           after: after == null ? null : String(after),
         });
 
         stepIndex += 1;
-        currentOperation = currentOperation.getNextBlock();
+        currentOperation = currentOperation?.next?.block || null;
       }
     });
 

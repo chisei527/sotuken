@@ -1,284 +1,244 @@
 // ===== main.js =====
-// ステージの遷移、問題の読み込み、ガイド機能の初期配置、マップ描画を担当します
+// ステージの遷移、問題JSONファイルの読み込み、ガイド機能の初期配置、マップの生成を担当します
 
-window.currentStageNumber = window.currentStageNumber || 1;
+window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
+
+// ====== チュートリアル判定補助 ======
+window.isTutorialStageId = function(stageId) { 
+  return window.TUTORIAL_STAGE_IDS.includes(String(stageId)); 
+};
+window.getTutorialStageIndex = function(stageId) { 
+  return window.TUTORIAL_STAGE_IDS.indexOf(String(stageId)); 
+};
 
 // ====== 画面遷移とルーティング ======
 window.routeToTarget = function() {
-  const targetStage = typeof getCurrentMapFocusStage === 'function' ? getCurrentMapFocusStage() : 1;
-  if (typeof switchScreen === 'function') switchScreen('stage-map-screen');
-  if (typeof setAppBackgroundByKey === 'function') setAppBackgroundByKey('select');
-  if (typeof renderStageMap === 'function') renderStageMap();
-  if (typeof centerMapCameraOnStage === 'function') centerMapCameraOnStage(targetStage, false);
+  const targetStage = window.getCurrentMapFocusStage();
+  if (typeof window.switchScreen === 'function') window.switchScreen('stage-map-screen');
+  window.renderStageMap();
+  if (typeof window.centerMapCameraOnStage === 'function') window.centerMapCameraOnStage(targetStage, false);
 };
 
 window.transitionToStage = async function(stageNumber) {
-  if (typeof isTutorialStageId === 'function' && isTutorialStageId(stageNumber)) {
-    currentStageNumber = String(stageNumber);
-  } else {
-    currentStageNumber = Math.max(1, Number(stageNumber) || 1);
-  }
-  if (typeof switchScreen === 'function') switchScreen('p');
-  if (typeof setAppBackgroundByKey === 'function') setAppBackgroundByKey('stage');
-  await loadStage(currentStageNumber);
+  if (window.isTutorialStageId(stageNumber)) window.currentStageNumber = String(stageNumber);
+  else window.currentStageNumber = Math.max(1, Number(stageNumber) || 1);
+  
+  if (typeof window.switchScreen === 'function') window.switchScreen('p');
+  await window.loadStage(window.currentStageNumber);
 };
 
-// ====== マップ関連 ======
+// ====== マップ関連 (141問動的生成) ======
 window.getCurrentMapFocusStage = function() {
   const maxStage = 141;
-  const unlockedLimit = (typeof clearedStages !== 'undefined' && clearedStages.length > 0) 
-    ? Math.max(1, ...clearedStages) + 1 : 1;
+  const unlockedLimit = (window.clearedStages && window.clearedStages.length > 0) 
+      ? Math.max(1, ...window.clearedStages) + 1 : 1;
   return Math.max(1, Math.min(maxStage, unlockedLimit));
 };
 
 window.centerMapCameraOnStage = function(stageNumber, animate = true) {
   const targetNode = document.querySelector(`#map-nodes .map-node[data-stage="${stageNumber}"]`);
-  if (!targetNode) return;
-  try {
-    targetNode.scrollIntoView({ behavior: animate ? 'smooth' : 'auto', block: 'nearest', inline: 'center' });
-  } catch (_) {}
+  if (targetNode) targetNode.scrollIntoView({ behavior: animate ? 'smooth' : 'auto', block: 'nearest', inline: 'center' });
 };
 
 window.centerMapCameraOnCurrentStage = function(animate = true) {
-  centerMapCameraOnStage(getCurrentMapFocusStage(), animate);
+  window.centerMapCameraOnStage(window.getCurrentMapFocusStage(), animate);
 };
 
 window.renderStageMap = async function() {
   const nodeRoot = document.getElementById('map-nodes');
   const progressLabel = document.getElementById('map-progress');
-  const overallBar = document.getElementById('overall-progress');
   const progressText = document.getElementById('progress-text');
-  
   if (!nodeRoot) return;
   nodeRoot.innerHTML = '';
 
   const totalStages = 141;
   const stageIds = Array.from({length: totalStages}, (_, i) => i + 1);
-  const focusStage = getCurrentMapFocusStage();
+  const focusStage = window.getCurrentMapFocusStage();
 
   stageIds.forEach((stage, index) => {
-    const isCleared = typeof clearedStages !== 'undefined' && clearedStages.includes(stage);
-    const isFirst = index === 0;
-    const isPrevCleared = !isFirst && typeof clearedStages !== 'undefined' && clearedStages.includes(stageIds[index - 1]);
-    const isUnlocked = (typeof unlockAll !== 'undefined' && unlockAll) || isFirst || isCleared || isPrevCleared || (typeof unlockedLimit !== 'undefined' && stage <= unlockedLimit);
-    const isFocus = stage === focusStage;
+      const isCleared = window.clearedStages && window.clearedStages.includes(stage);
+      const isFirst = index === 0;
+      const isPrevCleared = !isFirst && window.clearedStages && window.clearedStages.includes(stageIds[index - 1]);
+      const isUnlocked = window.unlockAll || isFirst || isCleared || isPrevCleared;
+      const isFocus = stage === focusStage;
 
-    const node = document.createElement('button');
-    node.type = 'button';
-    node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isFocus ? ' current' : ''}`;
-    node.dataset.stage = String(stage);
+      const node = document.createElement('button');
+      node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isFocus ? ' current' : ''}`;
+      node.dataset.stage = String(stage);
+      const world = Math.floor((stage - 1) / 10) + 1;
+      const subStage = ((stage - 1) % 10) + 1;
+      node.innerHTML = `<div class="map-node-number">${world}-${subStage}</div><div class="map-node-label">STAGE ${stage}</div>`;
+      
+      if (isUnlocked) node.onclick = () => window.transitionToStage(stage);
+      else node.disabled = true;
+      
+      nodeRoot.appendChild(node);
 
-    const world = Math.floor((stage - 1) / 10) + 1;
-    const subStage = ((stage - 1) % 10) + 1;
-
-    const number = document.createElement('div');
-    number.className = 'map-node-number';
-    number.textContent = `${world}-${subStage}`;
-    node.appendChild(number);
-
-    const label = document.createElement('div');
-    label.className = 'map-node-label';
-    label.textContent = `STAGE ${stage}`;
-    node.appendChild(label);
-
-    if (isUnlocked) {
-      node.onclick = async () => await transitionToStage(stage);
-    } else {
-      node.disabled = true;
-    }
-    nodeRoot.appendChild(node);
-
-    if (index < stageIds.length - 1) {
-      const nextStage = stageIds[index + 1];
-      const isNextCleared = typeof clearedStages !== 'undefined' && clearedStages.includes(nextStage);
-      const road = document.createElement('div');
-      road.className = `map-road ${isCleared && isNextCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
-      nodeRoot.appendChild(road);
-    }
+      if (index < stageIds.length - 1) {
+          const nextStage = stageIds[index + 1];
+          const isNextCleared = window.clearedStages && window.clearedStages.includes(nextStage);
+          const road = document.createElement('div');
+          road.className = `map-road ${isCleared && isNextCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
+          nodeRoot.appendChild(road);
+      }
   });
 
-  const clearCount = typeof clearedStages !== 'undefined' ? clearedStages.filter(s => s >= 1 && s <= totalStages).length : 0;
+  const clearCount = window.clearedStages ? window.clearedStages.filter(s => s >= 1 && s <= totalStages).length : 0;
   if (progressLabel) progressLabel.textContent = `${clearCount} / ${totalStages} CLEAR`;
-  if (overallBar) overallBar.style.display = 'none';
   if (progressText) progressText.textContent = `${clearCount} / ${totalStages} クリア`;
 
-  requestAnimationFrame(() => centerMapCameraOnCurrentStage(false));
+  if (typeof window.centerMapCameraOnCurrentStage === 'function') {
+    requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(false));
+  }
 };
 
-// ====== ステージロード ======
+// ====== ステージロードとブロック初期配置 ======
 window.loadStage = async function(stageNumber) {
   try {
-    const isTutorialStage = typeof isTutorialStageId === 'function' && isTutorialStageId(stageNumber);
-    const stageFile = isTutorialStage ? `problems/tutorial/${stageNumber}.json` : `problems/${stageNumber}.json`;
+      const isTutorialStage = window.isTutorialStageId(stageNumber);
+      const stageFile = isTutorialStage ? `problems/tutorial/${stageNumber}.json` : `problems/${stageNumber}.json`;
       
-    const response = await fetch(stageFile);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
-    currentProblemData = JSON.parse(text.replace(/^\uFEFF/, '').trim());
-
-    if (typeof ensureFormulasUnlockedForProblem === 'function') await ensureFormulasUnlockedForProblem(currentProblemData);
-
-    currentStageSolved = false;
-    currentSkipOffer = null;
-    if (typeof closeSkipChallengeModal === 'function') closeSkipChallengeModal();
-    if (typeof updateStreakCounter === 'function') updateStreakCounter(false);
-
-    const stageText = document.getElementById('r');
-    const problemText = document.getElementById('s');
-    if (stageText) stageText.innerText = isTutorialStage ? `TUTORIAL ${getTutorialStageIndex(stageNumber) + 1}/${TUTORIAL_STAGE_IDS.length}` : `STAGE ${stageNumber}`;
-    if (problemText) problemText.innerText = currentProblemData.mathText || '';
-
-    if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); }
-
-    if (typeof workspace !== 'undefined' && workspace) {
-      if (typeof buildToolboxConfig === 'function') workspace.updateToolbox(buildToolboxConfig(currentProblemData));
-      workspace.clear();
-      Blockly.serialization.workspaces.load(currentProblemData.initialState, workspace);
+      const response = await fetch(stageFile);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      applyConditionalInitialStateGeneration(workspace);
+      let parsedData = JSON.parse((await response.text()).replace(/^\uFEFF/, '').trim());
+      
+      if (parsedData && !parsedData.mathText) {
+          if (parsedData[stageNumber]) parsedData = parsedData[stageNumber];
+          else if (parsedData.stages && parsedData.stages[stageNumber]) parsedData = parsedData.stages[stageNumber];
+      }
+      
+      window.currentProblemData = parsedData;
 
-      if (typeof forceWorkspaceLayoutSync === 'function') forceWorkspaceLayoutSync();
-      if (typeof arrangeBlocks === 'function') arrangeBlocks();
-    }
+      if (typeof window.ensureFormulasUnlockedForProblem === 'function') {
+        await window.ensureFormulasUnlockedForProblem(window.currentProblemData);
+      }
 
-    if (isTutorialStage) {
-      requestAnimationFrame(() => { if (typeof applyTutorialBlockRestrictions === 'function') applyTutorialBlockRestrictions(); });
-      tutorialModeActive = true;
-      if (typeof updateTutorialBanner === 'function') updateTutorialBanner(stageNumber);
-    } else {
-      if (typeof clearTutorialBlockRestrictions === 'function') clearTutorialBlockRestrictions();
-      tutorialModeActive = false;
-      if (typeof hideGoalHintForStage === 'function') hideGoalHintForStage();
-    }
+      window.currentStageSolved = false;
+      window.currentSkipOffer = null;
+      
+      if (typeof window.closeSkipChallengeModal === 'function') window.closeSkipChallengeModal();
+      if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(false);
 
-    const submitBtn = document.getElementById('btn-submit');
-    const nextBtn = document.getElementById('btn-next');
-    if (submitBtn) submitBtn.style.display = 'inline-block';
-    if (nextBtn) nextBtn.style.display = 'none';
+      const stageText = document.getElementById('r');
+      const problemText = document.getElementById('s');
+      if (stageText) stageText.innerText = isTutorialStage ? `TUTORIAL ${window.getTutorialStageIndex(stageNumber) + 1}/${window.TUTORIAL_STAGE_IDS.length}` : `STAGE ${stageNumber}`;
+      if (problemText) problemText.innerText = window.currentProblemData?.mathText || '';
+
+      if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); }
+
+      if (window.workspace) {
+          if (typeof buildToolboxConfig === 'function') window.workspace.updateToolbox(buildToolboxConfig(window.currentProblemData));
+          window.workspace.clear();
+          
+          if (window.currentProblemData?.initialState) {
+              Blockly.serialization.workspaces.load(window.currentProblemData.initialState, window.workspace);
+          }
+          
+          if (typeof window.applyConditionalInitialStateGeneration === 'function') {
+            try {
+              window.applyConditionalInitialStateGeneration(window.workspace);
+            } catch (genError) {
+              console.warn('[InitialStateGeneration] スキップしました:', genError);
+            }
+          }
+          
+          if (typeof forceWorkspaceLayoutSync === 'function') forceWorkspaceLayoutSync();
+          if (typeof arrangeBlocks === 'function') arrangeBlocks();
+      }
+
+      if (isTutorialStage) {
+          requestAnimationFrame(() => { if (typeof applyTutorialBlockRestrictions === 'function') applyTutorialBlockRestrictions(); });
+          window.tutorialModeActive = true;
+          if (typeof updateTutorialBanner === 'function') updateTutorialBanner(stageNumber);
+      } else {
+          if (window.workspace) {
+              const toolboxElement = window.workspace.getToolbox();
+              if (toolboxElement) {
+                  const categories = typeof toolboxElement.getCategories === 'function' ? toolboxElement.getCategories() : [];
+                  categories.forEach(category => {
+                      const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
+                      blocks.forEach(block => { if (block && typeof block.setDisabled === 'function') block.setDisabled(false); });
+                  });
+              }
+          }
+          window.tutorialModeActive = false;
+          if (typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
+      }
+
+      const submitBtn = document.getElementById('btn-submit');
+      const nextBtn = document.getElementById('btn-next');
+      if (submitBtn) submitBtn.style.display = 'inline-block';
+      if (nextBtn) nextBtn.style.display = 'none';
 
   } catch (error) {
-    console.error('[StageLoadError]', error);
-    if (typeof showToast === 'function') showToast(`<span style='color:red'>問題の読み込みに失敗しました (${stageNumber})</span>`, false);
+      console.error('[StageLoadError]', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast(`<span style='color:red'>問題の読み込みに失敗しました (${stageNumber})</span>`, false);
+      }
   }
-};
-
-// ====== ブロック自動接続ヘルパー (ガイド機能) ======
-window.parseRequiredBlockTypes = function(requiredBlocks) {
-  if (!Array.isArray(requiredBlocks)) return [];
-  return requiredBlocks.map(entry => {
-    if (typeof entry !== 'string') return null;
-    const match = entry.match(/type\"?\s*:\s*\"([a-zA-Z0-9_]+)\"/);
-    if (match && match[1]) return match[1];
-    const plain = entry.match(/^[a-zA-Z0-9_]+$/);
-    return plain ? entry : null;
-  }).filter(Boolean);
-};
-
-window.requiresCommonDenominator = function(problemData) {
-  if (!problemData) return false;
-  const requiredTypes = parseRequiredBlockTypes(problemData.requiredBlocks || []);
-  return requiredTypes.includes('common_denominator_operation');
-};
-
-window.getTopLevelMathBlocksSortedByY = function(targetWorkspace) {
-  if (!targetWorkspace) return [];
-  return targetWorkspace.getTopBlocks(false)
-    .filter(block => block && block.outputConnection && !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(block.type))
-    .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
-};
-
-window.getOrCreateProofStep = function(targetWorkspace) {
-  let proofStep = targetWorkspace.getTopBlocks(false).find(b => b.type === 'proof_step');
-  if (proofStep) return proofStep;
-  proofStep = targetWorkspace.newBlock('proof_step');
-  proofStep.initSvg(); proofStep.render();
-  return proofStep;
-};
-
-window.getOperationChain = function(proofStep) {
-  const operations = [];
-  let currentOp = proofStep?.getInputTargetBlock('OPERATIONS') || null;
-  while (currentOp) {
-    operations.push(currentOp);
-    currentOp = currentOp.getNextBlock();
-  }
-  return operations;
-};
-
-window.createOperationBlock = function(targetWorkspace, operationType) {
-  const operation = targetWorkspace.newBlock(operationType);
-  operation.initSvg(); operation.render();
-  return operation;
-};
-
-window.ensureStatementConnected = function(statementInputConnection, operationBlock) {
-  if (!statementInputConnection || !operationBlock?.previousConnection) return;
-  const currentTarget = statementInputConnection.targetBlock();
-  if (currentTarget === operationBlock) return;
-  if (currentTarget) currentTarget.unplug(true);
-  statementInputConnection.connect(operationBlock.previousConnection);
-};
-
-window.connectMathToInputIfEmpty = function(operationBlock, inputName, mathBlock) {
-  if (!operationBlock || !mathBlock || !mathBlock.outputConnection) return;
-  const inputConnection = operationBlock.getInput(inputName)?.connection;
-  if (!inputConnection || inputConnection.targetBlock()) return;
-  inputConnection.connect(mathBlock.outputConnection);
 };
 
 window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
   if (!targetWorkspace) return;
   const overwriteButton = document.getElementById('btn-overwrite-permission');
   const isOverwriteOn = !!overwriteButton && !overwriteButton.classList.contains('off');
-  const needsCommonDenominator = requiresCommonDenominator(currentProblemData);
-  const proofStep = getOrCreateProofStep(targetWorkspace);
+  
+  let proofStep = targetWorkspace.getTopBlocks(false).find(b => b.type === 'proof_step');
+  if (!proofStep) {
+      proofStep = targetWorkspace.newBlock('proof_step');
+      proofStep.initSvg(); proofStep.render();
+  }
+
   const operationInputConnection = proofStep.getInput('OPERATIONS')?.connection;
   if (!operationInputConnection) return;
 
-  const mathBlocks = getTopLevelMathBlocksSortedByY(targetWorkspace);
+  const mathBlocks = targetWorkspace.getTopBlocks(false)
+      .filter(block => block && block.outputConnection && !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(block.type))
+      .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
+      
   const leftExpressionBlock = mathBlocks[0] || null;
   const rightExpressionBlock = mathBlocks.length >= 2 ? mathBlocks[mathBlocks.length - 1] : mathBlocks[0] || null;
-  const operations = getOperationChain(proofStep);
+
+  const operations = [];
+  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
+  while (currentOp) { operations.push(currentOp); currentOp = currentOp.getNextBlock(); }
+
+  let conclusionOp = operations.find(op => op.type === 'conclusion_operation') || null;
+  if (!conclusionOp) {
+      conclusionOp = targetWorkspace.newBlock('conclusion_operation');
+      conclusionOp.initSvg(); conclusionOp.render();
+  }
 
   if (isOverwriteOn) {
-    let replaceOp = operations.find(op => op.type === 'replace_operation') || null;
-    let commonOp = needsCommonDenominator ? operations.find(op => op.type === 'common_denominator_operation') || null : null;
-    let conclusionOp = operations.find(op => op.type === 'conclusion_operation') || null;
-
-    if (!replaceOp) {
-      replaceOp = createOperationBlock(targetWorkspace, 'replace_operation');
-      ensureStatementConnected(operationInputConnection, replaceOp);
-    }
-    if (needsCommonDenominator && !commonOp) commonOp = createOperationBlock(targetWorkspace, 'common_denominator_operation');
-    if (!conclusionOp) conclusionOp = createOperationBlock(targetWorkspace, 'conclusion_operation');
-
-    if (needsCommonDenominator && commonOp) {
-      if (replaceOp.nextConnection && commonOp.previousConnection) {
-        const existing = replaceOp.nextConnection.targetBlock();
-        if (existing && existing !== commonOp) existing.unplug(true);
-        replaceOp.nextConnection.connect(commonOp.previousConnection);
+      let replaceOp = operations.find(op => op.type === 'replace_operation') || null;
+      if (!replaceOp) {
+          replaceOp = targetWorkspace.newBlock('replace_operation');
+          replaceOp.initSvg(); replaceOp.render();
       }
-      if (commonOp.nextConnection && conclusionOp.previousConnection) {
-        const existing = commonOp.nextConnection.targetBlock();
-        if (existing && existing !== conclusionOp) existing.unplug(true);
-        commonOp.nextConnection.connect(conclusionOp.previousConnection);
+      
+      if (operationInputConnection.targetBlock() !== replaceOp) {
+          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
+          operationInputConnection.connect(replaceOp.previousConnection);
       }
-    } else if (replaceOp.nextConnection && conclusionOp.previousConnection) {
-      const existing = replaceOp.nextConnection.targetBlock();
-      if (existing && existing !== conclusionOp) existing.unplug(true);
-      replaceOp.nextConnection.connect(conclusionOp.previousConnection);
-    }
-    connectMathToInputIfEmpty(replaceOp, 'VALUE', leftExpressionBlock);
-    connectMathToInputIfEmpty(conclusionOp, 'VALUE', rightExpressionBlock);
+      if (replaceOp.nextConnection && replaceOp.nextConnection.targetBlock() !== conclusionOp) {
+          if (replaceOp.nextConnection.targetBlock()) replaceOp.nextConnection.targetBlock().unplug(true);
+          replaceOp.nextConnection.connect(conclusionOp.previousConnection);
+      }
+      
+      if (leftExpressionBlock && replaceOp.getInput('VALUE')?.connection && !replaceOp.getInput('VALUE').connection.targetBlock()) {
+          replaceOp.getInput('VALUE').connection.connect(leftExpressionBlock.outputConnection);
+      }
   } else {
-    let conclusionOp = operations.find(op => op.type === 'conclusion_operation') || null;
-    if (!conclusionOp) conclusionOp = createOperationBlock(targetWorkspace, 'conclusion_operation');
-    ensureStatementConnected(operationInputConnection, conclusionOp);
-    
-    getOperationChain(proofStep).forEach(op => {
-      if (op !== conclusionOp) op.dispose(true);
-    });
-    if (conclusionOp.nextConnection?.targetBlock()) conclusionOp.nextConnection.targetBlock().unplug(true);
-    connectMathToInputIfEmpty(conclusionOp, 'VALUE', rightExpressionBlock);
+      if (operationInputConnection.targetBlock() !== conclusionOp) {
+          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
+          operationInputConnection.connect(conclusionOp.previousConnection);
+      }
+      operations.forEach(op => { if (op !== conclusionOp) op.dispose(true); });
+      if (conclusionOp.nextConnection?.targetBlock()) conclusionOp.nextConnection.targetBlock().unplug(true);
+  }
+
+  if (rightExpressionBlock && conclusionOp.getInput('VALUE')?.connection && !conclusionOp.getInput('VALUE').connection.targetBlock()) {
+      conclusionOp.getInput('VALUE').connection.connect(rightExpressionBlock.outputConnection);
   }
 };
