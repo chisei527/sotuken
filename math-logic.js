@@ -419,8 +419,10 @@
 
     let stepIndex = 1;
 
+    console.log('[parseBlocksToAST] シリアライズされたトップブロック数:', serialized.blocks.blocks.length, 'proof_step数:', proofSteps.length);
     proofSteps.forEach((proofStep) => {
       let currentOperation = proofStep?.inputs?.OPERATIONS?.block || null;
+      console.log('[parseBlocksToAST] proof_step内の最初の操作ブロック:', currentOperation?.type);
 
       while (currentOperation) {
         const type = String(currentOperation.type || '');
@@ -446,6 +448,7 @@
       }
     });
 
+    console.log('[parseBlocksToAST] 完成したAST:', JSON.stringify(ast));
     return ast;
   }
 
@@ -543,7 +546,30 @@
     }
   }
 
+  // 問題の左辺（証明開始時の式）を取得 = initialState のトップブロック1番目
+  function getInitialLeftExpression(problemData) {
+    const top = (problemData?.initialState?.blocks?.blocks || []).filter(
+      (block) => block && block.type !== 'proof_step',
+    );
+    if (top.length >= 1) {
+      return expressionFromSerializedBlock(top[0]) || '';
+    }
+    return '';
+  }
+
+  // 問題の右辺（証明のゴール）を取得 = initialState のトップブロック2番目
+  function getInitialRightExpression(problemData) {
+    const top = (problemData?.initialState?.blocks?.blocks || []).filter(
+      (block) => block && block.type !== 'proof_step',
+    );
+    if (top.length >= 2) {
+      return expressionFromSerializedBlock(top[1]) || '';
+    }
+    return '';
+  }
+
   function getExpectedConclusionExpression(problemData) {
+    
     // 優先1: answerState のトップブロック2番目（問題の右辺 = 証明のゴール）
     // proof_step内のconclusionはブロック接続が不完全なことがあるため使わない
     const topMathBlocks = (problemData?.answerState?.blocks?.blocks || []).filter(
@@ -604,6 +630,59 @@
    * @param {string} rightExpr
    * @returns {{ok: boolean, reason?: string}}
    */
+  // ============================================
+  // 構造的等価判定: 順序入れ替えは許すが簡単化はしない（B案）
+  // 例: 1+tan²θ と tan²θ+1 は等価、sin²θ+cos²θ と 1 は別扱い
+  // ============================================
+  function canonicalizeAst(node) {
+    if (!node) return node;
+    // mathjs の AST に対して、加算・乗算の引数を正規順序にソートする
+    // 数値の単純な簡約 (1+1 → 2 など) は一切しない
+    try {
+      const transformed = node.transform(function (n) {
+        if (n && n.isOperatorNode && (n.op === '+' || n.op === '*') && Array.isArray(n.args)) {
+          // 各子ノードも先に正規化済みになる（transformは深さ優先）
+          // ソートキーは正規化後の文字列表現
+          const sorted = n.args.slice().sort((a, b) => {
+            const sa = a && typeof a.toString === 'function' ? a.toString() : String(a);
+            const sb = b && typeof b.toString === 'function' ? b.toString() : String(b);
+            return sa < sb ? -1 : sa > sb ? 1 : 0;
+          });
+          // 引数を入れ替えた新ノードを作る
+          if (typeof math.OperatorNode === 'function') {
+            return new math.OperatorNode(n.op, n.fn, sorted);
+          }
+        }
+        return n;
+      });
+      return transformed;
+    } catch (e) {
+      return node;
+    }
+  }
+
+  function canonicalExpression(exprString) {
+    // 文字列 → AST → 正規化 → 文字列
+    if (typeof exprString !== 'string') return '';
+    const trimmed = exprString.trim();
+    if (!trimmed) return '';
+    try {
+      const node = math.parse(trimmed);
+      const canon = canonicalizeAst(node);
+      return canon && typeof canon.toString === 'function' ? canon.toString() : trimmed;
+    } catch (e) {
+      return trimmed;
+    }
+  }
+
+  // 二つの式が「構造として等価」(順序入れ替えのみ許容、簡単化なし) を判定
+  function isStructurallyEquivalent(leftExpr, rightExpr) {
+    const leftCanon = canonicalExpression(leftExpr);
+    const rightCanon = canonicalExpression(rightExpr);
+    if (!leftCanon || !rightCanon) return false;
+    return leftCanon === rightCanon;
+  }
+
   function evaluateEquivalence(leftExpr, rightExpr) {
     const variables = Array.from(new Set([
       ...extractVariables(leftExpr),
@@ -963,6 +1042,12 @@
         return '最後の式が目標と違うみたい。もっと変身させてみよう！';
       case 'ERROR_FINAL_EVALUATION':
         return '結論の式が正しく読み取れないよ。';
+      case 'ERROR_INITIAL_LEFT_MISMATCH':
+        return `${stepPrefix}最初の式が、問題の左辺と一致していないよ。問題の左側の式から始めよう。`;
+      case 'ERROR_CONCLUSION_NOT_GOAL':
+        return '「よって」の中身が、問題の右辺と一致していないよ。ゴールの式を入れてね。';
+      case 'ERROR_CONCLUSION_NOT_LAST_RESULT':
+        return '「よって」の中身が、最後の変形結果と一致していないよ。';
       default:
         return 'エラーが起きたよ。ブロックと式を見直してみよう！';
     }
@@ -974,235 +1059,33 @@
    * @param {object} problemData 現在の問題 JSON
    * @returns {{isValid:boolean,errorStepIndex:number|null,errorCode:string|null,suggestions:string[]}}
    */
+  /**
+   * 証明全体を検証する（仕様B案: 順序入れ替えは許すが簡単化は許さない）
+   * 
+   * 検証ステップ:
+   *   1. 最初の操作の before が、問題の左辺と「構造的に等価」
+   *   2. 各 replace の before → after が選んだ公式の正しい適用
+   *   3. 各通分の前後で三角関数の構成が不変
+   *   4. 直前の after と次の before が「構造的に等価」
+   *   5. 最後の操作の after（よって以外）が問題の右辺と「構造的に等価」
+   *   6. 「よって」の中身が問題の右辺と「構造的に等価」
+   */
   function validateProof(astArray, problemData) {
     if (!Array.isArray(astArray) || astArray.length === 0) {
-      return {
-        isValid: false,
-        errorStepIndex: null,
-        errorCode: 'ERROR_NO_PROOF_BLOCK',
-        suggestions: [],
-      };
+      return { isValid: false, errorStepIndex: null, errorCode: 'ERROR_NO_PROOF_BLOCK', suggestions: [] };
     }
 
-    for (let i = 0; i < astArray.length; i++) {
-      const stepData = astArray[i] || {};
-      const stepIndex = Number.isFinite(stepData.step) ? stepData.step : i + 1;
-      const operationType = String(stepData.type || '');
+    // 問題の左辺・右辺を取得
+    const initialLeftExpr = getInitialLeftExpression(problemData);
+    const initialRightExpr = getInitialRightExpression(problemData);
+    console.log('[validateProof] 問題の左辺=', initialLeftExpr, ' 右辺=', initialRightExpr);
 
-      if (operationType !== 'replace_operation' && operationType !== 'common_denominator_operation') {
-        continue;
-      }
-
-      const beforeExpr = typeof stepData.before === 'string' ? stepData.before.trim() : '';
-      const afterExpr = typeof stepData.after === 'string' ? stepData.after.trim() : '';
-      const formulaExpr = typeof stepData.formula === 'string' ? stepData.formula.trim() : '';
-
-      if (!beforeExpr || !afterExpr) {
-        return {
-          isValid: false,
-          errorStepIndex: stepIndex,
-          errorCode: 'ERROR_EMPTY_INPUT',
-          suggestions: [],
-        };
-      }
-
-      const sameStepCheck = evaluateEquivalence(beforeExpr, afterExpr);
-      if (!sameStepCheck.ok) {
-        if (sameStepCheck.reason === 'non-finite' || sameStepCheck.reason === 'division-by-zero') {
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_DIVISION_BY_ZERO',
-            suggestions: [],
-          };
-        }
-
-        if (sameStepCheck.reason === 'mismatch') {
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_EQUATION_MISMATCH',
-            suggestions: [],
-          };
-        }
-
-        return {
-          isValid: false,
-          errorStepIndex: stepIndex,
-          errorCode: 'ERROR_EVALUATION',
-          suggestions: [],
-        };
-      }
-
-      if (operationType === 'replace_operation') {
-        if (!formulaExpr) {
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_FORMULA_REQUIRED',
-            suggestions: [],
-          };
-        }
-
-        const formulaId = formulaTextToId(formulaExpr);
-        if (!formulaId) {
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_UNSUPPORTED_FORMULA',
-            suggestions: [],
-          };
-        }
-
-        const formulaMatch = verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
-        if (!formulaMatch) {
-          const candidates = detectMatchingFormulaIds(beforeExpr, afterExpr)
-            .filter((candidate) => candidate !== formulaId)
-            .map((candidate) => formulaIdToLabel(candidate));
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_FORMULA_MISMATCH',
-            suggestions: candidates,
-          };
-        }
-      }
-
-      if (operationType === 'common_denominator_operation') {
-        if (hasTrigProfileChanged(beforeExpr, afterExpr)) {
-          return {
-            isValid: false,
-            errorStepIndex: stepIndex,
-            errorCode: 'ERROR_COMMON_DENOMINATOR_RULE',
-            suggestions: [],
-          };
-        }
-      }
+    if (!initialLeftExpr || !initialRightExpr) {
+      console.warn('[validateProof] 問題データに左辺または右辺が定義されていません');
+      return { isValid: false, errorStepIndex: null, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
     }
 
-    const transformSteps = getTransformSteps(astArray);
-    for (let i = 1; i < transformSteps.length; i++) {
-      const prevStepData = transformSteps[i - 1] || {};
-      const currentStepData = transformSteps[i] || {};
-      const currentStepIndex = Number.isFinite(currentStepData.step) ? currentStepData.step : i + 1;
-
-      const prevAfterExpr = typeof prevStepData.after === 'string' ? prevStepData.after.trim() : '';
-      const currentBeforeExpr = typeof currentStepData.before === 'string' ? currentStepData.before.trim() : '';
-
-      if (!prevAfterExpr || !currentBeforeExpr) {
-        return {
-          isValid: false,
-          errorStepIndex: currentStepIndex,
-          errorCode: 'ERROR_CHAIN_EMPTY_INPUT',
-          suggestions: [],
-        };
-      }
-
-      const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
-      if (!chainCheck.ok) {
-        if (canSkipChainMismatch(prevStepData, currentStepData)) {
-          continue;
-        }
-        if (hasEquivalentSubexpression(prevAfterExpr, currentBeforeExpr)) {
-          continue;
-        }
-        if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
-          return {
-            isValid: false,
-            errorStepIndex: currentStepIndex,
-            errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO',
-            suggestions: [],
-          };
-        }
-
-        if (chainCheck.reason === 'mismatch') {
-          return {
-            isValid: false,
-            errorStepIndex: currentStepIndex,
-            errorCode: 'ERROR_CHAIN_MISMATCH',
-            suggestions: [],
-          };
-        }
-
-        return {
-          isValid: false,
-          errorStepIndex: currentStepIndex,
-          errorCode: 'ERROR_CHAIN_EVALUATION',
-          suggestions: [],
-        };
-      }
-    }
-
-    const expectedFinalExpr = getExpectedConclusionExpression(problemData);
-
-    for (let i = 1; i < astArray.length; i++) {
-      const prevStepData = astArray[i - 1] || {};
-      const currentStepData = astArray[i] || {};
-      const currentStepIndex = Number.isFinite(currentStepData.step) ? currentStepData.step : i + 1;
-
-      const prevAfterExpr = typeof prevStepData.after === 'string' ? prevStepData.after.trim() : '';
-      const currentBeforeExpr = typeof currentStepData.before === 'string' ? currentStepData.before.trim() : '';
-
-      if (!prevAfterExpr) {
-        continue;
-      }
-
-      if (!currentBeforeExpr) {
-        return {
-          isValid: false,
-          errorStepIndex: currentStepIndex,
-          errorCode: 'ERROR_CHAIN_EMPTY_INPUT',
-          suggestions: [],
-        };
-      }
-
-      if (currentStepData.type === 'conclusion_operation' && expectedFinalExpr) {
-        const finalCheck = evaluateEquivalence(currentBeforeExpr, expectedFinalExpr);
-        if (finalCheck.ok) {
-          continue; // 最終式がゴールと一致 → OK
-        }
-        // 最終式がゴールと不一致 → 即不正解（チェーンチェックに進まない）
-        if (finalCheck.reason === 'non-finite' || finalCheck.reason === 'division-by-zero') {
-          return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_FINAL_DIVISION_BY_ZERO', suggestions: [] };
-        }
-        return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
-      }
-
-      const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
-      if (!chainCheck.ok) {
-        if (canSkipChainMismatch(prevStepData, currentStepData)) {
-          continue;
-        }
-        if (hasEquivalentSubexpression(prevAfterExpr, currentBeforeExpr)) {
-          continue;
-        }
-        if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
-          return {
-            isValid: false,
-            errorStepIndex: currentStepIndex,
-            errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO',
-            suggestions: [],
-          };
-        }
-
-        if (chainCheck.reason === 'mismatch') {
-          return {
-            isValid: false,
-            errorStepIndex: currentStepIndex,
-            errorCode: 'ERROR_CHAIN_MISMATCH',
-            suggestions: [],
-          };
-        }
-
-        return {
-          isValid: false,
-          errorStepIndex: currentStepIndex,
-          errorCode: 'ERROR_CHAIN_EVALUATION',
-          suggestions: [],
-        };
-      }
-    }
-
+    // 最後の結論ブロックの存在チェック
     const lastStep = astArray[astArray.length - 1] || null;
     if (!lastStep || lastStep.type !== 'conclusion_operation') {
       return {
@@ -1213,53 +1096,139 @@
       };
     }
 
-    
-    if (expectedFinalExpr) {
-      const actualFinalExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
-      if (!actualFinalExpr) {
-        return {
-          isValid: false,
-          errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
-          errorCode: 'ERROR_FINAL_EMPTY',
-          suggestions: [],
-        };
+    // === ステップ1: 最初の操作の before が問題の左辺と等価か ===
+    const firstTransform = astArray.find((s) => 
+      s && (s.type === 'replace_operation' || s.type === 'common_denominator_operation')
+    );
+    if (!firstTransform) {
+      // replace も通分もない → 直接よって。よっての中身が左辺と異なるなら不正解
+      const conclusionExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
+      if (!conclusionExpr) {
+        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
+      }
+      // 変形ステップが無いのに左辺≠右辺なら証明が成り立たない
+      if (!isStructurallyEquivalent(initialLeftExpr, initialRightExpr)) {
+        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
+      }
+      // 左辺=右辺の場合、よってに左辺(=右辺)を入れていれば正解
+      if (!isStructurallyEquivalent(conclusionExpr, initialRightExpr)) {
+        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
+      }
+      return { isValid: true, errorStepIndex: null, errorCode: null, suggestions: [] };
+    }
+
+    const firstBefore = typeof firstTransform.before === 'string' ? firstTransform.before.trim() : '';
+    console.log('[validateProof] 最初の操作のbefore=', firstBefore);
+    if (!firstBefore) {
+      return { isValid: false, errorStepIndex: firstTransform.step || 1, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
+    }
+    if (!isStructurallyEquivalent(firstBefore, initialLeftExpr)) {
+      console.log('[validateProof] 最初のbeforeが左辺と不一致');
+      return { isValid: false, errorStepIndex: firstTransform.step || 1, errorCode: 'ERROR_INITIAL_LEFT_MISMATCH', suggestions: [] };
+    }
+
+    // === ステップ2,3: 各変形ステップの個別検証 ===
+    for (let i = 0; i < astArray.length; i++) {
+      const stepData = astArray[i] || {};
+      const stepIndex = Number.isFinite(stepData.step) ? stepData.step : i + 1;
+      const operationType = String(stepData.type || '');
+
+      if (operationType !== 'replace_operation' && operationType !== 'common_denominator_operation') continue;
+
+      const beforeExpr = typeof stepData.before === 'string' ? stepData.before.trim() : '';
+      const afterExpr = typeof stepData.after === 'string' ? stepData.after.trim() : '';
+      const formulaExpr = typeof stepData.formula === 'string' ? stepData.formula.trim() : '';
+
+      if (!beforeExpr || !afterExpr) {
+        return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
       }
 
-      const finalCheck = evaluateEquivalence(actualFinalExpr, expectedFinalExpr);
-      if (!finalCheck.ok) {
-        if (finalCheck.reason === 'non-finite' || finalCheck.reason === 'division-by-zero') {
-          return {
-            isValid: false,
-            errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
-            errorCode: 'ERROR_FINAL_DIVISION_BY_ZERO',
-            suggestions: [],
-          };
+      // before → after が数学的に等価か（変形の正しさ）
+      const sameStepCheck = evaluateEquivalence(beforeExpr, afterExpr);
+      if (!sameStepCheck.ok) {
+        if (sameStepCheck.reason === 'non-finite' || sameStepCheck.reason === 'division-by-zero') {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_DIVISION_BY_ZERO', suggestions: [] };
         }
-
-        if (finalCheck.reason === 'mismatch') {
-          return {
-            isValid: false,
-            errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
-            errorCode: 'ERROR_FINAL_MISMATCH',
-            suggestions: [],
-          };
+        if (sameStepCheck.reason === 'mismatch') {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_EQUATION_MISMATCH', suggestions: [] };
         }
+        return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_EVALUATION', suggestions: [] };
+      }
 
-        return {
-          isValid: false,
-          errorStepIndex: Number.isFinite(lastStep.step) ? lastStep.step : astArray.length,
-          errorCode: 'ERROR_FINAL_EVALUATION',
-          suggestions: [],
-        };
+      if (operationType === 'replace_operation') {
+        if (!formulaExpr) {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_REQUIRED', suggestions: [] };
+        }
+        const formulaId = formulaTextToId(formulaExpr);
+        if (!formulaId) {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_UNSUPPORTED_FORMULA', suggestions: [] };
+        }
+        const formulaMatch = verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
+        if (!formulaMatch) {
+          const candidates = detectMatchingFormulaIds(beforeExpr, afterExpr)
+            .filter((c) => c !== formulaId)
+            .map((c) => formulaIdToLabel(c));
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_MISMATCH', suggestions: candidates };
+        }
+      }
+
+      if (operationType === 'common_denominator_operation') {
+        if (hasTrigProfileChanged(beforeExpr, afterExpr)) {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_COMMON_DENOMINATOR_RULE', suggestions: [] };
+        }
       }
     }
 
-    return {
-      isValid: true,
-      errorStepIndex: null,
-      errorCode: null,
-      suggestions: [],
-    };
+    // === ステップ4: 変形間の連鎖チェック (直前のafter ≡ 次のbefore) ===
+    const transformSteps = getTransformSteps(astArray);
+    for (let i = 1; i < transformSteps.length; i++) {
+      const prevAfterExpr = typeof transformSteps[i - 1].after === 'string' ? transformSteps[i - 1].after.trim() : '';
+      const currentBeforeExpr = typeof transformSteps[i].before === 'string' ? transformSteps[i].before.trim() : '';
+      const currentStepIndex = Number.isFinite(transformSteps[i].step) ? transformSteps[i].step : i + 1;
+
+      if (!prevAfterExpr || !currentBeforeExpr) {
+        return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_EMPTY_INPUT', suggestions: [] };
+      }
+
+      const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
+      if (!chainCheck.ok) {
+        if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
+          return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO', suggestions: [] };
+        }
+        if (chainCheck.reason === 'mismatch') {
+          return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_MISMATCH', suggestions: [] };
+        }
+        return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_EVALUATION', suggestions: [] };
+      }
+    }
+
+    // === ステップ5: 最後の変形のafterが問題の右辺と等価 ===
+    const lastTransform = transformSteps[transformSteps.length - 1];
+    if (lastTransform) {
+      const lastAfterExpr = typeof lastTransform.after === 'string' ? lastTransform.after.trim() : '';
+      console.log('[validateProof] 最後の変形のafter=', lastAfterExpr, ' 右辺=', initialRightExpr);
+      if (!lastAfterExpr) {
+        return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
+      }
+      if (!isStructurallyEquivalent(lastAfterExpr, initialRightExpr)) {
+        console.log('[validateProof] 最後のafterが右辺と不一致');
+        return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
+      }
+    }
+
+    // === ステップ6: よっての中身が問題の右辺と等価 ===
+    const conclusionExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
+    console.log('[validateProof] よっての中身=', conclusionExpr, ' 右辺=', initialRightExpr);
+    if (!conclusionExpr) {
+      return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
+    }
+    if (!isStructurallyEquivalent(conclusionExpr, initialRightExpr)) {
+      console.log('[validateProof] よっての中身が右辺と不一致');
+      return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
+    }
+
+    // すべてのチェック通過 → 正解
+    return { isValid: true, errorStepIndex: null, errorCode: null, suggestions: [] };
   }
 
   Object.assign(globalScope, {

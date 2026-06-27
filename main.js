@@ -55,6 +55,39 @@ window.renderStageMap = async function() {
   const stageIds = Array.from({length: totalStages}, (_, i) => i + 1);
   const focusStage = window.getCurrentMapFocusStage();
 
+  // ✨ 背景の動的データパーティクルをJSで無限生成
+  if (!document.getElementById('cyber-particle-container')) {
+    const pContainer = document.createElement('div');
+    pContainer.id = 'cyber-particle-container';
+    pContainer.style.position = 'absolute';
+    pContainer.style.inset = '0';
+    pContainer.style.overflow = 'hidden';
+    pContainer.style.pointerEvents = 'none';
+    pContainer.style.zIndex = '0';
+    for(let i=0; i<60; i++) {
+      const p = document.createElement('div');
+      p.className = 'cyber-bg-particle';
+      p.style.left = `${Math.random() * 100}%`;
+      p.style.top = `${Math.random() * 100}%`;
+      p.style.animationDuration = `${8 + Math.random() * 15}s`;
+      p.style.animationDelay = `-${Math.random() * 15}s`;
+      // ランダムに正解グリーンの粒子も混ぜる
+      if (Math.random() > 0.7) {
+        p.style.background = '#4ade80';
+        p.style.boxShadow = '0 0 10px #4ade80, 0 0 20px #86efac';
+      }
+      pContainer.appendChild(p);
+    }
+    document.getElementById('map-viewport').appendChild(pContainer);
+  }
+
+  // 📍 配置計算用定数（巨大化したノードに合わせて間隔も広げる）
+  const NODE_SPACING_X = 240; // 横の間隔
+  const AMPLITUDE = 140; // 波の上下の振幅
+
+  // コンテナの全体の横幅を設定してスクロール可能にする
+  nodeRoot.style.width = `${totalStages * NODE_SPACING_X + 500}px`;
+
   stageIds.forEach((stage, index) => {
       const isCleared = window.clearedStages && window.clearedStages.includes(stage);
       const isFirst = index === 0;
@@ -67,18 +100,53 @@ window.renderStageMap = async function() {
       node.dataset.stage = String(stage);
       const world = Math.floor((stage - 1) / 10) + 1;
       const subStage = ((stage - 1) % 10) + 1;
-      node.innerHTML = `<div class="map-node-number">${world}-${subStage}</div><div class="map-node-label">STAGE ${stage}</div>`;
+      
+      let statusText = 'LOCKED';
+      if (isFocus) statusText = 'ACTIVE';
+      else if (isCleared) statusText = 'SYNCED';
+      else if (isUnlocked) statusText = 'READY';
+
+      node.innerHTML = `
+        <div class="map-node-number">${world}-${subStage}</div>
+        <div class="map-node-label">SECTOR ${String(stage).padStart(3, '0')}</div>
+        <div class="node-status-tag">${statusText}</div>
+      `;
       
       if (isUnlocked) node.onclick = () => window.transitionToStage(stage);
       else node.disabled = true;
+
+      // 📍 座標計算（Math.sin を使って波打つように絶対配置する）
+      const x = index * NODE_SPACING_X + 200;
+      const yOffset = Math.sin(index * 0.75) * AMPLITUDE;
+      
+      node.style.left = `${x}px`;
+      node.style.top = `calc(50% + ${yOffset}px)`;
+      node.style.transform = `translate(-50%, -50%)`;
       
       nodeRoot.appendChild(node);
 
+      // ⚡ 次のノードへの接続線（Road）を角度を計算して描画
       if (index < stageIds.length - 1) {
           const nextStage = stageIds[index + 1];
           const isNextCleared = window.clearedStages && window.clearedStages.includes(nextStage);
+          
+          const nextX = (index + 1) * NODE_SPACING_X + 200;
+          const nextYOffset = Math.sin((index + 1) * 0.75) * AMPLITUDE;
+          
+          // ピタゴラスの定理とアークタンジェントで距離と角度を割り出す
+          const dx = nextX - x;
+          const dy = nextYOffset - yOffset;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
           const road = document.createElement('div');
           road.className = `map-road ${isCleared && isNextCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
+          
+          road.style.width = `${distance}px`;
+          road.style.left = `${x}px`;
+          road.style.top = `calc(50% + ${yOffset}px)`;
+          road.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+          
           nodeRoot.appendChild(road);
       }
   });
@@ -91,7 +159,6 @@ window.renderStageMap = async function() {
     requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(false));
   }
 };
-
 // ====== ステージロードとブロック初期配置 ======
 window.loadStage = async function(stageNumber) {
   try {

@@ -127,14 +127,37 @@ window.setupEventListeners = function() {
     });
   }
 
-  // 🔙 戻るボタン
+// 🔙 戻るボタン（ステージ選択ボタンの挙動制御）
   const btnBack = document.getElementById('btn-back');
   if (btnBack) {
     btnBack.addEventListener('click', () => {
-      if (typeof window.routeToTarget === 'function') window.routeToTarget();
+      // 💡 判定: 現在チュートリアルモード（0-1〜0-7）を実行中かどうか
+      if (window.tutorialModeActive || (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber))) {
+        
+        // 1. 起動画面（エントランス）のhiddenを解除し、2択が表示された状態（show-choices）にする
+        const entrance = document.getElementById('game-entrance');
+        if (entrance) {
+          entrance.classList.remove('hidden');
+          entrance.classList.add('show-choices');
+          if (typeof window.setAppBackgroundByKey === 'function') window.setAppBackgroundByKey('stage');
+        }
+        
+        // 2. 現在開いているパズルメイン画面（#p）を非表示にする
+        const pScreen = document.getElementById('p');
+        if (pScreen) {
+          pScreen.classList.remove('b'); // 表示クラスを消去して非表示化
+        }
+        
+        // 3. チュートリアルモードのフラグを安全にリセット
+        window.tutorialModeActive = false;
+        if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
+
+      } else {
+        // 💡 本編ステージの場合: 従来どおり、全体のステージ選択マップ画面へルーティング
+        if (typeof window.routeToTarget === 'function') window.routeToTarget();
+      }
     });
   }
-
   // 🎮 エントランス（最初の画面）の画面タップで遷移
   const entrance = document.getElementById('game-entrance');
   if (entrance) {
