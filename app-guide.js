@@ -116,7 +116,8 @@ window.getTutorialBannerText = function(stageId) {
   // ① 本編ステージで JSON に hints が設定されている場合はそれを優先表示
   if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(stageId)) {
     if (window.currentProblemData && Array.isArray(window.currentProblemData.hints) && window.currentProblemData.hints.length > 0) {
-      return `【ヒント】${window.currentProblemData.hints[0]}`;
+      const index = window.currentHintIndex || 0;
+      return `💡 ヒント ${index + 1}/${window.currentProblemData.hints.length}： ${window.currentProblemData.hints[index]}`;
     }
   }
   // ② チュートリアルやヒント未設定の場合はブロックの配置状況から自動生成
@@ -156,7 +157,6 @@ window.getInputConnectionRect = function(block, inputName) {
 };
 
 window.getTutorialHighlightTargets = function(stageId) {
-  // 現在のステップを解析して、どこを光らせるべきか座標を返す
   const goal = window.getTutorialGoalState(stageId);
   const goalKey = goal?.key || '';
   const toolboxLabel = window.getTutorialToolboxCategoryLabel('証明') || window.getTutorialToolboxElement();
@@ -165,7 +165,6 @@ window.getTutorialHighlightTargets = function(stageId) {
   if (goalKey === 'pull-formula') return { target: window.getTutorialToolboxCategoryLabel('公式') || toolboxLabel };
   if (goalKey.startsWith('pull-')) return { target: toolboxLabel };
 
-  // 穴を光らせる
   const operations = window.workspace?.getTopBlocks(false)?.find(b => b.type === 'proof_step')?.getInputTargetBlock('OPERATIONS');
   let currentOp = operations;
   while(currentOp) {
@@ -209,7 +208,6 @@ window.startHighlightTracking = function() {
 
 // ====== 3. ヒント表示UIの制御 ======
 window.updateTutorialHighlightUI = function(stageNumber) {
-
   if (!window.workspace || !window.currentProblemData) return;
   const targetPulse = document.getElementById('tutorial-highlight-target');
   const banner = document.getElementById('tutorial-banner');
@@ -230,20 +228,41 @@ window.updateTutorialHighlightUI = function(stageNumber) {
 
   if (highlightTargets?.target) {
     window.currentHighlightTargetNode = highlightTargets.target;
-    if (targetPulse) targetPulse.classList.remove('hidden');
+    // ガイド（ヒント状態）がアクティブな時だけ枠を光らせる
+    if (window.goalHintActive) {
+      if (targetPulse) targetPulse.classList.remove('hidden');
+    }
   }
 
   window.startHighlightTracking();
 
+  // 🛠️ チュートリアルモードの表示制御
   if (window.tutorialModeActive) {
-    if (banner) banner.innerHTML = goalText;
+    if (banner) {
+      if (window.goalHintActive) {
+        banner.innerHTML = goalText;
+        banner.classList.add('visible'); // 表示クラスを付与
+        banner.style.display = 'block';   // 強制表示
+      } else {
+        banner.innerHTML = '';
+        banner.classList.remove('visible');
+        banner.style.display = 'none';    // 非表示
+      }
+    }
     return;
   }
 
-  if (window.goalHintActive && underProblem) {
-    underProblem.textContent = goalText;
-    underProblem.classList.add('visible');
-    underProblem.classList.add('pulse');
+  // 本編モードの表示制御
+  if (underProblem) {
+    if (window.goalHintActive) {
+      underProblem.innerHTML = goalText;
+      underProblem.classList.add('visible');
+      underProblem.classList.add('pulse');
+    } else {
+      underProblem.innerHTML = '';
+      underProblem.classList.remove('visible');
+      underProblem.classList.remove('pulse');
+    }
   }
 };
 
@@ -263,26 +282,18 @@ window.hideGoalHintForStage = function() {
   window.goalHintActive = false;
   const hintButton = document.getElementById('btn-hint');
   if (hintButton) hintButton.textContent = 'ヒント';
-  const underProblem = document.getElementById('tutorial-next-under-problem');
-  if (underProblem) {
-    underProblem.textContent = '';
-    underProblem.classList.remove('visible');
-    underProblem.classList.remove('pulse');
-  }
+  window.updateTutorialHighlightUI(window.currentStageNumber);
   window.hideTutorialHighlights();
 };
 
-// ====== 4. ブロック変化の監視とボタン初期化（復活） ======
-// ガイドが ON のとき、ワークスペースが変化するたびにヒントを更新する。
-// これが無いと「ボタンを押した瞬間以外はブロックの穴を認識できない」状態になる。
+// ====== 4. ブロック変化の監視とボタン初期化 ======
 window.bindGuideWorkspaceListener = function() {
   if (window.guideWorkspaceListenerBound) return;
   if (!window.workspace || typeof window.workspace.addChangeListener !== 'function') return;
   window.guideWorkspaceListenerBound = true;
   window.workspace.addChangeListener(function(event) {
-    // チュートリアル中は tutorial.js 側が担当するので二重更新を避ける
-    if (window.tutorialModeActive || !window.goalHintActive) return;
-    if (event && event.isUiEvent) return; // 画面操作のみのイベントは無視
+    if (!window.goalHintActive) return;
+    if (event && event.isUiEvent) return; 
     window.updateTutorialHighlightUI(window.currentStageNumber);
   });
 };
@@ -291,10 +302,8 @@ window.initGuideFeature = function() {
   window.bindGuideWorkspaceListener();
 };
 
-// DOM とワークスペースの準備後に監視を開始
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', function() {
-    // workspace.js の inject 完了を待つため少し遅延
     setTimeout(window.initGuideFeature, 0);
   });
 } else {
@@ -308,40 +317,16 @@ window.setupGuideButton = function () {
   btn.dataset.guideBound = '1';
   
   btn.addEventListener('click', function () {
-    if (window.tutorialModeActive) {
-      if (typeof window.showToast === 'function') window.showToast(window.getTutorialBannerText(window.currentStageNumber), true);
-      window.updateTutorialHighlightUI(window.currentStageNumber);
-      return;
-    }
-    
-    if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber)) {
-      const hints = window.currentProblemData?.hints || [];
-      if (window.goalHintActive) {
-        window.currentHintIndex = window.currentHintIndex || 0;
-        if (hints.length > 1 && window.currentHintIndex < hints.length - 1) {
-          window.currentHintIndex++;
-          window.updateTutorialHighlightUI(window.currentStageNumber);
-          if (window.currentHintIndex === hints.length - 1) btn.textContent = 'ヒントを閉じる';
-        } else {
-          if(typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
-        }
-      } else {
-        window.currentHintIndex = 0;
-        btn.textContent = hints.length > 1 ? '次のヒントへ' : 'ヒントを閉じる';
-        if(typeof window.showGoalHintForStage === 'function') window.showGoalHintForStage();
-      }
-      return;
-    }
-
+    // 🛠️ 【ここを完全修正】チュートリアル中でも本編でも共通のトグル（ON/OFF）制御に変更
     if (window.goalHintActive) {
-       if(typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
+      window.hideGoalHintForStage();
     } else {
-       if(typeof window.showGoalHintForStage === 'function') window.showGoalHintForStage();
+      window.showGoalHintForStage();
     }
   });
 };
 
-// ボタン設定も一緒に初期化するように変更
+// 初期化プロトコルの結合
 const oldInit = window.initGuideFeature;
 window.initGuideFeature = function() {
   if (typeof oldInit === 'function') oldInit();
