@@ -129,6 +129,12 @@ window.loadStage = async function(stageNumber) {
 
       if (window.workspace) {
           if (typeof buildToolboxConfig === 'function') window.workspace.updateToolbox(buildToolboxConfig(window.currentProblemData));
+          
+          // 🚀【修正1】ブロックを配置する「前」に初期値（ガイドON/OFF）を設定する！
+          if (typeof window.initializeStageFeaturesDefault === 'function') {
+              window.initializeStageFeaturesDefault(stageNumber);
+          }
+          
           window.workspace.clear();
           
           if (window.currentProblemData?.initialState) {
@@ -170,6 +176,13 @@ window.loadStage = async function(stageNumber) {
       const nextBtn = document.getElementById('btn-next');
       if (submitBtn) submitBtn.style.display = 'inline-block';
       if (nextBtn) nextBtn.style.display = 'none';
+
+      if (typeof window.initializeStageFeaturesDefault === 'function') {
+          window.initializeStageFeaturesDefault(stageNumber);
+      }
+      if (typeof window.checkAndShowStagePopup === 'function') {
+          window.checkAndShowStagePopup(stageNumber);
+      }
 
   } catch (error) {
       console.error('[StageLoadError]', error);

@@ -146,27 +146,46 @@ window.setupEventListeners = function() {
     });
   }
 
-  document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
-    e.stopPropagation(); // 画面全体クリックの連動を防止
+  // チュートリアル開始（サイバー演出つき）
+  async function startTutorialWithTransition() {
     const transitionLayer = document.getElementById('cyber-transition');
     const bootText = document.getElementById('cyber-boot-text');
-    
     if (transitionLayer) {
       if (bootText) bootText.textContent = 'INITIALIZING LEARNING PROTOCOL...';
       transitionLayer.classList.add('blocking', 'active', 'booting');
     }
-
     setTimeout(async () => {
       if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
       if (typeof window.transitionToStage === 'function') await window.transitionToStage('0-1');
-      
       setTimeout(() => {
-        if (transitionLayer) {
-          transitionLayer.classList.remove('active', 'booting', 'blocking');
-        }
+        if (transitionLayer) transitionLayer.classList.remove('active', 'booting', 'blocking');
       }, 400);
     }, 900);
+  }
+
+  document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
+    e.stopPropagation(); // 画面全体クリックの連動を防止
+
+    // まず説明動画モーダルを表示。モーダルが無ければ従来どおり直接遷移。
+    const introShown = (typeof window.showTutorialIntroModal === 'function') ? window.showTutorialIntroModal() : false;
+    if (introShown) {
+      // 選択画面（エントランス）を閉じておかないと動画の裏に残ってしまう
+      if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
+      return; // 続きは動画モーダルの「了解！」ボタンが担当
+    }
+
+    await startTutorialWithTransition();
   });
+
+  // 動画モーダルのボタン → チュートリアル開始
+  const introOkBtn = document.getElementById('btn-tutorial-intro-ok');
+  const introNextBtn = document.getElementById('btn-tutorial-intro-next');
+  const startFromIntro = async () => {
+    if (typeof window.hideTutorialIntroModal === 'function') window.hideTutorialIntroModal();
+    await startTutorialWithTransition();
+  };
+  if (introOkBtn) introOkBtn.addEventListener('click', startFromIntro);
+  if (introNextBtn) introNextBtn.addEventListener('click', startFromIntro);
 
   document.getElementById('btn-entry-map')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
@@ -213,7 +232,12 @@ window.scheduleAutoAdvanceAfterClear = function() {
          } else {
             nextStage = Number(window.currentStageNumber) + 1;
          }
-         await window.transitionToStage(nextStage);
+         try {
+           await window.transitionToStage(nextStage);
+         } catch (err) {
+           console.error('[AutoAdvance] 遷移に失敗:', err);
+           if (typeof window.showToast === 'function') window.showToast("<span style='color:red'>次のステージへ進めませんでした</span>", false);
+         }
 
          setTimeout(() => {
             if (transitionLayer) {
@@ -244,3 +268,24 @@ window.bootApplication = function() {
 document.addEventListener('DOMContentLoaded', () => {
   window.bootApplication();
 });
+
+// --- データリセットと全開放機能（マップ画面のボタン用） ---
+window.resetSaveData = function() {
+  if (!confirm('セーブデータとアンロックした公式をすべてリセットしますか？')) return;
+  localStorage.removeItem('s');
+  localStorage.removeItem('tutorial_progress');
+  localStorage.removeItem('tutorial_seen');
+  localStorage.removeItem('unlocked_formulas');
+  window.clearedStages = [];
+  window.unlockedFormulas = [];
+  window.currentStreak = 0;
+  if (typeof window.renderStageMap === 'function') window.renderStageMap();
+  if (typeof window.showToast === 'function') window.showToast('データを初期化しました。');
+};
+
+window.unlockAllStages = function() {
+  window.unlockAll = true;
+  localStorage.setItem('unlock_all', '1'); // リロードしても全開放が維持されるように保存
+  if (typeof window.renderStageMap === 'function') window.renderStageMap();
+  if (typeof window.showToast === 'function') window.showToast('全ステージを開放しました。');
+};

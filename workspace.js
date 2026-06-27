@@ -25,7 +25,9 @@ window.buildToolboxConfig = function(problemData) {
       },
       {
         kind: 'category', name: '公式', colour: '260',
-        contents: Array.from({length: 16}, (_, i) => ({kind: 'block', type: `formula_${i+1}`}))
+        contents: (typeof window.getUnlockedFormulaIds === 'function'
+          ? window.getUnlockedFormulaIds().map((type) => ({ kind: 'block', type }))
+          : Array.from({length: 16}, (_, i) => ({kind: 'block', type: `formula_${i+1}`})))
       },
       {
         kind: 'category', name: '操作', colour: '120',

@@ -300,3 +300,50 @@ if (document.readyState === 'loading') {
 } else {
   setTimeout(window.initGuideFeature, 0);
 }
+
+// ====== 5. ヒントボタンのクリック制御 ======
+window.setupGuideButton = function () {
+  const btn = document.getElementById('btn-hint');
+  if (!btn || btn.dataset.guideBound === '1') return;
+  btn.dataset.guideBound = '1';
+  
+  btn.addEventListener('click', function () {
+    if (window.tutorialModeActive) {
+      if (typeof window.showToast === 'function') window.showToast(window.getTutorialBannerText(window.currentStageNumber), true);
+      window.updateTutorialHighlightUI(window.currentStageNumber);
+      return;
+    }
+    
+    if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber)) {
+      const hints = window.currentProblemData?.hints || [];
+      if (window.goalHintActive) {
+        window.currentHintIndex = window.currentHintIndex || 0;
+        if (hints.length > 1 && window.currentHintIndex < hints.length - 1) {
+          window.currentHintIndex++;
+          window.updateTutorialHighlightUI(window.currentStageNumber);
+          if (window.currentHintIndex === hints.length - 1) btn.textContent = 'ヒントを閉じる';
+        } else {
+          if(typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
+        }
+      } else {
+        window.currentHintIndex = 0;
+        btn.textContent = hints.length > 1 ? '次のヒントへ' : 'ヒントを閉じる';
+        if(typeof window.showGoalHintForStage === 'function') window.showGoalHintForStage();
+      }
+      return;
+    }
+
+    if (window.goalHintActive) {
+       if(typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
+    } else {
+       if(typeof window.showGoalHintForStage === 'function') window.showGoalHintForStage();
+    }
+  });
+};
+
+// ボタン設定も一緒に初期化するように変更
+const oldInit = window.initGuideFeature;
+window.initGuideFeature = function() {
+  if (typeof oldInit === 'function') oldInit();
+  if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
+};

@@ -27,10 +27,10 @@ window.getTutorialAllowedBlockTypes = function(stageId) {
 
 // チュートリアル中にツールボックスの不要ブロックを非活性（グレーアウト）にする関数
 window.applyTutorialBlockRestrictions = function() {
-  if (typeof currentStageNumber === 'undefined' || (typeof isTutorialStageId === 'function' && !isTutorialStageId(currentStageNumber))) return;
+  if (typeof window.currentStageNumber === 'undefined' || (typeof isTutorialStageId === 'function' && !isTutorialStageId(window.currentStageNumber))) return;
   if (!window.workspace) return;
   
-  const restriction = window.getTutorialAllowedBlockTypes(currentStageNumber);
+  const restriction = window.getTutorialAllowedBlockTypes(window.currentStageNumber);
   if (restriction.allowed !== false) return;
   
   const allowedTypes = new Set([
