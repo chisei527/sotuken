@@ -209,6 +209,7 @@ window.startHighlightTracking = function() {
 
 // ====== 3. ヒント表示UIの制御 ======
 window.updateTutorialHighlightUI = function(stageNumber) {
+
   if (!window.workspace || !window.currentProblemData) return;
   const targetPulse = document.getElementById('tutorial-highlight-target');
   const banner = document.getElementById('tutorial-banner');
@@ -216,8 +217,14 @@ window.updateTutorialHighlightUI = function(stageNumber) {
 
   if (targetPulse) targetPulse.classList.add('hidden');
 
-  const goalText = window.getTutorialBannerText(stageNumber);
-  const highlightTargets = window.getTutorialHighlightTargets(stageNumber);
+  let goalText = '';
+  let highlightTargets = null;
+  try {
+    goalText = window.getTutorialBannerText(stageNumber) || '';
+    highlightTargets = window.getTutorialHighlightTargets(stageNumber);
+  } catch (err) {
+    console.warn('[Guide] ハイライト計算をスキップ:', err);
+  }
 
   window.currentHighlightTargetNode = null;
 
@@ -264,3 +271,32 @@ window.hideGoalHintForStage = function() {
   }
   window.hideTutorialHighlights();
 };
+
+// ====== 4. ブロック変化の監視とボタン初期化（復活） ======
+// ガイドが ON のとき、ワークスペースが変化するたびにヒントを更新する。
+// これが無いと「ボタンを押した瞬間以外はブロックの穴を認識できない」状態になる。
+window.bindGuideWorkspaceListener = function() {
+  if (window.guideWorkspaceListenerBound) return;
+  if (!window.workspace || typeof window.workspace.addChangeListener !== 'function') return;
+  window.guideWorkspaceListenerBound = true;
+  window.workspace.addChangeListener(function(event) {
+    // チュートリアル中は tutorial.js 側が担当するので二重更新を避ける
+    if (window.tutorialModeActive || !window.goalHintActive) return;
+    if (event && event.isUiEvent) return; // 画面操作のみのイベントは無視
+    window.updateTutorialHighlightUI(window.currentStageNumber);
+  });
+};
+
+window.initGuideFeature = function() {
+  window.bindGuideWorkspaceListener();
+};
+
+// DOM とワークスペースの準備後に監視を開始
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    // workspace.js の inject 完了を待つため少し遅延
+    setTimeout(window.initGuideFeature, 0);
+  });
+} else {
+  setTimeout(window.initGuideFeature, 0);
+}

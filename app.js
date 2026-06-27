@@ -35,14 +35,11 @@ window.setupEventListeners = function() {
     });
   }
 
-  // 🆘 ヒントボタン (★今回追加した部分です)
+  // 🆘 ヒントボタン
   const btnHint = document.getElementById('btn-hint');
-  if (btnHint) {
-    // app-guide.js 側の古いイベントと喧嘩しないよう、ボタンをクローンして置き換える（安全対策）
-    const newBtnHint = btnHint.cloneNode(true);
-    btnHint.parentNode.replaceChild(newBtnHint, btnHint);
-    
-    newBtnHint.addEventListener('click', () => {
+  if (btnHint && btnHint.dataset.hintBound !== '1') {
+    btnHint.dataset.hintBound = '1';
+    btnHint.addEventListener('click', () => {
       if (window.tutorialModeActive) {
         if (typeof window.showToast === 'function') {
           const text = (typeof window.getTutorialBannerText === 'function' ? window.getTutorialBannerText(window.currentStageNumber) : '') || '【目標】ブロックの空いている穴に、対応する式をはめ込みましょう。';
@@ -60,10 +57,10 @@ window.setupEventListeners = function() {
     });
   }
 
-  // 🛠️ ガイド機能 ON/OFF ボタン
+ // 🛠️ ガイド機能 ON/OFF ボタン
   const btnOverwrite = document.getElementById('btn-overwrite-permission');
   if (btnOverwrite) {
-    btnOverwrite.addEventListener('click', async () => {
+    btnOverwrite.addEventListener('click', () => { // ★asyncを外す
       const isOff = btnOverwrite.classList.contains('off');
       if (isOff) {
         btnOverwrite.classList.remove('off');
@@ -76,12 +73,21 @@ window.setupEventListeners = function() {
         btnOverwrite.textContent = 'ガイド機能: OFF';
         if (typeof window.showToast === 'function') window.showToast('ガイド機能を OFF にしました');
       }
-      if (typeof window.loadStage === 'function') {
-        await window.loadStage(window.currentStageNumber);
+      
+      // 💡【ここを書き換え】loadStage を呼ばず、現在のヒント状態を維持したままブロックだけを再配置
+      if (window.workspace && window.currentProblemData) {
+        window.workspace.clear();
+        if (window.currentProblemData.initialState) {
+          Blockly.serialization.workspaces.load(window.currentProblemData.initialState, window.workspace);
+        }
+        if (typeof window.applyConditionalInitialStateGeneration === 'function') {
+          window.applyConditionalInitialStateGeneration(window.workspace);
+        }
+        if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
+        if (typeof window.arrangeBlocks === 'function') window.arrangeBlocks();
       }
     });
   }
-
   // ✅ 正解をチェックボタン
   const btnSubmit = document.getElementById('btn-submit');
   if (btnSubmit) {
@@ -99,9 +105,15 @@ window.setupEventListeners = function() {
         window.currentStageSolved = true;
         window.currentStreak = (window.currentStreak || 0) + 1;
         if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(true);
+        if (typeof window.playClearEffects === 'function') window.playClearEffects('CLEAR!');
+        else {
+          if (typeof window.showSuccessRipple === 'function') window.showSuccessRipple();
+          if (typeof window.showClearStamp === 'function') window.showClearStamp('CLEAR!');
+        }
         if (typeof window.showToast === 'function') window.showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
         
         if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber)) {
+           if (!Array.isArray(window.clearedStages)) window.clearedStages = [];
            const numStage = Number(window.currentStageNumber);
            if (numStage && (!window.clearedStages.includes(numStage))) {
              window.clearedStages.push(numStage);
