@@ -544,24 +544,23 @@
   }
 
   function getExpectedConclusionExpression(problemData) {
-    const proofBlock = problemData?.answerState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
-    let current = proofBlock?.inputs?.OPERATIONS?.block || null;
-    let lastOperation = null;
-
-    while (current) {
-      lastOperation = current;
-      current = current?.next?.block || null;
-    }
-
-    if (lastOperation?.type === 'conclusion_operation') {
-      return expressionFromSerializedBlock(readInputBlock(lastOperation, 'VALUE'));
-    }
-
+    // 優先1: answerState のトップブロック2番目（問題の右辺 = 証明のゴール）
+    // proof_step内のconclusionはブロック接続が不完全なことがあるため使わない
     const topMathBlocks = (problemData?.answerState?.blocks?.blocks || []).filter(
       (block) => block && block.type !== 'proof_step',
     );
     if (topMathBlocks.length >= 2) {
-      return expressionFromSerializedBlock(topMathBlocks[1]);
+      const rightSideExpr = expressionFromSerializedBlock(topMathBlocks[1]);
+      if (rightSideExpr) return rightSideExpr;
+    }
+
+    // 優先2: initialState のトップブロック2番目（フォールバック）
+    const initTopBlocks = (problemData?.initialState?.blocks?.blocks || []).filter(
+      (block) => block && block.type !== 'proof_step',
+    );
+    if (initTopBlocks.length >= 2) {
+      const rightSideExpr = expressionFromSerializedBlock(initTopBlocks[1]);
+      if (rightSideExpr) return rightSideExpr;
     }
 
     return '';
@@ -1160,8 +1159,13 @@
       if (currentStepData.type === 'conclusion_operation' && expectedFinalExpr) {
         const finalCheck = evaluateEquivalence(currentBeforeExpr, expectedFinalExpr);
         if (finalCheck.ok) {
-          continue;
+          continue; // 最終式がゴールと一致 → OK
         }
+        // 最終式がゴールと不一致 → 即不正解（チェーンチェックに進まない）
+        if (finalCheck.reason === 'non-finite' || finalCheck.reason === 'division-by-zero') {
+          return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_FINAL_DIVISION_BY_ZERO', suggestions: [] };
+        }
+        return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
       }
 
       const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
