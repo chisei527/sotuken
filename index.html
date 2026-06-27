@@ -19,39 +19,130 @@
     <script defer src="app.js"></script>
     <script defer src="app-guide.js"></script>
 
-    <style> html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f7ff;
-            font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif;
-            /* 画面遷移に応じて main.js から backgroundImage を差し替える */
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            transition: background-image 260ms ease;
-           }
+    <style>
+        /* =====================================================
+           CYBERPUNK GLASS THEME: ネオンブルー＆グラスモフィズム
+           ===================================================== */
+        :root {
+          --cyber-bg: #030814;
+          --cyber-text: #e6f0ff;
+          --cyber-muted: rgba(203, 213, 225, 0.7);
+          --cyber-blue: #38bdf8;       /* ネオンシアン */
+          --cyber-purple: #a78bfa;     /* ネオンバイオレット */
+          --cyber-green: #22c55e;      /* 正解グリーン */
+          --cyber-red: #fb7185;        /* 不正解レッド */
+          --cyber-dark-blue: #061a3a;
+          
+          /* ガラスの質感共通パーツ */
+          --glass-bg: rgba(6, 22, 44, 0.65);
+          --glass-border: rgba(56, 189, 248, 0.25);
+          --cyber-glow: 0 0 12px rgba(56, 189, 248, 0.4);
+          --cyber-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background-color: var(--cyber-bg);
+          font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif;
+          color: var(--cyber-text);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-attachment: fixed;
+          transition: background-image 260ms ease;
+        }
+
         .a { display: none; height: 100%; flex-direction: column; }
         .b { display: flex; }
-        #c { align-items: center; justify-content: flex-start; background: #1976d2; color: white; padding: 20px; overflow: hidden;}
+
+        /* ステージ選択（旧画面） */
+        #c { 
+          align-items: center; 
+          justify-content: flex-start; 
+          background: rgba(2, 12, 32, 0.6) !important; 
+          color: var(--cyber-text) !important; 
+          padding: 20px; 
+          overflow: hidden;
+          backdrop-filter: blur(8px);
+        }
+        #c button {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(167, 139, 250, 0.1)) !important;
+          color: var(--cyber-text) !important;
+          border: 1px solid var(--glass-border) !important;
+          border-radius: 14px !important;
+          font-weight: 900 !important;
+          box-shadow: var(--cyber-shadow) !important;
+          cursor: pointer;
+        }
+
         .d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 600px; width: 100%; margin-bottom: 30px;}
         .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;}
         .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; }
         .g .f { display: block; }
-        #p { position: relative; }
-        #h { background: linear-gradient(180deg, #1f8af2 0%, #1776dd 100%); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.16); }
-        #h button { background: #ffffff; border: none; color: #1163c7; padding: 10px 16px; border-radius: 14px; cursor: pointer; font-weight: 800; box-shadow: 0 4px 0 #c8d8f4; }
-        #h button:active { transform: translateY(3px); box-shadow: 0 1px 0 #c8d8f4; }
-        #i { background: #ffffff; padding: 18px; margin: 10px; text-align: center; border-radius: 16px; border: 2px solid #d7e7ff; box-shadow: 0 4px 0 #d8e8ff; font-weight: 700; color: #1f3e66; }
+
+        /* パズルメイン画面 */
+        #p { position: relative; background: transparent; }
+
+        /* 🚀 上部サイバーヘッダー */
+        #h { 
+          background: linear-gradient(180deg, rgba(4, 15, 36, 0.95) 0%, rgba(2, 8, 20, 0.8) 100%);
+          color: var(--cyber-text); 
+          padding: 14px 20px; 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
+          backdrop-filter: blur(12px);
+          z-index: 10;
+        }
+        #h button { 
+          background: rgba(255, 255, 255, 0.04); 
+          border: 1px solid var(--glass-border); 
+          color: var(--cyber-text); 
+          padding: 10px 18px; 
+          border-radius: 12px; 
+          cursor: pointer; 
+          font-weight: 800; 
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+          transition: all 0.15s ease;
+        }
+        #h button:hover {
+          background: rgba(56, 189, 248, 0.15);
+          border-color: var(--cyber-blue);
+          box-shadow: var(--cyber-glow);
+        }
+        #h button:active { transform: translateY(1px); }
+
+        /* 🚀 クールな問題文カード */
+        #i { 
+          background: var(--glass-bg);
+          padding: 20px; 
+          margin: 12px; 
+          text-align: center; 
+          border-radius: 16px; 
+          border: 1px solid var(--glass-border); 
+          box-shadow: var(--cyber-shadow); 
+          font-weight: 700; 
+          color: var(--cyber-text); 
+          backdrop-filter: blur(14px);
+        }
+
+        /* 🚀 サイバーブルーのヒントエリア */
         #tutorial-next-under-problem {
-          margin-top: 12px;
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: linear-gradient(90deg, rgba(251, 191, 36, 0.2), rgba(255, 255, 255, 0));
-          border-left: 4px solid #f59e0b;
+          margin: 0 12px 12px;
+          padding: 16px;
+          border-radius: 16px;
+          background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(6, 26, 58, 0.4));
+          border: 1px solid var(--glass-border);
+          border-left: 5px solid var(--cyber-blue); 
           font-weight: 900;
-          color: #7c2d12;
+          color: #f0f7ff;
+          text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+          box-shadow: var(--cyber-shadow);
+          backdrop-filter: blur(10px);
           text-align: left;
           display: none;
         }
@@ -60,22 +151,27 @@
           animation: underProblemPulse 1.4s ease-in-out infinite;
         }
         @keyframes underProblemPulse {
-          0%, 100% { transform: translateY(0); box-shadow: none; }
-          50% { transform: translateY(-4px); box-shadow: 0 10px 18px rgba(251, 191, 36, 0.25); }
+          0%, 100% { transform: translateY(0); box-shadow: var(--cyber-shadow); }
+          50% { transform: translateY(-3px); border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 16px 36px rgba(56, 189, 248, 0.15); }
         }
+
+        /* 🚀 チュートリアル用上の帯ガラス */
         #tutorial-banner {
           display: none;
-          margin: 10px 10px 0;
-          padding: 14px 16px;
+          margin: 12px 12px 0;
+          padding: 16px;
           border-radius: 16px;
-          background: linear-gradient(120deg, #fff7ed 0%, #fff 60%);
-          border: 2px solid #fed7aa;
-          box-shadow: 0 6px 0 #fde68a;
+          background: linear-gradient(135deg, rgba(6, 26, 58, 0.9), rgba(4, 12, 32, 0.75));
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
           font-weight: 900;
-          color: #7c2d12;
+          color: var(--cyber-text);
+          text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
           text-align: left;
         }
         #tutorial-banner.visible { display: block; }
+
+        /* チュートリアル光枠(オレンジ丸) */
         .tutorial-pulse-source,
         .tutorial-pulse-target {
           position: absolute;
@@ -93,1032 +189,273 @@
           position: fixed;
           pointer-events: none;
           z-index: 9999;
-          border-radius: 50%; /* 丸くする */
-          background-color: rgba(251, 191, 36, 0.3);
-          box-shadow: 0 0 20px 10px rgba(251, 191, 36, 0.8), inset 0 0 15px 5px rgba(251, 191, 36, 0.5);
-          transition: all 0.1s ease-out; /* 追従を滑らかに */
+          border-radius: 50%;
+          background-color: rgba(251, 191, 36, 0.25);
+          box-shadow: 0 0 22px 12px rgba(251, 191, 36, 0.7), inset 0 0 15px 5px rgba(251, 191, 36, 0.4);
+          transition: all 0.1s ease-out;
         }
         .tutorial-pulse-source.hidden,
-        .tutorial-pulse-target.hidden {
-          display: none;
-        }
+        .tutorial-pulse-target.hidden { display: none; }
         @keyframes pulse-orange {
           0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
           50% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.12); }
         }
-        @keyframes pulse-yellow {
-          0%, 100% { opacity: 0.4; box-shadow: 0 0 20px 10px #fbbf24; }
-          50% { opacity: 1; box-shadow: 0 0 28px 14px #fbbf24; }
-        }
-        #tutorial-progress-shell { display: none; margin: 0 10px 10px; background: #ffffff; border: 2px solid #d7e7ff; border-radius: 16px; box-shadow: 0 4px 0 #d8e8ff; padding: 10px 12px; }
-        #tutorial-progress-shell.visible { display: block; }
-        #tutorial-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 900; color: #176438; }
-        #tutorial-progress-track { width: 100%; height: 18px; border-radius: 999px; background: #dcfce7; overflow: hidden; box-shadow: inset 0 2px 0 rgba(0,0,0,0.1); }
-        #tutorial-progress-fill { width: 0%; height: 100%; background: linear-gradient(180deg, #5dda3c, #4ac529); border-radius: 999px; transition: width 0.35s ease; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.14); }
-        #l { flex-grow: 1; width: 100%; position: relative; }
-        #l .blocklyDiv,
-        #l .blocklySvg,
-        #l .blocklyWorkspace,
-        #l .blocklyHtmlCanvas {
-          width: 100% !important;
-          height: 100% !important;
-        }
-        #l .blocklySvg { background: transparent !important; }
-        .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; font-weight: bold; text-align: center; font-size: 1.1em; transition: opacity 0.3s, transform 0.3s; }
-        .toast.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
-        .blocklyInputRow { padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important; line-height: 1 !important; }
-        .blocklyBlockSvg[data-type='math_fraction'] .blocklyInputRow:first-of-type { transform: translateY(4px) !important; }
-        .blocklyBlockSvg[data-type='math_fraction'] .blocklyInputRow:last-of-type { transform: translateY(-8px) !important; }
-        .blocklyFieldLabel[text="—————"] { font-family: 'Times New Roman', serif !important; font-weight: bold !important; font-size: 16px !important; transform: translateY(-5px) !important; line-height: 0 !important; }
-        /* インライン入力（穴）の背景と枠線を完全に消す */
-        .blocklyInlinedElement,
-        .blocklyInlinedElement > rect,
-        .blocklyInlinedElement > .blocklyPath {
-          fill: none !important;
-          stroke: none !important;
-        }
 
-        /* フィールド全体の背景も念のため透明化 */
-        .blocklyFieldRect {
-          fill: transparent !important;
-          stroke: none !important;
+        /* チュートリアルプログレスバー */
+        #tutorial-progress-shell { 
+          display: none; 
+          margin: 0 12px 12px; 
+          background: rgba(255,255,255,0.06); 
+          border: 1px solid var(--glass-border); 
+          border-radius: 16px; 
+          box-shadow: var(--cyber-shadow); 
+          padding: 12px; 
+          backdrop-filter: blur(10px);
         }
+        #tutorial-progress-shell.visible { display: block; }
+        #tutorial-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 900; color: rgba(187, 247, 208, 0.95); }
+        #tutorial-progress-track { width: 100%; height: 14px; border-radius: 999px; background: rgba(34, 197, 94, 0.15); overflow: hidden; }
+        #tutorial-progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); border-radius: 999px; transition: width 0.35s ease; }
+
+        /* ワークスペース本体 */
+        #l { flex-grow: 1; width: 100%; position: relative; }
+        #l .blocklyDiv, #l .blocklySvg, #l .blocklyWorkspace, #l .blocklyHtmlCanvas { width: 100% !important; height: 100% !important; }
+        #l .blocklySvg { background: transparent !important; }
+
+        /* トーストポップアップ */
+        .toast { 
+          position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); 
+          background: rgba(6, 26, 58, 0.9); 
+          border: 1px solid var(--cyber-blue);
+          color: var(--cyber-text);
+          padding: 14px 28px; border-radius: 14px; 
+          box-shadow: 0 12px 36px rgba(0,0,0,0.5), var(--cyber-glow); 
+          z-index: 999; font-weight: bold; text-align: center; font-size: 1.05rem; 
+          backdrop-filter: blur(12px);
+          transition: opacity 0.3s, transform 0.3s; 
+        }
+        .toast.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
+
+        /* Blocklyパーツ微調整 */
+        .blocklyInputRow { padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important; line-height: 1 !important; }
         .blocklyFieldRect { display: none !important; }
         .blocklyFieldGroup rect { fill: transparent !important; stroke: none !important; }
         .blocklyText, .blocklyEditableText { font-family: 'Times New Roman', serif !important; font-style: italic !important; font-size: 14px !important; }
+
+        /* 🚀 下部アクションボタンバー */
         .action-bar-container {
-          position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-          display: flex; gap: 12px; padding: 12px 16px; z-index: 1000;
-          background: linear-gradient(135deg, rgba(10, 15, 29, 0.86), rgba(20, 28, 48, 0.74));
-          border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 20px;
-          box-shadow: 0 18px 40px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08);
-          backdrop-filter: blur(14px);
+          position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+          display: flex; gap: 14px; padding: 12px 18px; z-index: 1000;
+          background: linear-gradient(135deg, rgba(8, 20, 44, 0.88), rgba(3, 10, 24, 0.75));
+          border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 22px;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+          backdrop-filter: blur(16px);
         }
         .action-btn {
-          font-family: inherit; font-weight: 900; font-size: 15px; padding: 12px 20px;
-          border-radius: 14px; cursor: pointer; outline: none; border: 1px solid rgba(148, 163, 184, 0.2);
-          color: rgba(240, 249, 255, 0.96); letter-spacing: 0.02em;
-          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255,255,255,0.08);
-          transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, border-color 0.16s ease;
+          font-family: inherit; font-weight: 900; font-size: 15px; padding: 12px 24px;
+          border-radius: 14px; cursor: pointer; outline: none; border: 1px solid rgba(255,255,255,0.08);
+          color: #ffffff; letter-spacing: 0.02em;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+          transition: all 0.16s ease;
         }
         .action-btn:hover {
-          transform: translateY(-1px);
-          filter: brightness(1.06) saturate(1.05);
-          border-color: rgba(186, 230, 253, 0.46);
-          box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24), 0 0 18px rgba(56, 189, 248, 0.18), inset 0 1px 0 rgba(255,255,255,0.12);
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+          box-shadow: 0 12px 26px rgba(0,0,0,0.4), 0 0 14px rgba(56, 189, 248, 0.25);
         }
-        .action-btn:active { transform: translateY(1px); box-shadow: 0 8px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08); }
-        .btn-primary { background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(99, 102, 241, 0.9)); }
-        .btn-warning { background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 0.9)); color: rgba(15, 23, 42, 0.95); text-shadow: none; }
-        .btn-secondary { background: linear-gradient(135deg, rgba(71, 85, 105, 0.84), rgba(100, 116, 139, 0.68)); }
-        .btn-danger { background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.9)); }
+        .action-btn:active { transform: translateY(1px); }
+
+        .btn-primary { background: linear-gradient(135deg, #0284c7, #4f46e5); border-color: rgba(56, 189, 248, 0.4); }
+        .btn-primary:hover { border-color: var(--cyber-blue); }
+        .btn-warning { background: linear-gradient(135deg, #d97706, #b45309); }
+        .btn-secondary { background: linear-gradient(135deg, #334155, #1e293b); }
+        .btn-danger { background: linear-gradient(135deg, #e11d48, #9f1239); }
+
+        /* 特殊エフェクト */
         .success-ripple {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          border: 4px solid #38bdf8;
-          box-shadow: 0 0 20px rgba(56, 189, 248, 0.75), inset 0 0 12px rgba(34, 211, 238, 0.35);
-          backface-visibility: hidden;
-          pointer-events: none;
-          z-index: 3000;
-          transform: translate(-50%, -50%) scale(0.5);
-          opacity: 0.95;
+          position: fixed; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 50%;
+          border: 4px solid var(--cyber-blue);
+          box-shadow: 0 0 24px rgba(56, 189, 248, 0.8), inset 0 0 14px rgba(34, 211, 238, 0.4);
+          pointer-events: none; z-index: 3000; transform: translate(-50%, -50%) scale(0.5); opacity: 0.95;
           animation: successRipple 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes successRipple {
-          0% {
-            transform: translate(-50%, -50%) scale(0.5);
-            opacity: 0.95;
-          }
-          100% {
-            width: 300px;
-            height: 300px;
-            transform: translate(-50%, -50%) scale(2.5);
-            opacity: 0;
-          }
+          0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.95; }
+          100% { width: 300px; height: 300px; transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
         }
+
         .clear-stamp-effect {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 9999;
-          pointer-events: none;
-          color: #66f7d6;
-          font-family: 'Arial Black', 'M PLUS Rounded 1c', sans-serif;
-          font-size: clamp(64px, 10vw, 132px);
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          text-shadow:
-            0 0 8px rgba(102, 247, 214, 0.95),
-            0 0 24px rgba(56, 189, 248, 0.9),
-            0 0 42px rgba(34, 211, 238, 0.75),
-            0 0 64px rgba(16, 185, 129, 0.45);
-          -webkit-text-stroke: 3px rgba(10, 20, 30, 0.55);
-          text-transform: uppercase;
-          white-space: nowrap;
-          user-select: none;
+          position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          z-index: 9999; pointer-events: none; color: #66f7d6; font-family: 'Arial Black', sans-serif;
+          font-size: clamp(64px, 10vw, 132px); font-weight: 900; letter-spacing: 0.08em;
+          text-shadow: 0 0 12px rgba(102, 247, 214, 0.95), 0 0 32px rgba(56, 189, 248, 0.8);
           animation: clearStampPop 1.2s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
-          filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.2));
         }
         @keyframes clearStampPop {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(3) rotate(-12deg);
-            filter: blur(8px) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
-          }
-          20% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
-            filter: blur(0) drop-shadow(0 10px 24px rgba(0, 0, 0, 0.2));
-          }
-          35% {
-            transform: translate(-50%, -50%) scale(1) rotate(0deg);
-          }
-          80% {
-            opacity: 1;
-            transform: translate(-50%, calc(-50% - 4px)) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(-50%, calc(-50% - 18px)) scale(0.9);
-            filter: blur(2px) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
-          }
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(3) rotate(-12deg); }
+          20% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+          100% { opacity: 0; transform: translate(-50%, calc(-50% - 20px)) scale(0.9); }
         }
-        .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(240, 244, 248, 0.95); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 2000; transition: opacity 0.4s ease, visibility 0.4s ease; }
+
+        /* 各種オーバーレイ画面 */
+        .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 8, 20, 0.8); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
         .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .start-content { text-align: center; animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .app-title { font-family: 'Arial Black', sans-serif; font-size: 4rem; color: #4a90e2; margin: 0; text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1); }
-        .app-subtitle { font-size: 1.2rem; color: #555; margin-bottom: 40px; font-weight: bold; }
-        .tutorial-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15); text-align: center; max-width: 500px; transform: translateY(20px); transition: transform 0.4s ease; }
-        .skip-challenge-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); text-align: center; max-width: 520px; width: min(92vw, 520px); }
-        .skip-actions { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .unit-circle-card { background: white; padding: 22px; border-radius: 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); width: min(94vw, 620px); }
-        #unit-circle { width: 100%; max-width: 560px; height: auto; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff; display: block; margin: 12px auto 10px; }
-        .unit-circle-controls { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-        #unit-circle-angle { width: 100%; }
-        .overlay-screen:not(.hidden) .tutorial-card { transform: translateY(0); }
-        .step { display: flex; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: left; }
-        .step-num { background: #4a90e2; color: white; font-weight: bold; font-size: 1.5rem; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin-right: 20px; flex-shrink: 0; }
-        .stage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 18px; margin-bottom: 40px; }
-        .stage-card { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; }
-        .stage-node { width: 100px; height: 100px; border-radius: 28px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 2rem; font-weight: 800; color: #9ca3af; background: #e5e7eb; border: 3px solid #d1d5db; box-shadow: 0 6px 0 #cbd5e1; transition: transform 0.2s, box-shadow 0.2s, filter 0.2s; }
-        .stage-card:active .stage-node { transform: translateY(6px); box-shadow: 0 0 0 #cbd5e1; }
-        .stage-card.unlocked .stage-node { color: #0b4ba8; background: #60a5fa; border-color: #3b82f6; box-shadow: 0 6px 0 #1d4ed8; }
-        .stage-card.cleared .stage-node { color: #ffffff; background: #22c55e; border-color: #16a34a; box-shadow: 0 6px 0 #15803d; }
-        .stage-card:hover .stage-node { filter: brightness(1.04); }
-        .stage-icon { display: block; font-size: 1.1rem; margin-top: 2px; }
-        .stage-label { font-size: 0.95rem; font-weight: 700; color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
-        .stage-list-shell {
-          width: 100%;
-          max-width: 720px;
-          padding: 16px;
-          border-radius: 22px;
-          border: 1px solid rgba(191, 219, 254, 0.35);
-          background: rgba(255, 255, 255, 0.12);
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 14px 24px rgba(0,0,0,0.18);
-          max-height: calc(100vh - 320px);
-          overflow-y: auto;
-        }
-        .stage-list-shell::-webkit-scrollbar { width: 10px; }
-        .stage-list-shell::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.12);
-          border-radius: 999px;
-        }
-        .stage-list-shell::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.45);
-          border-radius: 999px;
-        }
-        #n.stage-list-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-          gap: 14px;
-        }
-        .stage-list-card {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 14px;
-          border-radius: 18px;
-          border: 2px solid transparent;
-          background: rgba(255,255,255,0.16);
-          color: #ffffff;
-          cursor: pointer;
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-          text-align: left;
-        }
-        .stage-list-card:hover { transform: translateY(-2px); filter: brightness(1.05); }
-        .stage-list-card:disabled { cursor: not-allowed; opacity: 0.6; }
-        .stage-list-badge {
-          width: 54px;
-          height: 54px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 900;
-          font-size: 1.1rem;
-          color: #0f172a;
-          background: radial-gradient(circle at 30% 30%, #fef3c7, #f59e0b 68%);
-          box-shadow: 0 8px 0 #b45309, 0 16px 24px rgba(0,0,0,0.2);
-        }
-        .stage-list-card.cleared .stage-list-badge {
-          color: #ffffff;
-          background: radial-gradient(circle at 30% 30%, #bbf7d0, #22c55e 70%);
-          box-shadow: 0 8px 0 #15803d, 0 16px 24px rgba(0,0,0,0.2);
-        }
-        .stage-list-card.locked .stage-list-badge {
-          color: #e5e7eb;
-          background: radial-gradient(circle at 30% 30%, #9ca3af, #4b5563 70%);
-          box-shadow: 0 8px 0 #374151, 0 16px 24px rgba(0,0,0,0.2);
-        }
-        .stage-list-info h3 { margin: 0; font-size: 1rem; font-weight: 900; }
-        .stage-list-info p { margin: 2px 0 0; font-size: 0.82rem; color: #e0f2fe; font-weight: 700; }
-        .stage-list-meta {
-          margin-left: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          align-items: flex-end;
-        }
-        .stage-list-status {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 4px 8px;
-          border-radius: 999px;
-          font-size: 0.72rem;
-          font-weight: 900;
-          background: rgba(255,255,255,0.2);
-        }
-        .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f9f9f9; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: auto; }
-        .curtain.hidden { opacity: 0; pointer-events: none; }
-        #streak-counter { font-weight: 800; font-size: 1rem; background: rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; min-width: 58px; text-align: center; }
-        .header-center { display: flex; align-items: center; gap: 10px; }
-        .overwrite-toggle-btn { font-size: 0.82rem; padding: 6px 10px; white-space: nowrap; border: none; color: white; border-radius: 7px; cursor: pointer; font-weight: 700; }
-        .overwrite-toggle-btn.on { background: rgba(88, 204, 2, 0.32); }
-        .overwrite-toggle-btn.off { background: rgba(255, 255, 255, 0.2); }
-        #streak-counter.streak-bounce { animation: streakBounce 320ms ease-out; }
-        @keyframes streakBounce {
-          0% { transform: scale(1); }
-          35% { transform: scale(1.2); }
-          65% { transform: scale(0.95); }
-          100% { transform: scale(1); }
-        }
-        @keyframes floatUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* PC-only progression map */
-        .screen { width: 100%; height: 100%; }
-                #stage-map-screen {
-          position: relative;
-          /* 背景は body に委譲（bg_select.png を表示） */
-          background: rgba(2, 17, 39, 0.28);
-          color: #e8f6ff;
-          overflow: hidden;
-          align-items: stretch;
-          justify-content: flex-start;
+        /* モーダル共通クールデザイン */
+        .skip-challenge-card, .tutorial-intro-card, .formula-unlock-card {
+          background: linear-gradient(180deg, rgba(10, 28, 60, 0.9) 0%, rgba(4, 12, 32, 0.8) 100%);
+          border: 1px solid rgba(56, 189, 248, 0.35);
+          box-shadow: 0 30px 70px rgba(0,0,0,0.6), var(--cyber-glow);
+          color: var(--cyber-text); border-radius: 24px; padding: 34px; max-width: 520px; width: min(92vw, 520px); text-align: center; backdrop-filter: blur(14px);
         }
-        .map-topbar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px 30px;
-          background: rgba(3, 24, 58, 0.35);
-          backdrop-filter: blur(4px);
-          border-bottom: 1px solid rgba(255,255,255,0.18);
-          z-index: 2;
-        }
-        .map-title-wrap h1 { margin: 0; font-size: 1.9rem; letter-spacing: 0.03em; }
-        .map-subtitle { margin: 6px 0 0; color: #c5ebff; font-weight: 700; font-size: 0.95rem; }
-        .map-controls { display: flex; gap: 10px; align-items: center; }
-        .map-control-btn {
-          border: none;
-          background: rgba(255,255,255,0.18);
-          color: #ffffff;
-          padding: 10px 14px;
-          border-radius: 12px;
-          cursor: pointer;
-          font-weight: 700;
-          transition: transform 0.15s ease, background 0.2s ease;
-        }
-        .map-control-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.28); }
+
+        /* 🗺️ マップ画面 (横一列進行) */
+        #stage-map-screen { position: relative; background: rgba(2, 12, 32, 0.4); color: #e8f6ff; overflow: hidden; align-items: stretch; justify-content: flex-start; }
+        .map-topbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(4, 16, 40, 0.75); backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border); z-index: 2; }
+        .map-title-wrap h1 { margin: 0; font-size: 1.7rem; letter-spacing: 0.03em; text-shadow: var(--cyber-glow); }
+        .map-subtitle { margin: 6px 0 0; color: #a5f3fc; font-weight: 700; font-size: 0.9rem; }
+        .map-controls { display: flex; gap: 12px; align-items: center; }
+        .map-control-btn { border: 1px solid var(--glass-border); background: rgba(56, 189, 248, 0.12); color: #ffffff; padding: 10px 16px; border-radius: 12px; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
+        .map-control-btn:hover { background: rgba(56, 189, 248, 0.25); box-shadow: var(--cyber-glow); }
         #map-progress { font-weight: 800; color: #fef08a; }
-        #map-links line {
-          stroke: rgba(186, 230, 253, 0.5);
-          stroke-width: 6;
-          stroke-linecap: round;
-        }
-        .map-canvas {
-          position: relative;
-          flex: 1;
-          overflow: auto;
-          overscroll-behavior: contain;
-        }
-        #map-world {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          transform-origin: top left;
-        }
-        #map-links,
-        #map-world-atmosphere,
-        #map-worlds,
-        #map-nodes {
-          position: absolute;
-          inset: 0;
-        }
-        #map-nodes {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          z-index: 1;
-        }
-        .map-node {
-          position: absolute;
-          width: 94px;
-          height: 94px;
-          border-radius: 50%;
-          background:
-            radial-gradient(circle at 8% 14%, rgba(255,255,255,0.4), transparent 28%),
-            radial-gradient(circle at 78% 82%, rgba(255,255,255,0.22), transparent 30%),
-            linear-gradient(132deg, #082f49 0%, #0c4a6e 36%, #0369a1 100%);
-          color: white;
-        }
-                                #game-entrance {
-                                  position: fixed;
-                                  inset: 0;
-                                  z-index: 2400;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  /* 背景は body に委譲（bg_title.png を表示） */
-                                  background: rgba(2, 14, 34, 0.18);
-                                  color: white;
-                                }
+        .map-canvas { position: relative; flex: 1; overflow: auto; overscroll-behavior: contain; }
+        #map-world { position: relative; width: max-content; height: 100%; min-height: 220px; }
+        #map-nodes { position: relative; display: flex; align-items: center; gap: 10px; padding: 84px 40vw; height: 100%; z-index: 1; }
 
-        /* 起動UI: START → 二択 */
+        .map-road { flex: 0 0 64px; width: 64px; height: 14px; border-radius: 999px; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.2); position: relative; }
+        .map-road.unlocked { background: linear-gradient(90deg, rgba(56,189,248,0.3), rgba(167,139,250,0.25)); border-color: rgba(56,189,248,0.4); }
+        .map-road.cleared { background: linear-gradient(90deg, rgba(34,197,94,0.4), rgba(16,185,129,0.3)); border-color: rgba(34,197,94,0.4); }
+
+        .map-node {
+          position: relative; flex: 0 0 92px; width: 92px; height: 92px; border-radius: 50%;
+          display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.25); box-shadow: var(--cyber-shadow); cursor: pointer; backdrop-filter: blur(8px); transition: all 0.2s ease;
+          background: rgba(148, 163, 184, 0.1); color: rgba(226, 232, 240, 0.6);
+        }
+        .map-node.current { box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.7), 0 0 24px rgba(56, 189, 248, 0.4), var(--cyber-shadow); }
+        .map-node.unlocked { background: linear-gradient(140deg, rgba(56, 189, 248, 0.35), rgba(167, 139, 250, 0.2)); color: #ffffff; border-color: rgba(56,189,248,0.5); }
+        .map-node.cleared { background: linear-gradient(140deg, rgba(34,197,94,0.35), rgba(16,185,129,0.2)); color: #e0f2fe; border-color: rgba(34,197,94,0.5); }
+        .map-node:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); filter: brightness(1.15); }
+        .map-node-number { font-size: 1.5rem; font-weight: 950; }
+        .map-node-label { font-size: 0.68rem; font-weight: 900; opacity: 0.85; }
+
+        /* 🚀 ゲーム開始画面（エントランス） */
+        #game-entrance { position: fixed; inset: 0; z-index: 2400; display: flex; align-items: center; justify-content: center; background: rgba(3, 10, 24, 0.4); }
         #game-entrance:not(.show-choices) .entrance-card { display: none; }
-        #game-entrance.show-choices #btn-entry-start { display: none; }
+        #game-entrance.show-choices #start-prompt-text { display: none; }
+        #game-entrance.hidden { display: none !important; }
+        #game-entrance { cursor: pointer; } 
+        #game-entrance.show-choices { cursor: default; } 
 
-                #btn-entry-start.entrance-start-btn {
-                  position: fixed;
-                  left: 50%;
-                  bottom: 84px;
-                  transform: translateX(-50%);
-                  padding: 24px 64px;
-                  border-radius: 999px;
-                  font-size: 24px;
-                  letter-spacing: 0.16em;
-                  text-transform: uppercase;
-                  min-width: 320px;
-                  /* サイバーデザインのスタイル */
-                  background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(56, 189, 248, 0.9));
-                  color: #e0f2fe;
-                  font-weight: 900;
-                  text-shadow: 0 0 8px rgba(102, 247, 214, 0.6), 0 0 16px rgba(56, 189, 248, 0.4);
-                  border: 2px solid #22d3ee;
-                  box-shadow: 0 0 15px rgba(34, 211, 238, 0.6), inset 0 0 10px rgba(102, 247, 214, 0.4);
-                  transition: all 0.2s ease-in-out;
-                }
-                #btn-entry-start.entrance-start-btn:hover {
-                  transform: translateX(-50%) translateY(-3px);
-                  box-shadow: 0 0 25px rgba(34, 211, 238, 0.8), inset 0 0 15px rgba(102, 247, 214, 0.6);
-                  filter: brightness(1.1);
-                }
-                #btn-entry-start.entrance-start-btn:active {
-                  transform: translateX(-50%) translateY(1px);
-                  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5), inset 0 0 8px rgba(102, 247, 214, 0.3);
-                }
-        #game-entrance.hidden { display: none; }
+        #start-prompt-text {
+          position: absolute; left: 50%; bottom: 15vh; transform: translateX(-50%);
+          font-size: 1.6rem; font-weight: 900; letter-spacing: 0.3em; color: #e0f2fe;
+          text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(34, 211, 238, 0.4);
+          animation: pressStartPulse 1.2s infinite alternate ease-in-out;
+          pointer-events: none; white-space: nowrap;
+        }
+        @keyframes pressStartPulse {
+          0% { opacity: 0.2; }
+          100% { opacity: 1; filter: brightness(1.3); text-shadow: 0 0 18px rgba(56, 189, 248, 1), 0 0 35px rgba(34, 211, 238, 0.8); }
+        }
+
         .entrance-card {
-          width: 920px;
-          border-radius: 24px;
-          padding: 34px;
-          /* サイバーデザインのスタイル */
-          background: rgba(5, 20, 40, 0.85);
-          border: 1px solid rgba(56, 189, 248, 0.4);
-          box-shadow: 0 0 25px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(56, 189, 248, 0.2);
-          backdrop-filter: blur(8px);
+          width: 860px; padding: 40px; border-radius: 24px;
+          background: rgba(4, 14, 36, 0.92); border: 1px solid rgba(56, 189, 248, 0.45);
+          box-shadow: 0 0 35px rgba(34, 211, 238, 0.35), var(--cyber-shadow); backdrop-filter: blur(12px);
         }
-        .entrance-eyebrow {
-          color: #81e6d9; /* エメラルドグリーン系 */
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          margin: 0 0 10px;
-          font-size: 0.9rem;
-          text-shadow: 0 0 5px rgba(102, 247, 214, 0.7);
-        }
-        .entrance-title {
-          margin: 0;
-          font-size: 3rem;
-          line-height: 1.08;
-          color: #e0f2fe;
-          text-shadow: 0 0 12px rgba(56, 189, 248, 0.5), 0 0 24px rgba(34, 211, 238, 0.3);
-        }
-        .entrance-subtitle {
-          margin: 12px 0 24px;
-          color: #a5f3fc; /* 淡いシアン系 */
-          font-size: 1.1rem;
-          font-weight: 700;
-          text-shadow: 0 0 6px rgba(102, 247, 214, 0.4);
-        }
-        .entrance-choice-row { display: flex; gap: 16px; }
+        .entrance-choice-row { display: flex; gap: 20px; margin-top: 24px; }
         .entrance-choice {
-          flex: 1;
-          border-radius: 18px;
-          padding: 22px;
-          cursor: pointer;
-          text-align: left;
-          font-weight: 700;
-          transition: all 0.2s ease-in-out;
-          
-          /* サイバーデザインの共通ボタンベース */
-          background: rgba(10, 30, 60, 0.8);
-          border: 1px solid rgba(56, 189, 248, 0.3);
-          box-shadow: 0 0 10px rgba(56, 189, 248, 0.2), inset 0 0 5px rgba(56, 189, 248, 0.1);
-          color: #e0f2fe;
-          text-shadow: 0 0 6px rgba(102, 247, 214, 0.4);
+          flex: 1; border-radius: 18px; padding: 24px; cursor: pointer; text-align: left;
+          background: rgba(8, 24, 56, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); color: #e0f2fe;
+          transition: all 0.2s ease;
         }
-        .entrance-choice:hover {
-          transform: translateY(-4px) scale(1.02);
-          box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), inset 0 0 8px rgba(102, 247, 214, 0.3);
-          border-color: rgba(34, 211, 238, 0.6);
-          filter: brightness(1.15);
-        }
-        .entrance-choice:active {
-          transform: translateY(1px);
-          box-shadow: 0 0 8px rgba(56, 189, 248, 0.3), inset 0 0 4px rgba(102, 247, 214, 0.2);
-          filter: brightness(0.9);
-        }
-        .entrance-choice h3 {
-          margin: 0 0 8px;
-          font-size: 1.3rem;
-          font-weight: 900;
-          color: #7fffd4; /* 明るいエメラルド */
-          text-shadow: 0 0 8px rgba(127, 255, 212, 0.6);
-        }
-        .entrance-choice p {
-          margin: 0;
-          font-weight: 600;
-          opacity: 0.92;
-          line-height: 1.45;
-          color: #a5f3fc;
-          text-shadow: 0 0 4px rgba(102, 247, 214, 0.3);
-        }
-        #btn-entry-tutorial {
-          background: linear-gradient(145deg, rgba(37, 99, 235, 0.9), rgba(56, 189, 248, 0.9));
-          border-color: rgba(34, 211, 238, 0.5);
-        }
-        #btn-entry-map {
-          background: linear-gradient(145deg, rgba(167, 139, 250, 0.9), rgba(99, 102, 241, 0.9));
-          border-color: rgba(192, 132, 252, 0.5);
-        }
+        .entrance-choice:hover { transform: translateY(-4px); box-shadow: 0 0 24px rgba(56, 189, 248, 0.45); border-color: var(--cyber-blue); }
+        .entrance-choice h3 { margin: 0 0 8px; font-size: 1.3rem; font-weight: 900; color: #7fffd4; }
+        .entrance-choice p { margin: 0; font-size: 0.95rem; color: #a5f3fc; line-height: 1.5; }
+        #btn-entry-tutorial { background: linear-gradient(145deg, rgba(29, 78, 216, 0.85), rgba(14, 165, 233, 0.75)); }
+        #btn-entry-map { background: linear-gradient(145deg, rgba(109, 40, 217, 0.85), rgba(79, 70, 229, 0.75)); }
 
-        .tutorial-intro-card {
-          background: #ffffff;
-          padding: 30px;
-          border-radius: 22px;
-          box-shadow: 0 24px 50px rgba(0, 0, 0, 0.22);
-          width: min(94vw, 720px);
-          text-align: center;
-        }
-        .tutorial-intro-card h2 { margin: 0 0 12px; font-size: 1.7rem; color: #0f172a; }
-        .tutorial-intro-card p { margin: 0 0 16px; color: #475569; font-weight: 700; line-height: 1.6; }
+        .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #030814; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: none; }
+        .curtain.hidden { opacity: 0; }
+        #streak-counter { font-weight: 800; font-size: 1rem; background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--glass-border); }
+        .header-center { display: flex; align-items: center; gap: 14px; }
+        .overwrite-toggle-btn { font-size: 0.82rem; padding: 6px 12px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
+        .overwrite-toggle-btn.on { background: rgba(34, 197, 94, 0.2); border-color: var(--cyber-green); color: #22c55e; }
+        .overwrite-toggle-btn.off { background: rgba(255, 255, 255, 0.08); border-color: var(--glass-border); color: var(--cyber-text); }
 
-        /* ===== 新公式アンロック（画像ポップアップ） ===== */
-        .formula-unlock-card {
-          background: #ffffff;
-          padding: 26px;
-          border-radius: 22px;
-          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
-          width: min(94vw, 760px);
-          text-align: center;
-        }
-        #formula-unlock-title {
-          margin: 0 0 14px;
-          font-size: 1.55rem;
-          font-weight: 900;
-          color: #0f172a;
-        }
-        #formula-unlock-image {
-          width: 100%;
-          max-height: 62vh;
-          object-fit: contain;
-          display: block;
-          margin: 0 auto 14px;
-          border-radius: 16px;
-          background: #f8fafc;
-          border: 2px solid #d7e7ff;
-        }
-        #formula-unlock-fallback {
-          display: none;
-          margin: 0 auto 14px;
-          padding: 16px 14px;
-          border-radius: 16px;
-          background: #f1f5f9;
-          border: 2px solid #d7e7ff;
-          font-weight: 900;
-          color: #0f172a;
-          text-align: left;
-          white-space: pre-wrap;
-        }
-                #formula-unlock-meta {
-          margin: 0 0 16px;
-          color: #475569;
-          font-weight: 800;
-          font-size: 0.95rem;
-        }
-
-        /* =====================================================
-           COOL THEME: 背景に似合うクール/スタイリッシュ統一
-           （既存CSSの上書き用: 下に書いたものが優先されます）
-           ===================================================== */
-        :root {
-          --cool-veil: rgba(2, 10, 24, 0.62);
-          --cool-veil-soft: rgba(2, 10, 24, 0.40);
-          --cool-glass: rgba(255, 255, 255, 0.10);
-          --cool-glass-strong: rgba(255, 255, 255, 0.14);
-          --cool-stroke: rgba(148, 163, 184, 0.25);
-          --cool-text: #e6f0ff;
-          --cool-muted: rgba(203, 213, 225, 0.82);
-          --cool-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
-
-          --cool-accent: #38bdf8;  /* cyan */
-          --cool-accent2: #a78bfa; /* violet */
-          --cool-success: #22c55e;
-          --cool-warning: #fbbf24;
-          --cool-danger: #fb7185;
-        }
-
-        /* 全画面のベーストーン */
-        body {
-          color: var(--cool-text);
-          background-color: #050b16;
-        }
-
-        /* ステージ選択(旧)も背景はbodyへ */
-        #c {
-          background: rgba(2, 17, 39, 0.34) !important;
-          color: var(--cool-text) !important;
-        }
-
-        /* Puzzle screen wrapper */
-        #p {
-          background: transparent;
-        }
-
-        /* 上部ヘッダー（ステージ画面） */
-        #h {
-          background: linear-gradient(180deg, rgba(8, 23, 48, 0.92) 0%, rgba(3, 12, 28, 0.78) 100%);
-          border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-          backdrop-filter: blur(10px);
-        }
-        #h button {
-          background: linear-gradient(145deg, rgba(56, 189, 248, 0.16), rgba(167, 139, 250, 0.12));
-          color: var(--cool-text);
-          border: 1px solid rgba(148, 163, 184, 0.28);
-          box-shadow: 0 10px 26px rgba(0,0,0,0.22);
-        }
-        #h button:hover { filter: brightness(1.08); transform: translateY(-1px); }
-
-        #streak-counter {
-          background: rgba(255,255,255,0.10);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-        }
-
-        /* 問題文カード */
-        #i {
-          background: rgba(255,255,255,0.10);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          box-shadow: var(--cool-shadow);
-          color: var(--cool-text);
-          backdrop-filter: blur(10px);
-        }
-
-        /* チュートリアル系のカードもガラス化 */
-        #tutorial-progress-shell {
-          background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          box-shadow: 0 12px 28px rgba(0,0,0,0.26);
-        }
-        #tutorial-progress-meta { color: rgba(187, 247, 208, 0.92); }
-        #tutorial-progress-track { background: rgba(34, 197, 94, 0.18); }
-
-        /* オーバーレイ（モーダル背景） */
-        .overlay-screen {
-          background: rgba(2, 10, 24, 0.72);
-          backdrop-filter: blur(12px);
-        }
-
-        /* 各種モーダルカード（共通でクールに） */
-        .skip-challenge-card,
-        .tutorial-intro-card,
-        .formula-unlock-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%);
-          border: 1px solid rgba(148, 163, 184, 0.24);
-          box-shadow: 0 30px 80px rgba(0,0,0,0.45);
-          color: var(--cool-text);
-          backdrop-filter: blur(14px);
-        }
-        .skip-challenge-card h2,
-        .tutorial-intro-card h2,
-        #formula-unlock-title {
-          color: var(--cool-text);
-          letter-spacing: 0.02em;
-        }
-        .skip-challenge-card p,
-        .tutorial-intro-card p,
-        #formula-unlock-meta {
-          color: var(--cool-muted);
-        }
-
-        /* Action bar（下部ボタン列） */
-        .action-bar-container {
-          background: rgba(255,255,255,0.10);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          box-shadow: 0 22px 55px rgba(0,0,0,0.40);
-          backdrop-filter: blur(14px);
-        }
-
-        .action-btn {
-          color: rgba(240, 249, 255, 0.98);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          box-shadow: 0 12px 24px rgba(0,0,0,0.28);
-          transform: translateY(0);
-          transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
-        }
-        .action-btn:hover {
-          transform: translateY(-1px);
-          filter: brightness(1.06) saturate(1.04);
-          border-color: rgba(186, 230, 253, 0.5);
-          box-shadow: 0 16px 30px rgba(0,0,0,0.28), 0 0 18px rgba(56, 189, 248, 0.18);
-        }
-        .action-btn:active { transform: translateY(1px); box-shadow: 0 8px 14px rgba(0,0,0,0.22); }
-
-        .btn-primary {
-          background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(99, 102, 241, 0.9));
-        }
-        .btn-secondary {
-          background: linear-gradient(135deg, rgba(71, 85, 105, 0.82), rgba(100, 116, 139, 0.64));
-        }
-        .btn-warning {
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 0.9));
-          color: rgba(15, 23, 42, 0.95);
-          text-shadow: none;
-        }
-        .btn-danger {
-          background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.9));
-        }
-
-        /* Toast */
-        .toast {
-          background: rgba(255,255,255,0.12);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          color: var(--cool-text);
-          backdrop-filter: blur(10px);
-        }
-
-        /* マップ画面のトップバー */
-        .map-topbar {
-          background: rgba(2, 10, 24, 0.55);
-          border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-          backdrop-filter: blur(12px);
-        }
-        .map-control-btn {
-          background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(167, 139, 250, 0.14));
-          border: 1px solid rgba(148, 163, 184, 0.24);
-        }
-
-        /* マップノード */
-        /* ===== マリオ風: 横一列ステージマップ ===== */
-        :root {
-          --map-node-size: 92px;
-          --map-road-length: 64px;
-          --map-gap: 10px;
-        }
-        #map-viewport {
-          overflow-x: auto;
-          overflow-y: hidden;
-          padding-bottom: 22px;
-          scroll-snap-type: x proximity;
-          scroll-padding: 0 50vw;
-        }
-        #map-world {
-          width: max-content;
-          height: 100%;
-          min-height: 220px;
-        }
-        #map-world-atmosphere,
-        #map-links,
-        #map-worlds {
-          display: none;
-        }
-        #map-nodes {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: var(--map-gap);
-          padding: 84px 40vw; /* 端でもセンターに寄せやすい */
-          height: 100%;
-        }
-
-        .map-road {
-          flex: 0 0 var(--map-road-length);
-          width: var(--map-road-length);
-          height: 18px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(56,189,248,0.16), rgba(167,139,250,0.14));
-          border: 1px solid rgba(148, 163, 184, 0.25);
-          box-shadow: 0 16px 30px rgba(0,0,0,0.35);
-          position: relative;
-        }
-        .map-road::before {
-          content: '';
-          position: absolute;
-          inset: 3px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05));
-          opacity: 0.7;
-        }
-        .map-road::after {
-          content: '';
-          position: absolute;
-          left: 8px;
-          right: 8px;
-          top: 50%;
-          height: 2px;
-          transform: translateY(-50%);
-          background: rgba(226, 232, 240, 0.38);
-          border-radius: 999px;
-        }
-        .map-road.locked {
-          background: rgba(148, 163, 184, 0.18);
-          border-color: rgba(148, 163, 184, 0.22);
-        }
-        .map-road.unlocked {
-          background: linear-gradient(90deg, rgba(56,189,248,0.25), rgba(167,139,250,0.2));
-        }
-        .map-road.cleared {
-          background: linear-gradient(90deg, rgba(34,197,94,0.32), rgba(16,185,129,0.26));
-          border-color: rgba(34, 197, 94, 0.38);
-        }
-
-        .map-node {
-          position: relative;
-          flex: 0 0 var(--map-node-size);
-          width: var(--map-node-size);
-          height: var(--map-node-size);
-          border-radius: 999px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          gap: 6px;
-          padding: 10px;
-          scroll-snap-align: center;
-          border: 1px solid rgba(148, 163, 184, 0.26);
-          box-shadow: 0 26px 60px rgba(0,0,0,0.48);
-          cursor: pointer;
-          backdrop-filter: blur(10px);
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-        .map-node::before {
-          content: '';
-          position: absolute;
-          inset: 8px;
-          border-radius: 999px;
-          border: 2px solid rgba(255,255,255,0.18);
-          opacity: 0.75;
-        }
-        .map-node::after {
-          content: '';
-          position: absolute;
-          top: 12px;
-          right: 14px;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.35);
-          box-shadow: 0 0 12px rgba(255,255,255,0.45);
-        }
-        .map-node.current {
-          box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.65), 0 0 32px rgba(56, 189, 248, 0.35), 0 26px 60px rgba(0,0,0,0.48);
-        }
-        .map-node-number {
-          font-size: 1.55rem;
-          font-weight: 950;
-          line-height: 1;
-        }
-        .map-node-label {
-          font-size: 0.7rem;
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          opacity: 0.9;
-        }
-
-        .map-node.locked {
-          background: rgba(148, 163, 184, 0.14);
-          color: rgba(226, 232, 240, 0.78);
-          border-color: rgba(148, 163, 184, 0.18);
-          box-shadow: 0 18px 40px rgba(0,0,0,0.35);
-        }
-        .map-node.unlocked {
-          background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), transparent 48%),
-            linear-gradient(140deg, rgba(56, 189, 248, 0.28), rgba(167, 139, 250, 0.2));
-          color: rgba(240, 249, 255, 0.98);
-        }
-        .map-node.unlocked:hover {
-          transform: translateY(-2px);
-          filter: brightness(1.06);
-        }
-        .map-node.cleared {
-          background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.2), transparent 52%),
-            linear-gradient(140deg, rgba(34,197,94,0.3), rgba(16,185,129,0.22));
-          color: rgba(240, 253, 244, 0.98);
-          border-color: rgba(34, 197, 94, 0.32);
-        }
-        .map-node:disabled {
-          cursor: not-allowed;
-          opacity: 0.78;
-        }
-
-        /* ステージ一覧のガラスカード */
-        .stage-list-shell {
-          background: rgba(255, 255, 255, 0.10);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-        }
-                .stage-list-card {
-          background: rgba(255,255,255,0.10);
-          border: 1px solid rgba(148, 163, 184, 0.18);
-        }
-
-        /* 旧ステージ一覧(#c)のボタンも統一 */
-        #c button {
-          background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(167, 139, 250, 0.14)) !important;
-          color: rgba(240, 249, 255, 0.96) !important;
-          border: 1px solid rgba(148, 163, 184, 0.24) !important;
-          border-radius: 14px !important;
-          font-weight: 900 !important;
-          box-shadow: 0 16px 30px rgba(0,0,0,0.32) !important;
-        }
-
-        /* マップのツールチップ（存在する場合） */
-        #map-node-tooltip {
-          color: var(--cool-text);
-          background: rgba(2, 10, 24, 0.70);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          border-radius: 14px;
-          box-shadow: 0 24px 55px rgba(0,0,0,0.45);
-          backdrop-filter: blur(12px);
-        }
-
-
-        /* 公式アンロック画像枠をクールに */
-        #formula-unlock-image,
-        #formula-unlock-fallback {
-          background: rgba(2, 10, 24, 0.30);
-          border: 1px solid rgba(148, 163, 184, 0.22);
-        }
-
-        /* 入口カードも統一感 */
-        .entrance-card {
-          background: rgba(2, 10, 24, 0.62);
-          border: 1px solid rgba(148, 163, 184, 0.26);
-          box-shadow: 0 34px 90px rgba(0,0,0,0.55);
-        }
-        .entrance-choice {
-          border: 1px solid rgba(148, 163, 184, 0.22);
-        }
-        #btn-entry-tutorial {
-          background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(37, 99, 235, 0.92));
-        }
-        #btn-entry-map {
-          background: linear-gradient(135deg, rgba(167, 139, 250, 0.92), rgba(56, 189, 248, 0.72));
-          color: rgba(240, 249, 255, 0.98);
-        }
-
-        /* ===== Blockly ツールボックスの完全ダーク化（詳細度Max） ===== */
+        /* 🚀 Blockly ツールボックスの完全ダークサイバー化 */
         #l .blocklyToolboxDiv {
-          background-color: rgba(6, 26, 58, 0.95) !important;
-          border-right: 2px solid rgba(56, 189, 248, 0.5) !important;
+          background-color: rgba(4, 14, 32, 0.95) !important;
+          border-right: 2px solid rgba(56, 189, 248, 0.4) !important;
+          backdrop-filter: blur(10px);
         }
-
-        #l .blocklyToolboxContents {
-          background-color: transparent !important;
-        }
-
-        #l .blocklyTreeRow {
-          background-color: transparent !important;
-          height: 44px !important;
-          margin: 4px 6px !important;
-          border-radius: 12px !important;
-        }
-
-        #l .blocklyTreeRow:hover {
-          background-color: rgba(56, 189, 248, 0.2) !important;
-        }
-
-        #l .blocklyTreeRow.blocklyTreeSelected {
-          background-color: rgba(56, 189, 248, 0.4) !important;
-        }
-
-        #l .blocklyTreeLabel {
-          color: #ffffff !important;
-          font-weight: 900 !important;
-          font-size: 15px !important;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
-        }
-        .blocklyFlyout {
-          filter: drop-shadow(0 18px 30px rgba(0,0,0,0.38));
-          background: rgba(2, 10, 24, 0.18);
-          border-radius: 18px;
-          width: 340px !important;
-        }
-        .blocklyFlyoutBackground {
-          /* 引き出し領域: 濃い青背景でもブロックが沈まないようコントラストを強める */
-          fill: rgba(8, 22, 44, 0.92) !important;
-          stroke: rgba(191, 219, 254, 0.35) !important;
-          stroke-width: 2.5px !important;
-          rx: 18px;
-          ry: 18px;
-          filter: drop-shadow(0 18px 34px rgba(0,0,0,0.45));
-        }
-        .blocklyFlyoutBackground:hover {
-          fill: rgba(10, 30, 60, 0.95) !important;
-        }
-
-        /* フライアウト内ブロックを丸く・見やすく（外枠の雰囲気） */
-        .blocklyFlyout .blocklyBlockSvg {
-          filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
-        }
-        .blocklyScrollbarHandle {
-          fill: rgba(56, 189, 248, 0.65) !important;
-        }
-
+        #l .blocklyTreeRow { background-color: transparent !important; height: 44px !important; margin: 4px 6px !important; border-radius: 10px !important; }
+        #l .blocklyTreeRow:hover { background-color: rgba(56, 189, 248, 0.15) !important; }
+        #l .blocklyTreeRow.blocklyTreeSelected { background-color: rgba(56, 189, 248, 0.35) !important; }
+        #l .blocklyTreeLabel { color: #ffffff !important; font-weight: 900 !important; font-size: 15px !important; }
+        .blocklyFlyoutBackground { fill: rgba(5, 16, 36, 0.94) !important; stroke: rgba(56, 189, 248, 0.3) !important; stroke-width: 2px !important; rx: 16px; ry: 16px; }
+        .blocklyScrollbarHandle { fill: rgba(56, 189, 248, 0.5) !important; }
     </style>
 </head>
 <body>
-      <div id="transition-curtain" class="curtain hidden"></div>
-        <div id="game-entrance">
-      <button id="btn-entry-start" class="action-btn btn-primary entrance-start-btn" type="button">START</button>
+    <div id="transition-curtain" class="curtain hidden"></div>
+    
+    <div id="game-entrance">
+      <div id="start-prompt-text">TAP TO START</div>
 
       <div class="entrance-card">
-        <p class="entrance-eyebrow">MATH BLOCK</p>
-        <h1 class="entrance-title" style="font-size: 2.2rem; margin-bottom: 8px;">モードを選択</h1>
-        <p class="entrance-subtitle" style="margin-top: 0;">まずはチュートリアルで基本を学ぶか、すぐにステージへ進むか選べます。</p>
+        <p class="entrance-eyebrow">SYSTEM STATUS: OPERATIONAL</p>
+        <h1 class="entrance-title" style="font-size: 2.2rem; margin-bottom: 8px;">オペレーションモード選択</h1>
+        <p class="entrance-subtitle" style="margin-top: 0;">基礎プロトコルを走査するか、即座にメインステージへアクセスするかを選択せよ。</p>
         <div class="entrance-choice-row">
           <button id="btn-entry-tutorial" class="entrance-choice" type="button">
-            <h3>遊び方を学ぶ（おすすめ）</h3>
-            <p>ブロック操作と公式の使い方を、短いステップで体験。</p>
+            <h3>基本論理の学習（推奨）</h3>
+            <p>ブロックデバイスの稼働、およびデータ変形論理を最短ステップでシミュレートする。</p>
           </button>
           <button id="btn-entry-map" class="entrance-choice" type="button">
-            <h3>いきなりパズルに挑戦</h3>
-            <p>チュートリアルをスキップして、ステージ1から開始。</p>
+            <h3>数式領域への直接介入</h3>
+            <p>初期ブートシーケンスをスキップし、セクター001より完全な証明介入を開始する。</p>
           </button>
         </div>
       </div>
     </div>
+
     <div id="skip-challenge-modal" class="overlay-screen hidden">
       <div class="skip-challenge-card">
         <h2>ボーナスチャレンジ！</h2>
         <p id="skip-challenge-message">連続クリアおめでとう！少し先のステージにスキップしてみる？</p>
-        <p style="font-size: 0.92rem; color: #666;">スキップ先をクリアすれば、間のステージもクリア扱いになるよ！</p>
-        <div class="skip-actions">
+        <p style="font-size: 0.9rem; color: var(--cyber-muted);">スキップ先をクリアすれば、間のステージもまとめてクリア扱いになるよ！</p>
+        <div class="skip-actions" style="margin-top:20px; display:flex; gap:12px; justify-content:center;">
           <button id="btn-skip-challenge-cancel" class="action-btn btn-secondary">順番通りに進む</button>
-          <button id="btn-skip-challenge-accept" class="action-btn btn-primary">スキップに挑戦する！</button>
+          <button id="btn-skip-challenge-accept" class="action-btn btn-primary">スキップに挑戦！</button>
         </div>
       </div>
     </div>
 
-        <div id="tutorial-intro-modal" class="overlay-screen hidden">
-      <div class="tutorial-intro-card" style="max-width: 800px;">
-        <h2>ようこそ! まずは目標を共有</h2>
-        <p>このチュートリアルでは、ブロックを使って式を変形する流れを体験します。</p>
-        
-        <video id="tutorial-intro-video" src="asset/tutorial_intro.mp4" autoplay loop muted playsinline style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0; margin-bottom: 16px; background: #0f172a;"></video>
-        <h3 id="tutorial-intro-step-title" style="margin: 12px 0 8px; font-size: 1.05rem; color: #0f172a;">チュートリアルの流れ</h3>
-        <p id="tutorial-intro-step-body" style="margin: 0 0 10px; color: #475569; font-weight: 700; line-height: 1.6;"></p>
-        <p id="tutorial-intro-step-help" style="margin: 0 0 6px; color: #0f172a; font-weight: 800; line-height: 1.6; background: rgba(34, 197, 94, 0.16); border-radius: 10px; padding: 6px 8px;"></p>
-        <div class="skip-actions" style="margin-top: 10px;">
-          <button id="btn-tutorial-intro-next" class="action-btn btn-secondary">次のステップへ</button>
-          <button id="btn-tutorial-intro-ok" class="action-btn btn-primary">OK</button>
+    <div id="tutorial-intro-modal" class="overlay-screen hidden">
+      <div class="tutorial-intro-card" style="max-width: 720px;">
+        <h2>ようこそ！目標を確認しよう</h2>
+        <p>ブロックを組み立てて、左辺の式を右辺の形へ変形する証明の流れを体験します。</p>
+        <video id="tutorial-intro-video" src="asset/tutorial_intro.mp4" autoplay loop muted playsinline style="width: 100%; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 16px; background: #000;"></video>
+        <h3 id="tutorial-intro-step-title" style="margin: 12px 0 6px; font-size: 1.1rem; color: var(--cyber-blue);">チュートリアルの流れ</h3>
+        <p id="tutorial-intro-step-body" style="margin: 0 0 12px; color: var(--cyber-muted); font-weight: 700;"></p>
+        <p id="tutorial-intro-step-help" style="margin: 0 0 14px; color: #ffffff; font-weight: 800; background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 10px; border: 1px solid rgba(34,197,94,0.3);"></p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button id="btn-tutorial-intro-next" class="action-btn btn-secondary">次へ進む</button>
+          <button id="btn-tutorial-intro-ok" class="action-btn btn-primary">了解！</button>
         </div>
       </div>
     </div>
 
     <div id="formula-unlock-modal" class="overlay-screen hidden">
       <div class="formula-unlock-card">
-        <h2 id="formula-unlock-title">新しい公式を覚えよう！</h2>
-        <p id="formula-unlock-meta"></p>
-        <img id="formula-unlock-image" alt="公式" />
-        <div id="formula-unlock-fallback"></div>
-        <div class="skip-actions" style="margin-top: 14px;">
-          <button id="btn-formula-unlock-close" class="action-btn btn-primary" type="button">確認</button>
+        <h2 id="formula-unlock-title">新しい公式をマスター！</h2>
+        <p id="formula-unlock-meta" style="color: var(--cyber-muted); font-weight:700;"></p>
+        <img id="formula-unlock-image" alt="公式" style="width:100%; max-height:55vh; object-fit:contain; border-radius:12px; margin-bottom:14px; border:1px solid var(--glass-border); background:rgba(0,0,0,0.3);" />
+        <div id="formula-unlock-fallback" style="display:none; padding:16px; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:12px; text-align:left;"></div>
+        <div style="margin-top: 16px;">
+          <button id="btn-formula-unlock-close" class="action-btn btn-primary" type="button">確認完了</button>
         </div>
       </div>
     </div>
@@ -1127,60 +464,53 @@
       <div class="map-topbar">
         <div class="map-title-wrap">
           <h1>MathBlock Progression Map</h1>
-          <p class="map-subtitle">PC専用ステージマップ: ノードを選んで証明チャレンジへ</p>
+          <p class="map-subtitle">ステージ選択: チャレンジするノードを選択してください</p>
         </div>
         <div class="map-controls">
-          <span id="map-progress">0 / 43 CLEAR</span>
+          <span id="map-progress">0 / 141 CLEAR</span>
           <button class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
-          <button class="map-control-btn" onclick="resetSaveData()">セーブデータリセット</button>
+          <button class="map-control-btn" onclick="resetSaveData()">データリセット</button>
         </div>
       </div>
       <div id="map-viewport" class="map-canvas">
         <div id="map-world">
-          <div id="map-world-atmosphere">
-            <div class="map-cloud" style="left: 220px; top: 200px;"></div>
-            <div class="map-cloud" style="left: 1280px; top: 520px;"></div>
-            <div class="map-cloud" style="left: 760px; top: 980px;"></div>
-            <div class="map-cloud" style="left: 2480px; top: 640px;"></div>
-            <div class="map-cloud" style="left: 3060px; top: 1260px;"></div>
-          </div>
-          <svg id="map-links" viewBox="0 0 3600 2400" preserveAspectRatio="none"></svg>
-          <div id="map-worlds"></div>
           <div id="map-nodes"></div>
         </div>
-        <div id="map-node-tooltip"></div>
       </div>
     </div>
 
     <div id="c" class="a">
         <h1>ステージ選択</h1>
         <div style="width: 100%; max-width: 600px; margin-bottom: 25px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px;">
-            <span style="color: white; font-weight: bold; font-size: 1.1rem;">クリア状況</span>
-            <span id="progress-text" style="color: #bbdefb; font-weight: bold; font-size: 0.9rem;">0 / 43 クリア</span>
-          </div>
-          <div style="width: 100%; background: rgba(255, 255, 255, 0.3); height: 16px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-            <div id="overall-progress" style="width: 0%; height: 100%; background: #58cc02; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);"></div>
-          </div>
+          <div id="progress-text">0 / 141 クリア</div>
+          <div id="overall-progress" style="width: 0%; display:none;"></div>
         </div>
-        <div class="stage-list-shell">
-          <div id="n" class="stage-list-grid"></div>
-        </div>
-        <button onclick="unlockAllStages()" style="margin-top:20px; padding: 10px; cursor: pointer;">全問題を開放</button>
-        <button onclick="resetSaveData()" style="margin-top:12px; padding: 10px; cursor: pointer;">セーブデータリセット</button> 
+        <div class="stage-list-shell"><div id="n" class="stage-list-grid"></div></div>
     </div>
 
     <div id="p" class="a">
-      <div id="h"><button id="btn-back">← 戻る</button><div class="header-center"><div id="r">STAGE</div><button id="btn-overwrite-permission" class="overwrite-toggle-btn off">ガイド機能: OFF</button></div><div id="streak-counter">🔥 0</div></div>
+        <div id="h">
+          <button id="btn-back">← 戻る</button>
+          <div class="header-center">
+            <div id="r">STAGE</div>
+            <button id="btn-overwrite-permission" class="overwrite-toggle-btn off">ガイド機能: OFF</button>
+          </div>
+          <div id="streak-counter">🔥 0</div>
+        </div>
+        
         <div id="tutorial-progress-shell">
           <div id="tutorial-progress-meta"><span id="tutorial-progress-label">チュートリアル</span><span id="tutorial-progress-rate">0%</span></div>
           <div id="tutorial-progress-track"><div id="tutorial-progress-fill"></div></div>
         </div>
+        
         <div id="tutorial-banner"></div>
         <div id="i"><span id="s"></span></div>
+        
         <div id="tutorial-next-under-problem"></div>
+        
         <div id="l"></div>
         <div id="toast-message" class="toast hidden"></div> 
+        
         <div class="action-bar-container">
           <button id="btn-reset" class="action-btn btn-secondary">リセット</button>
           <button id="btn-answer" class="action-btn btn-danger">答え</button>
@@ -1191,6 +521,59 @@
 
     <div id="tutorial-highlight-source" class="tutorial-pulse-source hidden"></div>
     <div id="tutorial-highlight-target" class="tutorial-pulse-target hidden"></div>
-    
+
+    <style>
+      #cyber-transition {
+        position: fixed; inset: 0; z-index: 10000; pointer-events: none;
+        display: flex; flex-direction: column; justify-content: center;
+      }
+      #cyber-transition.blocking { pointer-events: auto; } 
+      
+      .cyber-shutter {
+        width: 100%; height: 50vh; background: #030814;
+        transition: transform 0.4s cubic-bezier(0.7, 0, 0.2, 1);
+      }
+      .cyber-shutter.top {
+        transform: translateY(-100%);
+        border-bottom: 2px solid var(--cyber-blue);
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.4);
+      }
+      .cyber-shutter.bottom {
+        transform: translateY(100%);
+        border-top: 2px solid var(--cyber-blue);
+        box-shadow: 0 -10px 30px rgba(56, 189, 248, 0.4);
+      }
+      #cyber-transition.active .cyber-shutter.top,
+      #cyber-transition.active .cyber-shutter.bottom {
+        transform: translateY(0);
+      }
+      .cyber-flash {
+        position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
+        background: #fff; box-shadow: 0 0 30px 15px rgba(56, 189, 248, 0.8);
+        opacity: 0; transform: scaleX(0); transition: all 0.2s ease-out;
+      }
+      #cyber-transition.flash .cyber-flash { opacity: 1; transform: scaleX(1); }
+
+      .cyber-boot-loader {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 1.6rem; font-weight: 950; letter-spacing: 0.25em; color: #66f7d6;
+        text-shadow: 0 0 15px rgba(102, 247, 214, 0.8); opacity: 0; pointer-events: none;
+        z-index: 10001; font-family: monospace; white-space: nowrap;
+      }
+      #cyber-transition.booting .cyber-boot-loader {
+        opacity: 1; animation: cyberScanLines 0.15s infinite alternate;
+      }
+      @keyframes cyberScanLines {
+        0% { filter: brightness(1); transform: translate(-50%, -50%) skewX(-1deg); }
+        100% { filter: brightness(1.3); transform: translate(-50%, -50%) skewX(1deg); }
+      }
+    </style>
+
+    <div id="cyber-transition">
+      <div class="cyber-shutter top"></div>
+      <div class="cyber-shutter bottom"></div>
+      <div class="cyber-flash"></div>
+      <div class="cyber-boot-loader" id="cyber-boot-text">BOOTING PROTOCOL...</div>
+    </div>
 </body>
 </html>

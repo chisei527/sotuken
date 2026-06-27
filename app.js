@@ -35,32 +35,10 @@ window.setupEventListeners = function() {
     });
   }
 
-  // 🆘 ヒントボタン
-  const btnHint = document.getElementById('btn-hint');
-  if (btnHint && btnHint.dataset.hintBound !== '1') {
-    btnHint.dataset.hintBound = '1';
-    btnHint.addEventListener('click', () => {
-      if (window.tutorialModeActive) {
-        if (typeof window.showToast === 'function') {
-          const text = (typeof window.getTutorialBannerText === 'function' ? window.getTutorialBannerText(window.currentStageNumber) : '') || '【目標】ブロックの空いている穴に、対応する式をはめ込みましょう。';
-          window.showToast(text, true);
-        }
-        if (typeof window.updateTutorialHighlightUI === 'function') window.updateTutorialHighlightUI(window.currentStageNumber);
-      } else {
-        // app-guide.js のヒント機能を呼び出す
-        if (window.goalHintActive) {
-          if (typeof window.hideGoalHintForStage === 'function') window.hideGoalHintForStage();
-        } else {
-          if (typeof window.showGoalHintForStage === 'function') window.showGoalHintForStage();
-        }
-      }
-    });
-  }
-
- // 🛠️ ガイド機能 ON/OFF ボタン
+  // 🛠️ ガイド機能 ON/OFF ボタン
   const btnOverwrite = document.getElementById('btn-overwrite-permission');
   if (btnOverwrite) {
-    btnOverwrite.addEventListener('click', () => { // ★asyncを外す
+    btnOverwrite.addEventListener('click', () => {
       const isOff = btnOverwrite.classList.contains('off');
       if (isOff) {
         btnOverwrite.classList.remove('off');
@@ -74,7 +52,6 @@ window.setupEventListeners = function() {
         if (typeof window.showToast === 'function') window.showToast('ガイド機能を OFF にしました');
       }
       
-      // 💡【ここを書き換え】loadStage を呼ばず、現在のヒント状態を維持したままブロックだけを再配置
       if (window.workspace && window.currentProblemData) {
         window.workspace.clear();
         if (window.currentProblemData.initialState) {
@@ -88,6 +65,7 @@ window.setupEventListeners = function() {
       }
     });
   }
+
   // ✅ 正解をチェックボタン
   const btnSubmit = document.getElementById('btn-submit');
   if (btnSubmit) {
@@ -105,15 +83,31 @@ window.setupEventListeners = function() {
         window.currentStageSolved = true;
         window.currentStreak = (window.currentStreak || 0) + 1;
         if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(true);
-        if (typeof window.playClearEffects === 'function') window.playClearEffects('CLEAR!');
-        else {
-          if (typeof window.showSuccessRipple === 'function') window.showSuccessRipple();
-          if (typeof window.showClearStamp === 'function') window.showClearStamp('CLEAR!');
-        }
         if (typeof window.showToast === 'function') window.showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
         
+
+        if (typeof window.playClearEffect === 'function') {
+          window.playClearEffect();
+        } else {
+          // 青い波紋エフェクト
+          const ripple = document.createElement('div');
+          ripple.className = 'success-ripple';
+          document.body.appendChild(ripple);
+          
+          // CLEAR! スタンプエフェクト
+          const stamp = document.createElement('div');
+          stamp.className = 'clear-stamp-effect';
+          stamp.textContent = 'CLEAR!';
+          document.body.appendChild(stamp);
+          
+          // アニメーションが終わったらお掃除
+          setTimeout(() => {
+            if (ripple.parentNode) ripple.remove();
+            if (stamp.parentNode) stamp.remove();
+          }, 1500);
+        }
+        
         if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber)) {
-           if (!Array.isArray(window.clearedStages)) window.clearedStages = [];
            const numStage = Number(window.currentStageNumber);
            if (numStage && (!window.clearedStages.includes(numStage))) {
              window.clearedStages.push(numStage);
@@ -141,39 +135,103 @@ window.setupEventListeners = function() {
     });
   }
 
-  // 🎮 エントランス（最初の画面）のボタン
-  document.getElementById('btn-entry-start')?.addEventListener('click', () => {
-    document.getElementById('game-entrance')?.classList.add('show-choices');
+  // 🎮 エントランス（最初の画面）の画面タップで遷移
+  const entrance = document.getElementById('game-entrance');
+  if (entrance) {
+    entrance.addEventListener('click', () => {
+      if (!entrance.classList.contains('show-choices')) {
+        entrance.classList.add('show-choices');
+        if (typeof window.setAppBackgroundByKey === 'function') window.setAppBackgroundByKey('stage');
+      }
+    });
+  }
+
+  document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
+    e.stopPropagation(); // 画面全体クリックの連動を防止
+    const transitionLayer = document.getElementById('cyber-transition');
+    const bootText = document.getElementById('cyber-boot-text');
+    
+    if (transitionLayer) {
+      if (bootText) bootText.textContent = 'INITIALIZING LEARNING PROTOCOL...';
+      transitionLayer.classList.add('blocking', 'active', 'booting');
+    }
+
+    setTimeout(async () => {
+      if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
+      if (typeof window.transitionToStage === 'function') await window.transitionToStage('0-1');
+      
+      setTimeout(() => {
+        if (transitionLayer) {
+          transitionLayer.classList.remove('active', 'booting', 'blocking');
+        }
+      }, 400);
+    }, 900);
   });
-  document.getElementById('btn-entry-tutorial')?.addEventListener('click', async () => {
-    if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
-    if (typeof window.transitionToStage === 'function') await window.transitionToStage('0-1');
-  });
-  document.getElementById('btn-entry-map')?.addEventListener('click', async () => {
-    if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
-    if (typeof window.transitionToStage === 'function') await window.transitionToStage(1);
+
+  document.getElementById('btn-entry-map')?.addEventListener('click', async (e) => {
+    e.stopPropagation(); // 画面全体クリックの連動を防止
+    localStorage.setItem('tutorial_seen', 'true');
+    const transitionLayer = document.getElementById('cyber-transition');
+    const bootText = document.getElementById('cyber-boot-text');
+    
+    if (transitionLayer) {
+      if (bootText) bootText.textContent = 'CONNECTING TO MATHEMATICAL CORE...';
+      transitionLayer.classList.add('blocking', 'active', 'booting');
+    }
+
+    setTimeout(async () => {
+      if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
+      if (typeof window.transitionToStage === 'function') await window.transitionToStage(1);
+      
+      setTimeout(() => {
+        if (transitionLayer) {
+          transitionLayer.classList.remove('active', 'booting', 'blocking');
+        }
+      }, 400);
+    }, 900);
   });
 };
 
 // --- 正解後に自動で次のステージに進む機能 ---
 window.scheduleAutoAdvanceAfterClear = function() {
-  setTimeout(async () => {
-     if (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber)) {
-        const idx = window.TUTORIAL_STAGE_IDS.indexOf(window.currentStageNumber);
-        if (idx >= 0 && idx < window.TUTORIAL_STAGE_IDS.length - 1) {
-            await window.transitionToStage(window.TUTORIAL_STAGE_IDS[idx + 1]);
-        } else {
-            await window.transitionToStage(1);
-        }
-     } else {
-        await window.transitionToStage(Number(window.currentStageNumber) + 1);
-     }
-  }, 2000);
+  const transitionLayer = document.getElementById('cyber-transition');
+
+  if (transitionLayer) transitionLayer.classList.add('blocking');
+
+  setTimeout(() => {
+     if (transitionLayer) transitionLayer.classList.add('active');
+
+     setTimeout(async () => {
+         if (transitionLayer) transitionLayer.classList.add('flash');
+
+         let nextStage = 1;
+         if (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber)) {
+            const idx = window.TUTORIAL_STAGE_IDS.indexOf(window.currentStageNumber);
+            if (idx >= 0 && idx < window.TUTORIAL_STAGE_IDS.length - 1) {
+                nextStage = window.TUTORIAL_STAGE_IDS[idx + 1];
+            }
+         } else {
+            nextStage = Number(window.currentStageNumber) + 1;
+         }
+         await window.transitionToStage(nextStage);
+
+         setTimeout(() => {
+            if (transitionLayer) {
+              transitionLayer.classList.remove('flash');
+              transitionLayer.classList.remove('active');
+              transitionLayer.classList.remove('blocking'); 
+            }
+         }, 300);
+
+     }, 400);
+  }, 800); 
 };
 
 // --- アプリの起動処理 ---
 window.bootApplication = function() {
   window.setupEventListeners();
+  if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
+
   const entrance = document.getElementById('game-entrance');
   if (entrance && !entrance.classList.contains('hidden')) {
     if (typeof window.setAppBackgroundByKey === 'function') window.setAppBackgroundByKey('title');
