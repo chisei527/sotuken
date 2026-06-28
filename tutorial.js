@@ -27,7 +27,7 @@ window.getTutorialAllowedBlockTypes = function(stageId) {
 
 // チュートリアル中にツールボックスの不要ブロックを非活性（グレーアウト）にする関数
 window.applyTutorialBlockRestrictions = function() {
-  if (typeof window.currentStageNumber === 'undefined' || (typeof isTutorialStageId === 'function' && !isTutorialStageId(window.currentStageNumber))) return;
+  if (typeof window.currentStageNumber === 'undefined' || (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber))) return;
   if (!window.workspace) return;
   
   const restriction = window.getTutorialAllowedBlockTypes(window.currentStageNumber);
@@ -94,7 +94,7 @@ window.bindTutorialWorkspaceAutoAdvance = function() {
 
   if (!window.workspace) return;
   window.workspace.addChangeListener((event) => {
-    if (!window.tutorialModeActive || (typeof isTutorialStageId === 'function' && !isTutorialStageId(window.currentStageNumber))) return;
+    if (!window.tutorialModeActive || (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber))) return;
     if (!event || event.recordUndo === false || event.isUiEvent) return;
 
     if (typeof window.applyTutorialBlockRestrictions === 'function') {

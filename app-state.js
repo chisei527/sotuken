@@ -1,172 +1,23 @@
+// ===== app-state.js =====
+// アプリ全体で共有する状態と定数。すべて window.xxx に直接書き込む形に統一し、
+// 「ローカル変数」と「windowプロパティ」が食い違う事故を根本的に防ぐ。
+//
+// ルール:
+//   - 状態と関数は全て window.xxx として定義する
+//   - 他ファイルからも必ず window.xxx として参照する（裸の参照は禁止）
+
 // ------------------------------------------------------------
-// Shared app state and constants
+// 定数（変化しない値）
 // ------------------------------------------------------------
+window.UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
+window.MAX_STAGE_NUMBER = 100;
+window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
+window.APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', window.UNLOCKED_FORMULAS_STORAGE_KEY];
+window.MAP_WORLD_MIN_WIDTH = 3600;
+window.MAP_WORLD_MIN_HEIGHT = 2400;
+window.MAP_NODE_SIZE = 94;
 
-let clearedStages = JSON.parse(localStorage.getItem('s')) || [];
-let unlockAll = localStorage.getItem('unlock_all') === '1';
-let currentStageNumber = 1;
-let currentProblemData = null;
-let currentStreak = 0;
-let currentStageSolved = false;
-let currentSkipOffer = null;
-let pendingSkipChallenge = null;
-let hasBoundEventListeners = false;
-let autoAdvanceTimerId = 0;
-let problemsDataCache = null;
-let tutorialStepIndex = 0;
-let tutorialModeActive = false;
-let tutorialAutoAdvanceFrameId = 0;
-let tutorialWorkspaceListenerBound = false;
-let tutorialFlowProblems = [];
-let tutorialFlowIndex = 0;
-let tutorialIntroIndex = 0;
-let tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
-let goalHintActive = false;
-let currentHighlightTargetNode = null;
-let currentHighlightInputObj = null;
-let highlightTrackingFrameId = 0;
-
-const UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
-
-function loadUnlockedFormulasFromStorage() {
-  try {
-    const raw = localStorage.getItem(UNLOCKED_FORMULAS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function saveUnlockedFormulasToStorage(formulaIds) {
-  const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
-  localStorage.setItem(UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
-}
-
-let unlockedFormulas = loadUnlockedFormulasFromStorage();
-
-const MAX_STAGE_NUMBER = 100;
-const TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
-const APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', UNLOCKED_FORMULAS_STORAGE_KEY];
-const MAP_WORLD_MIN_WIDTH = 3600;
-const MAP_WORLD_MIN_HEIGHT = 2400;
-const MAP_NODE_SIZE = 94;
-
-function isTutorialStageId(stageId) {
-  return TUTORIAL_STAGE_IDS.includes(String(stageId));
-}
-
-function getTutorialStageIndex(stageId) {
-  return TUTORIAL_STAGE_IDS.indexOf(String(stageId));
-}
-
-function getTutorialStageId(stageIndex) {
-  return TUTORIAL_STAGE_IDS[Math.max(0, Math.min(Number(stageIndex) || 0, TUTORIAL_STAGE_IDS.length - 1))] || null;
-}
-
-function getNextTutorialStageId(stageId) {
-  const currentIndex = getTutorialStageIndex(stageId);
-  if (currentIndex < 0) return null;
-  return getTutorialStageId(currentIndex + 1);
-}
-
-function getTutorialBannerText(stageId) {
-  if (!isTutorialStageId(stageId)) return '';
-  const hints = Array.isArray(currentProblemData?.hints) ? currentProblemData.hints : [];
-  const firstHint = hints.find((hint) => typeof hint === 'string' && hint.trim()) || '';
-  return firstHint.trim();
-}
-
-function getTutorialTargetOperationState(stageId) {
-  if (!isTutorialStageId(stageId) || !workspace) {
-    return { type: null, block: null, isMissing: false, isComplete: true };
-  }
-
-  const targetType = 'replace_operation';
-  const primaryBlock = typeof window.findTutorialReplaceOperation === 'function' ? window.findTutorialReplaceOperation() : null;
-  const conclusionBlock = typeof window.findTutorialConclusionOperation === 'function' ? window.findTutorialConclusionOperation() : null;
-
-  if (!primaryBlock) {
-    return { type: targetType, block: null, isMissing: true, isComplete: false };
-  }
-
-  const missingHole = getTutorialOperationMissingHole(targetType, primaryBlock);
-  const conclusionMissing = getTutorialOperationMissingHole('conclusion_operation', conclusionBlock);
-  const isComplete = !missingHole && !conclusionMissing && (!!conclusionBlock || String(stageId) !== '0-1');
-  return { type: targetType, block: primaryBlock, isMissing: false, isComplete };
-}
-
-function getTutorialOperationMissingHole(targetType, targetBlock) {
-  if (!targetType) return null;
-
-  if (targetType === 'replace_operation') {
-    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
-      return { key: 'fill-replace-value', inputName: 'VALUE' };
-    }
-    if (!targetBlock.getInputTargetBlock?.('FORMULA')) {
-      return { key: 'fill-replace-formula', inputName: 'FORMULA' };
-    }
-    if (!targetBlock.getInputTargetBlock?.('REPLACEMENT')) {
-      return { key: 'fill-replace-result', inputName: 'REPLACEMENT' };
-    }
-    return null;
-  }
-
-  if (targetType === 'conclusion_operation') {
-    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
-      return { key: 'fill-conclusion-value', inputName: 'VALUE' };
-    }
-    return null;
-  }
-
-  return null;
-}
-
-function getTutorialGoalState(stageId) {
-  if (!isTutorialStageId(stageId)) return null;
-
-  const targetState = getTutorialTargetOperationState(stageId);
-  if (!targetState) return null;
-
-  if (targetState.isComplete) {
-    return {
-      key: 'ready-check',
-      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
-    };
-  }
-
-  if (!targetState.block) {
-    return {
-      key: `pull-${targetState.type || 'operation'}`,
-      text: targetState.type === 'common_denominator_operation'
-        ? '【目標】左の「証明」から通分ブロックを取り出そう。'
-        : '【目標】左の「証明」から置き換えブロックを取り出そう。',
-    };
-  }
-
-  const missingHole = getTutorialOperationMissingHole(targetState.type, targetState.block);
-  if (!missingHole) {
-    return {
-      key: 'ready-check',
-      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
-    };
-  }
-
-  const textByKey = {
-    'fill-replace-value': '【目標】式の値を入れよう。',
-    'fill-replace-formula': '【目標】使う公式を入れよう。',
-    'fill-replace-result': '【目標】置き換え後の式を入れよう。',
-    'fill-conclusion-value': '【目標】最後の答えを入れよう。',
-  };
-
-  return {
-    key: missingHole.key || 'ready-check',
-    text: textByKey[missingHole.key] || '【目標】進められるところから埋めていこう。',
-  };
-}
-
-const BLOCK_HOLE_OFFSETS = {
+window.BLOCK_HOLE_OFFSETS = {
   'replace_operation': {
     'EXPRESSION': { rightOffset: -10, topOffset: 20 },
     'FORMULA': { rightOffset: -10, topOffset: 64 },
@@ -182,7 +33,7 @@ const BLOCK_HOLE_OFFSETS = {
   },
 };
 
-const TUTORIAL_STEPS = [
+window.TUTORIAL_STEPS = [
   {
     key: '1️⃣',
     text: '📚 ようこそ。\n数式パズルの流れを一緒に確認しましょう。',
@@ -209,29 +60,181 @@ const TUTORIAL_STEPS = [
   },
 ];
 
-const WORLD_SEGMENTS = [
+window.WORLD_SEGMENTS = [
   { start: 1, end: 25, title: 'World 1: Foundational Route', subtitle: '公式の基本連結' },
   { start: 26, end: 50, title: 'World 2: Conversion Ridge', subtitle: '変換の往復を習得' },
   { start: 51, end: 75, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
   { start: 76, end: 85, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
   { start: 86, end: 100, title: 'World 5: Apex Legend', subtitle: '最高難度の集大成' },
 ];
-window.currentStageNumber = 0;
-window.workspace = null;
-window.tutorialModeActive = false;
 
 // ------------------------------------------------------------
-// 状態変数を window に橋渡し（重要）
-// app.js / main.js / workspace.js は window.xxx で状態を読み書きするが、
-// 上の let 宣言だけでは window に乗らず window.clearedStages 等が undefined になり、
-// app.js の正解処理が例外で止まっていた。ここで実体を window に同期する。
+// アンロック公式の永続化（localStorage）
 // ------------------------------------------------------------
-window.clearedStages = clearedStages;
-window.unlockAll = unlockAll;
-window.currentStreak = currentStreak;
-window.currentProblemData = currentProblemData;
-window.currentStageSolved = currentStageSolved;
-window.unlockedFormulas = unlockedFormulas;
+window.loadUnlockedFormulasFromStorage = function() {
+  try {
+    const raw = localStorage.getItem(window.UNLOCKED_FORMULAS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+  } catch (_) {
+    return [];
+  }
+};
+
+window.saveUnlockedFormulasToStorage = function(formulaIds) {
+  const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
+  localStorage.setItem(window.UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
+};
+
+// ------------------------------------------------------------
+// 共有状態（書き換わる値）— すべて window 直書きで一元化
+// ------------------------------------------------------------
+window.clearedStages = JSON.parse(localStorage.getItem('s')) || [];
+window.unlockAll = localStorage.getItem('unlock_all') === '1';
+window.unlockedFormulas = window.loadUnlockedFormulasFromStorage();
+window.currentStageNumber = 0;
+window.currentProblemData = null;
+window.currentStreak = 0;
+window.currentStageSolved = false;
+window.currentSkipOffer = null;
+window.pendingSkipChallenge = null;
+window.hasBoundEventListeners = false;
+window.autoAdvanceTimerId = 0;
+window.problemsDataCache = null;
+window.workspace = null;
+
+// チュートリアル関連
+window.tutorialStepIndex = 0;
+window.tutorialModeActive = false;
+window.tutorialAutoAdvanceFrameId = 0;
+window.tutorialWorkspaceListenerBound = false;
+window.tutorialFlowProblems = [];
+window.tutorialFlowIndex = 0;
+window.tutorialIntroIndex = 0;
+window.tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
+
+// ガイド/ヒント関連
 window.goalHintActive = false;
-window.TUTORIAL_STAGE_IDS = TUTORIAL_STAGE_IDS;
-window.MAX_STAGE_NUMBER = MAX_STAGE_NUMBER;
+window.currentHighlightTargetNode = null;
+window.currentHighlightInputObj = null;
+window.highlightTrackingFrameId = 0;
+
+// ------------------------------------------------------------
+// チュートリアル判定ヘルパー
+// ------------------------------------------------------------
+window.isTutorialStageId = function(stageId) {
+  return window.TUTORIAL_STAGE_IDS.includes(String(stageId));
+};
+
+window.getTutorialStageIndex = function(stageId) {
+  return window.TUTORIAL_STAGE_IDS.indexOf(String(stageId));
+};
+
+window.getTutorialStageId = function(stageIndex) {
+  return window.TUTORIAL_STAGE_IDS[Math.max(0, Math.min(Number(stageIndex) || 0, window.TUTORIAL_STAGE_IDS.length - 1))] || null;
+};
+
+window.getNextTutorialStageId = function(stageId) {
+  const currentIndex = window.getTutorialStageIndex(stageId);
+  if (currentIndex < 0) return null;
+  return window.getTutorialStageId(currentIndex + 1);
+};
+
+window.getTutorialBannerText = function(stageId) {
+  if (!window.isTutorialStageId(stageId)) return '';
+  const hints = Array.isArray(window.currentProblemData?.hints) ? window.currentProblemData.hints : [];
+  const firstHint = hints.find((hint) => typeof hint === 'string' && hint.trim()) || '';
+  return firstHint.trim();
+};
+
+// ------------------------------------------------------------
+// チュートリアル進行状態の判定
+// ------------------------------------------------------------
+window.getTutorialOperationMissingHole = function(targetType, targetBlock) {
+  if (!targetType) return null;
+
+  if (targetType === 'replace_operation') {
+    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
+      return { key: 'fill-replace-value', inputName: 'VALUE' };
+    }
+    if (!targetBlock.getInputTargetBlock?.('FORMULA')) {
+      return { key: 'fill-replace-formula', inputName: 'FORMULA' };
+    }
+    if (!targetBlock.getInputTargetBlock?.('REPLACEMENT')) {
+      return { key: 'fill-replace-result', inputName: 'REPLACEMENT' };
+    }
+    return null;
+  }
+
+  if (targetType === 'conclusion_operation') {
+    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
+      return { key: 'fill-conclusion-value', inputName: 'VALUE' };
+    }
+    return null;
+  }
+
+  return null;
+};
+
+window.getTutorialTargetOperationState = function(stageId) {
+  if (!window.isTutorialStageId(stageId) || !window.workspace) {
+    return { type: null, block: null, isMissing: false, isComplete: true };
+  }
+
+  const targetType = 'replace_operation';
+  const primaryBlock = typeof window.findTutorialReplaceOperation === 'function' ? window.findTutorialReplaceOperation() : null;
+  const conclusionBlock = typeof window.findTutorialConclusionOperation === 'function' ? window.findTutorialConclusionOperation() : null;
+
+  if (!primaryBlock) {
+    return { type: targetType, block: null, isMissing: true, isComplete: false };
+  }
+
+  const missingHole = window.getTutorialOperationMissingHole(targetType, primaryBlock);
+  const conclusionMissing = window.getTutorialOperationMissingHole('conclusion_operation', conclusionBlock);
+  const isComplete = !missingHole && !conclusionMissing && (!!conclusionBlock || String(stageId) !== '0-1');
+  return { type: targetType, block: primaryBlock, isMissing: false, isComplete };
+};
+
+window.getTutorialGoalState = function(stageId) {
+  if (!window.isTutorialStageId(stageId)) return null;
+
+  const targetState = window.getTutorialTargetOperationState(stageId);
+  if (!targetState) return null;
+
+  if (targetState.isComplete) {
+    return {
+      key: 'ready-check',
+      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
+    };
+  }
+
+  if (!targetState.block) {
+    return {
+      key: `pull-${targetState.type || 'operation'}`,
+      text: targetState.type === 'common_denominator_operation'
+        ? '【目標】左の「証明」から通分ブロックを取り出そう。'
+        : '【目標】左の「証明」から置き換えブロックを取り出そう。',
+    };
+  }
+
+  const missingHole = window.getTutorialOperationMissingHole(targetState.type, targetState.block);
+  if (!missingHole) {
+    return {
+      key: 'ready-check',
+      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
+    };
+  }
+
+  const textByKey = {
+    'fill-replace-value': '【目標】式の値を入れよう。',
+    'fill-replace-formula': '【目標】使う公式を入れよう。',
+    'fill-replace-result': '【目標】置き換え後の式を入れよう。',
+    'fill-conclusion-value': '【目標】最後の答えを入れよう。',
+  };
+
+  return {
+    key: missingHole.key || 'ready-check',
+    text: textByKey[missingHole.key] || '【目標】進められるところから埋めていこう。',
+  };
+};
