@@ -301,6 +301,20 @@
 
         /* 各種オーバーレイ画面 */
         .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 8, 20, 0.8); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        
+        /* 公式ブロック内の番号フィールドを太字＆少し大きく強調 */
+        .blocklyText[data-argument-name="FORMULA_NUMBER"],
+        text[data-id$="FORMULA_NUMBER"] {
+          font-weight: 700 !important;
+          font-size: 1.1em;
+        }
+        /* 数式フィールドはやや薄めにして番号との階層を作る */
+        .blocklyText[data-argument-name="FORMULA_TEXT"] {
+          opacity: 0.92;
+        }
+        /* シャッター演出(cyber-transition, z-index:10000)より手前に出すモーダル */
+        #formula-unlock-modal,
+        #tutorial-intro-modal { z-index: 10001; }
         .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
         /* モーダル共通クールデザイン */

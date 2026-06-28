@@ -16,13 +16,26 @@ class FieldSpacer extends Blockly.Field {
 // ---------------------------------------------------
 // （ここから下は、元からある const FORMULA_BLOCK_DEFS = ... などのコードをそのまま残してください）
 
+// 公式ブロックの定義。各要素は [内部ID, 番号記号, 表示数式] の3つ組み。
+// ブロックには「① sin²θ + cos²θ = 1」のように番号と数式を並べて表示する。
+// 学習者が「公式①って何だっけ？」と迷わないように、数式自体を見える形にしてある。
 const FORMULA_BLOCK_DEFS = [
-  ['formula_1', '公式①'], ['formula_2', '公式②'], ['formula_3', '公式③'],
-  ['formula_4', '公式④'], ['formula_5', '公式⑤'], ['formula_6', '公式⑥'],
-  ['formula_7', '公式⑦'], ['formula_8', '公式⑧'], ['formula_9', '公式⑨'],
-  ['formula_10', '公式⑩'], ['formula_11', '公式⑪'], ['formula_12', '公式⑫'],
-  ['formula_13', '公式⑬'], ['formula_14', '公式⑭'], ['formula_15', '公式⑮'],
-  ['formula_16', '公式⑯']
+  ['formula_1',  '①', 'sin²θ + cos²θ = 1'],
+  ['formula_2',  '②', 'tanθ = sinθ/cosθ'],
+  ['formula_3',  '③', '1 + tan²θ = 1/cos²θ'],
+  ['formula_4',  '④', 'sin2θ = 2sinθcosθ'],
+  ['formula_5',  '⑤', 'sin²θ = (1−cos2θ)/2'],
+  ['formula_6',  '⑥', 'cos²θ = (1+cos2θ)/2'],
+  ['formula_7',  '⑦', 'tanθ = sin2θ/(1+cos2θ)'],
+  ['formula_8',  '⑧', 'tan²θ = (1−cos2θ)/(1+cos2θ)'],
+  ['formula_9',  '⑨', '(sinθ+cosθ)² = sin²θ+2sinθcosθ+cos²θ'],
+  ['formula_10', '⑩', 'sin⁴θ+cos⁴θ+2sin²θcos²θ = (sin²θ+cos²θ)²'],
+  ['formula_11', '⑪', 'sin⁶θ+cos⁶θ = (sin²θ+cos²θ)(sin⁴θ−sin²θcos²θ+cos⁴θ)'],
+  ['formula_12', '⑫', 'sin3θ = 3sinθ − 4sin³θ'],
+  ['formula_13', '⑬', 'cos3θ = 4cos³θ − 3cosθ'],
+  ['formula_14', '⑭', 'sinα+sinβ = 2sin((α+β)/2)·cos((α−β)/2)'],
+  ['formula_15', '⑮', 'sinα·cosβ = (sin(α+β)+sin(α−β))/2'],
+  ['formula_16', '⑯', 'tan2θ = 2tanθ/(1−tan²θ)'],
 ];
 
 function defineMathBlocks() {
@@ -166,12 +179,18 @@ function defineMathBlocks() {
     },
   };
 
-  FORMULA_BLOCK_DEFS.forEach(([type, label]) => {
+  FORMULA_BLOCK_DEFS.forEach(([type, numberLabel, formulaLabel]) => {
     Blockly.Blocks[type] = {
       init() {
-        this.appendDummyInput().appendField(label);
+        // 番号と数式を別フィールドにすることで、見た目の区切りが分かりやすくなる
+        // 番号は太字に、数式はそれより小さめに見せたい場合はCSSで .blocklyText を調整
+        this.appendDummyInput()
+          .appendField(numberLabel, 'FORMULA_NUMBER')
+          .appendField(formulaLabel, 'FORMULA_TEXT');
         this.setOutput(true, null);
         this.setColour(260);
+        // ホバー時のツールチップ（番号＋数式の両方を表示）
+        this.setTooltip(`${numberLabel}  ${formulaLabel}`);
       },
     };
   });

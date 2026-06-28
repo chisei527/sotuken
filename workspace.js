@@ -3,6 +3,11 @@
 
 // 1. パレット（ツールボックス）の中身を定義
 window.buildToolboxConfig = function(problemData) {
+  const unlockedFormulaIds = typeof window.getUnlockedFormulaIds === 'function'
+    ? window.getUnlockedFormulaIds()
+    : Array.from({length: 16}, (_, i) => `formula_${i+1}`);
+  console.log('[buildToolboxConfig] ツールボックスに乗せる公式:', unlockedFormulaIds);
+
   return {
     kind: 'categoryToolbox',
     contents: [
@@ -25,9 +30,7 @@ window.buildToolboxConfig = function(problemData) {
       },
       {
         kind: 'category', name: '公式', colour: '260',
-        contents: (typeof window.getUnlockedFormulaIds === 'function'
-          ? window.getUnlockedFormulaIds().map((type) => ({ kind: 'block', type }))
-          : Array.from({length: 16}, (_, i) => ({kind: 'block', type: `formula_${i+1}`})))
+        contents: unlockedFormulaIds.map((type) => ({ kind: 'block', type }))
       },
       {
         kind: 'category', name: '操作', colour: '120',

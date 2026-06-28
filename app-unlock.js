@@ -83,7 +83,20 @@
 
       const render = () => {
         const formulaId = ids[index];
-        const label = typeof window.formulaIdToLabel === 'function' ? window.formulaIdToLabel(formulaId) : formulaId;
+        const fallbackLabel = typeof window.formulaIdToLabel === 'function' ? window.formulaIdToLabel(formulaId) : formulaId;
+
+        // FORMULA_BLOCK_DEFS から「番号」と「読みやすい数式」を引く（blocks.js と同じ表記）
+        let displayNumber = '';
+        let displayFormula = '';
+        if (typeof FORMULA_BLOCK_DEFS !== 'undefined' && Array.isArray(FORMULA_BLOCK_DEFS)) {
+          const entry = FORMULA_BLOCK_DEFS.find((e) => e && e[0] === formulaId);
+          if (entry) {
+            displayNumber = entry[1] || '';
+            displayFormula = entry[2] || '';
+          }
+        }
+        const label = displayNumber && displayFormula ? `${displayNumber}  ${displayFormula}` : fallbackLabel;
+
         title.textContent = '新しい公式を覚えよう！';
         meta.textContent = `UNLOCK: ${label}  (${index + 1} / ${ids.length})`;
         fallback.style.display = 'none';
