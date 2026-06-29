@@ -2,16 +2,24 @@
   "id": "0-6",
   "mathText": "\\[ \\frac{\\sin^2\\theta}{\\cos\\theta} + \\cos\\theta = \\frac{1}{\\cos\\theta} \\]",
   "requiredBlocks": [
-    "\"type\":\"common_denominator_operation\"",
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"conclusion_operation\""
+    "proof_step",
+    "simplify_operation",
+    "replace_operation",
+    "conclusion_operation",
+    "math_add",
+    "math_fraction",
+    "math_square",
+    "term_sin",
+    "term_cos",
+    "formula_1",
+    "custom_number"
   ],
   "requiredFormulas": [
     "formula_1"
   ],
   "hints": [
-    "まずは左側の『証明』から「通分」ブロックを引き出して、式を1つの分数にまとめましょう。",
-    "通分すると分子が sin^2 + cos^2 になるので、公式①で 1 に置き換えられます。"
+    "まずは左側の『証明』から「計算式」ブロックを引き出して、式を1つの分数にまとめましょう。",
+    "計算して分子が sin^2 + cos^2 になれば、公式①で 1 に置き換えられます。"
   ],
   "initialState": {
     "blocks": {
@@ -43,8 +51,8 @@
             "DENOMINATOR": { "block": { "type": "term_cos" } }
           }
         },
-        { "type": "proof_step", "x": 50, "y": 150 },
-        { "type": "formula_1", "x": 440, "y": 170 }
+        { "type": "proof_step", "x": 50, "y": 200 },
+        { "type": "formula_1", "x": 440, "y": 200 }
       ]
     }
   },
@@ -81,11 +89,11 @@
         {
           "type": "proof_step",
           "x": 50,
-          "y": 150,
+          "y": 200,
           "inputs": {
             "OPERATIONS": {
               "block": {
-                "type": "common_denominator_operation",
+                "type": "simplify_operation",
                 "inputs": {
                   "VALUE": {
                     "block": {
