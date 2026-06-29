@@ -1,14 +1,6 @@
 {
   "id": 6,
-  "title": "問題 6",
-  "description": "数式を証明せよ。",
-  "startExpression": "\\cos\\theta \\times \\tan\\theta",
-  "goalExpression": "\\sin\\theta",
-  "mathText": "\\[ \\cos\\theta \\times \\tan\\theta = \\sin\\theta \\]",
-  "requiredBlocks": [
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"conclusion_operation\""
-  ],
+  "mathText": "\\[ \\frac{\\sin\\theta}{\\cos\\theta} = \\tan\\theta \\]",
   "requiredFormulas": [
     "formula_2"
   ],
@@ -17,9 +9,21 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "type": "math_multiply",
+          "type": "math_fraction",
           "inputs": {
-            "A": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin_of",
+                "inputs": {
+                  "ANGLE": {
+                    "block": {
+                      "type": "term_theta"
+                    }
+                  }
+                }
+              }
+            },
+            "DENOMINATOR": {
               "block": {
                 "type": "term_cos_of",
                 "inputs": {
@@ -30,39 +34,23 @@
                   }
                 }
               }
-            },
-            "B": {
-              "block": {
-                "type": "term_tan_of",
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
-                      "type": "term_theta"
-                    }
-                  }
-                }
-              }
             }
-          },
-          "x": 50,
-          "y": 50
+          }
         },
         {
-          "type": "term_sin_of",
+          "type": "term_tan_of",
           "inputs": {
             "ANGLE": {
               "block": {
                 "type": "term_theta"
               }
             }
-          },
-          "x": 600,
-          "y": 50
+          }
         },
         {
           "type": "proof_step",
           "x": 50,
-          "y": 150
+          "y": 250
         }
       ]
     }
@@ -72,9 +60,21 @@
       "languageVersion": 0,
       "blocks": [
         {
-          "type": "math_multiply",
+          "type": "math_fraction",
           "inputs": {
-            "A": {
+            "NUMERATOR": {
+              "block": {
+                "type": "term_sin_of",
+                "inputs": {
+                  "ANGLE": {
+                    "block": {
+                      "type": "term_theta"
+                    }
+                  }
+                }
+              }
+            },
+            "DENOMINATOR": {
               "block": {
                 "type": "term_cos_of",
                 "inputs": {
@@ -85,62 +85,27 @@
                   }
                 }
               }
-            },
-            "B": {
-              "block": {
-                "type": "term_tan_of",
-                "inputs": {
-                  "ANGLE": {
-                    "block": {
-                      "type": "term_theta"
-                    }
-                  }
-                }
-              }
             }
-          },
-          "x": 50,
-          "y": 50
+          }
         },
         {
-          "type": "term_sin_of",
+          "type": "term_tan_of",
           "inputs": {
             "ANGLE": {
               "block": {
                 "type": "term_theta"
               }
             }
-          },
-          "x": 600,
-          "y": 50
+          }
         },
         {
           "type": "proof_step",
-          "x": 50,
-          "y": 150,
           "inputs": {
             "OPERATIONS": {
               "block": {
                 "type": "replace_operation",
                 "inputs": {
                   "VALUE": {
-                    "block": {
-                      "type": "term_tan_of",
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "type": "term_theta"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "FORMULA": {
-                    "block": {
-                      "type": "formula_2"
-                    }
-                  },
-                  "REPLACEMENT": {
                     "block": {
                       "type": "math_fraction",
                       "inputs": {
@@ -170,6 +135,23 @@
                         }
                       }
                     }
+                  },
+                  "FORMULA": {
+                    "block": {
+                      "type": "formula_2"
+                    }
+                  },
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "term_tan_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_theta"
+                          }
+                        }
+                      }
+                    }
                   }
                 },
                 "next": {
@@ -178,7 +160,7 @@
                     "inputs": {
                       "VALUE": {
                         "block": {
-                          "type": "term_sin_of",
+                          "type": "term_tan_of",
                           "inputs": {
                             "ANGLE": {
                               "block": {

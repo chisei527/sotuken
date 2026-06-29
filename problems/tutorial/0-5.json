@@ -1,16 +1,28 @@
 {
   "id": "0-5",
   "mathText": "\\[ \\frac{\\tan\\theta}{\\sin\\theta} = \\frac{1}{\\cos\\theta} \\]",
-  "requiredBlocks": [
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"conclusion_operation\""
+  "formulas": [
+    "formula_2"
   ],
   "requiredFormulas": [
     "formula_2"
   ],
   "hints": [
-    "この問題も通常形式です。置き換え・結論ブロックは自分で引き出します。",
-    "tan を公式②で sin/cos にすると、(sin/cos)/sin = 1/cos が見えてきます。"
+    "まずは左辺の式全体を組み立てましょう。",
+    "\\(\\tan\\theta\\) を公式を使って置き換え、その後「計算式」ブロックを使って約分します。"
+  ],
+  "requiredBlocks": [
+    "proof_step",
+    "replace_operation",
+    "simplify_operation",
+    "conclusion_operation",
+    "math_fraction",
+    "math_multiply",
+    "term_tan",
+    "term_sin",
+    "formula_2",
+    "custom_number",
+    "term_cos"
   ],
   "initialState": {
     "blocks": {
@@ -55,8 +67,25 @@
         },
         {
           "type": "proof_step",
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "replace_operation",
+                "next": {
+                  "block": {
+                    "type": "simplify_operation",
+                    "next": {
+                      "block": {
+                        "type": "conclusion_operation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "x": 50,
-          "y": 150
+          "y": 200
         }
       ]
     }
@@ -104,8 +133,6 @@
         },
         {
           "type": "proof_step",
-          "x": 50,
-          "y": 150,
           "inputs": {
             "OPERATIONS": {
               "block": {
@@ -113,7 +140,19 @@
                 "inputs": {
                   "VALUE": {
                     "block": {
-                      "type": "term_tan"
+                      "type": "math_fraction",
+                      "inputs": {
+                        "NUMERATOR": {
+                          "block": {
+                            "type": "term_tan"
+                          }
+                        },
+                        "DENOMINATOR": {
+                          "block": {
+                            "type": "term_sin"
+                          }
+                        }
+                      }
                     }
                   },
                   "FORMULA": {
@@ -123,16 +162,43 @@
                   },
                   "REPLACEMENT": {
                     "block": {
-                      "type": "math_fraction",
+                      "type": "math_multiply",
                       "inputs": {
-                        "NUMERATOR": {
+                        "A": {
                           "block": {
-                            "type": "term_sin"
+                            "type": "math_fraction",
+                            "inputs": {
+                              "NUMERATOR": {
+                                "block": {
+                                  "type": "custom_number",
+                                  "fields": {
+                                    "NUM": 1
+                                  }
+                                }
+                              },
+                              "DENOMINATOR": {
+                                "block": {
+                                  "type": "term_sin"
+                                }
+                              }
+                            }
                           }
                         },
-                        "DENOMINATOR": {
+                        "B": {
                           "block": {
-                            "type": "term_cos"
+                            "type": "math_fraction",
+                            "inputs": {
+                              "NUMERATOR": {
+                                "block": {
+                                  "type": "term_sin"
+                                }
+                              },
+                              "DENOMINATOR": {
+                                "block": {
+                                  "type": "term_cos"
+                                }
+                              }
+                            }
                           }
                         }
                       }
@@ -141,9 +207,53 @@
                 },
                 "next": {
                   "block": {
-                    "type": "conclusion_operation",
+                    "type": "simplify_operation",
                     "inputs": {
                       "VALUE": {
+                        "block": {
+                          "type": "math_multiply",
+                          "inputs": {
+                            "A": {
+                              "block": {
+                                "type": "math_fraction",
+                                "inputs": {
+                                  "NUMERATOR": {
+                                    "block": {
+                                      "type": "custom_number",
+                                      "fields": {
+                                        "NUM": 1
+                                      }
+                                    }
+                                  },
+                                  "DENOMINATOR": {
+                                    "block": {
+                                      "type": "term_sin"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "B": {
+                              "block": {
+                                "type": "math_fraction",
+                                "inputs": {
+                                  "NUMERATOR": {
+                                    "block": {
+                                      "type": "term_sin"
+                                    }
+                                  },
+                                  "DENOMINATOR": {
+                                    "block": {
+                                      "type": "term_cos"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "REPLACEMENT": {
                         "block": {
                           "type": "math_fraction",
                           "inputs": {
@@ -163,12 +273,41 @@
                           }
                         }
                       }
+                    },
+                    "next": {
+                      "block": {
+                        "type": "conclusion_operation",
+                        "inputs": {
+                          "VALUE": {
+                            "block": {
+                              "type": "math_fraction",
+                              "inputs": {
+                                "NUMERATOR": {
+                                  "block": {
+                                    "type": "custom_number",
+                                    "fields": {
+                                      "NUM": 1
+                                    }
+                                  }
+                                },
+                                "DENOMINATOR": {
+                                  "block": {
+                                    "type": "term_cos"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
               }
             }
-          }
+          },
+          "x": 50,
+          "y": 200
         }
       ]
     }

@@ -219,15 +219,145 @@ function defineMathBlocks() {
     },
   };
 
+  // 通分ブロック：VALUE 入力に式を入れると、通分後の式を「実際のブロック」として
+  // REPLACEMENT に自動構築・接続する。ユーザーは結果ブロックをコピー・再利用できる。
   Blockly.Blocks.common_denominator_operation = {
     init() {
       this.appendValueInput('VALUE').appendField('通分');
       this.appendDummyInput().appendField('→');
-      this.appendValueInput('REPLACEMENT').appendField('後');
+      this.appendValueInput('REPLACEMENT');
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(120);
+      this.setTooltip('VALUE に式を入れると、通分結果が自動でブロックとして出ます');
+
+      // 再帰防止フラグ：自分が REPLACEMENT を書き換える間、onchange を抑制する
+      this._isUpdatingReplacement = false;
+    },
+    onchange: function (event) {
+      if (!this.workspace || this.isInFlyout) return;
+      if (!event) return;
+      // 自身による更新中は無視（再帰防止）
+      if (this._isUpdatingReplacement) return;
+      // 関心のあるイベントだけ拾う
+      if (event.type !== Blockly.Events.BLOCK_MOVE
+          && event.type !== Blockly.Events.BLOCK_CHANGE
+          && event.type !== Blockly.Events.BLOCK_CREATE
+          && event.type !== Blockly.Events.BLOCK_DELETE) {
+        return;
+      }
+      this.updateCommonDenominatorReplacement();
+    },
+    /**
+     * VALUE 接続のブロックを式文字列に変換し、通分結果をブロック構造として
+     * REPLACEMENT 入力に自動接続する。
+     */
+    updateCommonDenominatorReplacement: function () {
+      const valueBlock = this.getInputTargetBlock('VALUE');
+
+      // VALUE が空 → REPLACEMENT も空にする
+      if (!valueBlock) {
+        this._setReplacementBlock(null);
+        return;
+      }
+
+      // VALUE ブロックをシリアライズして式文字列に変換
+      let exprStr = '';
+      try {
+        if (typeof Blockly.serialization?.blocks?.save === 'function'
+            && typeof window.expressionFromSerializedBlock === 'function') {
+          const serialized = Blockly.serialization.blocks.save(valueBlock);
+          exprStr = window.expressionFromSerializedBlock(serialized) || '';
+        }
+      } catch (e) {
+        exprStr = '';
+      }
+
+      if (!exprStr) {
+        this._setReplacementBlock(null);
+        return;
+      }
+
+      // 通分計算
+      let computed = '';
+      try {
+        if (typeof window.computeCommonDenominator === 'function') {
+          computed = window.computeCommonDenominator(exprStr);
+        }
+      } catch (e) {
+        computed = '';
+      }
+
+      if (!computed || computed === exprStr) {
+        // 通分不要 or 失敗 → REPLACEMENT を空にする
+        this._setReplacementBlock(null);
+        return;
+      }
+
+      // 文字列 → Blockly ブロック JSON 構造に変換
+      let blockJson = null;
+      try {
+        if (typeof window.mathExprToBlocklyJson === 'function') {
+          blockJson = window.mathExprToBlocklyJson(computed);
+        }
+      } catch (e) {
+        blockJson = null;
+      }
+
+      if (!blockJson) {
+        this._setReplacementBlock(null);
+        return;
+      }
+
+      this._setReplacementBlock(blockJson);
+    },
+    /**
+     * REPLACEMENT 入力に指定したブロック JSON を接続する。
+     * 既存の REPLACEMENT ブロックは破棄してから新しいものを接続する。
+     * blockJson が null のときは REPLACEMENT を空にする。
+     */
+    _setReplacementBlock: function (blockJson) {
+      this._isUpdatingReplacement = true;
+      try {
+        const replacementInput = this.getInput('REPLACEMENT');
+        if (!replacementInput) return;
+        const connection = replacementInput.connection;
+        if (!connection) return;
+
+        // 既存の REPLACEMENT ブロックを破棄
+        const existingBlock = connection.targetBlock();
+        if (existingBlock) {
+          existingBlock.dispose(false);
+        }
+
+        if (!blockJson) return;
+
+        // 新しいブロックを構築して接続
+        const newBlock = Blockly.serialization.blocks.append(blockJson, this.workspace);
+        if (newBlock && newBlock.outputConnection) {
+          connection.connect(newBlock.outputConnection);
+        }
+      } catch (e) {
+        console.warn('[common_denominator_operation] REPLACEMENT 更新失敗:', e);
+      } finally {
+        this._isUpdatingReplacement = false;
+      }
+    },
+  };
+
+  // 公式を使わない単純な計算・整理（緑色）
+  // 例: sin²θ - (sin²θ + cos²θ) → -cos²θ （展開・整理だけで公式適用ではない）
+  Blockly.Blocks.simplify_operation = {
+    init() {
+      this.appendValueInput('VALUE').appendField('計算 式');
+      this.appendDummyInput().appendField('→');
+      this.appendValueInput('REPLACEMENT');
+      this.setInputsInline(true);
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(160); // 緑系（replace_operationの120と区別）
+      this.setTooltip('公式を使わず、ただ計算・整理するときに使う');
     },
   };
 

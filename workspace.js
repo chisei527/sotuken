@@ -37,6 +37,7 @@ window.buildToolboxConfig = function(problemData) {
         contents: [
           { kind: 'block', type: 'replace_operation' },
           { kind: 'block', type: 'common_denominator_operation' },
+          { kind: 'block', type: 'simplify_operation' },
           { kind: 'block', type: 'conclusion_operation' }
         ]
       }

@@ -55,6 +55,38 @@ window.renderStageMap = async function() {
   const stageIds = Array.from({length: totalStages}, (_, i) => i + 1);
   const focusStage = window.getCurrentMapFocusStage();
 
+  // ✨ 背景の動的データパーティクルをJSで無限生成
+  if (!document.getElementById('cyber-particle-container')) {
+    const pContainer = document.createElement('div');
+    pContainer.id = 'cyber-particle-container';
+    pContainer.style.position = 'absolute';
+    pContainer.style.inset = '0';
+    pContainer.style.overflow = 'hidden';
+    pContainer.style.pointerEvents = 'none';
+    pContainer.style.zIndex = '0';
+    for(let i=0; i<60; i++) {
+      const p = document.createElement('div');
+      p.className = 'cyber-bg-particle';
+      p.style.left = `${Math.random() * 100}%`;
+      p.style.top = `${Math.random() * 100}%`;
+      p.style.animationDuration = `${8 + Math.random() * 15}s`;
+      p.style.animationDelay = `-${Math.random() * 15}s`;
+      if (Math.random() > 0.7) {
+        p.style.background = '#4ade80';
+        p.style.boxShadow = '0 0 10px #4ade80, 0 0 20px #86efac';
+      }
+      pContainer.appendChild(p);
+    }
+    document.getElementById('map-viewport').appendChild(pContainer);
+  }
+
+  // 📍 配置計算用定数
+  const NODE_SPACING_X = 240; 
+  const AMPLITUDE = 140; 
+
+  // スクロール領域の確保
+  nodeRoot.style.width = `${totalStages * NODE_SPACING_X + 500}px`;
+
   stageIds.forEach((stage, index) => {
       const isCleared = window.clearedStages && window.clearedStages.includes(stage);
       const isFirst = index === 0;
@@ -67,18 +99,52 @@ window.renderStageMap = async function() {
       node.dataset.stage = String(stage);
       const world = Math.floor((stage - 1) / 10) + 1;
       const subStage = ((stage - 1) % 10) + 1;
-      node.innerHTML = `<div class="map-node-number">${world}-${subStage}</div><div class="map-node-label">STAGE ${stage}</div>`;
+      
+      let statusText = 'LOCKED';
+      if (isFocus) statusText = 'ACTIVE';
+      else if (isCleared) statusText = 'SYNCED';
+      else if (isUnlocked) statusText = 'READY';
+
+      node.innerHTML = `
+        <div class="map-node-number">${world}-${subStage}</div>
+        <div class="map-node-label">SECTOR ${String(stage).padStart(3, '0')}</div>
+        <div class="node-status-tag">${statusText}</div>
+      `;
       
       if (isUnlocked) node.onclick = () => window.transitionToStage(stage);
       else node.disabled = true;
+
+      // 📍 座標計算（サイン波でうねらせる）
+      const x = index * NODE_SPACING_X + 200;
+      const yOffset = Math.sin(index * 0.75) * AMPLITUDE;
+      
+      node.style.left = `${x}px`;
+      node.style.top = `calc(50% + ${yOffset}px)`;
+      node.style.transform = `translate(-50%, -50%)`;
       
       nodeRoot.appendChild(node);
 
+      // ⚡ 次のノードへの接続線（角度を計算して繋ぐ）
       if (index < stageIds.length - 1) {
           const nextStage = stageIds[index + 1];
           const isNextCleared = window.clearedStages && window.clearedStages.includes(nextStage);
+          
+          const nextX = (index + 1) * NODE_SPACING_X + 200;
+          const nextYOffset = Math.sin((index + 1) * 0.75) * AMPLITUDE;
+          
+          const dx = nextX - x;
+          const dy = nextYOffset - yOffset;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
           const road = document.createElement('div');
           road.className = `map-road ${isCleared && isNextCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}`;
+          
+          road.style.width = `${distance}px`;
+          road.style.left = `${x}px`;
+          road.style.top = `calc(50% + ${yOffset}px)`;
+          road.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+          
           nodeRoot.appendChild(road);
       }
   });
@@ -91,7 +157,6 @@ window.renderStageMap = async function() {
     requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(false));
   }
 };
-
 // ====== ステージロードとブロック初期配置 ======
 window.loadStage = async function(stageNumber) {
   try {
@@ -183,66 +248,69 @@ window.loadStage = async function(stageNumber) {
   }
 };
 
+// ガイド機能（btn-overwrite-permission）の挙動。
+//   ON  : 問題の answerState の操作チェーンを解析して「型と接続だけ」の空骨組みを置く。
+//          ユーザーは穴を埋めるだけで証明できる状態にする。
+//   OFF : 左辺・右辺の式ブロックだけが置いてある状態。ユーザーは proof_step から自分で組み立てる。
 window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
   if (!targetWorkspace) return;
   const overwriteButton = document.getElementById('btn-overwrite-permission');
   const isOverwriteOn = !!overwriteButton && !overwriteButton.classList.contains('off');
-  
-  let proofStep = targetWorkspace.getTopBlocks(false).find(b => b.type === 'proof_step');
-  if (!proofStep) {
-      proofStep = targetWorkspace.newBlock('proof_step');
-      proofStep.initSvg(); proofStep.render();
-  }
 
+  // ガイドOFFなら何もしない（initialStateそのままが、左辺・右辺の式ブロックだけ置かれた状態）
+  if (!isOverwriteOn) return;
+
+  // answerState から「操作の型シーケンス」を取り出す
+  const operationTypes = window.extractOperationTypesFromAnswer
+    ? window.extractOperationTypesFromAnswer(window.currentProblemData)
+    : [];
+  if (operationTypes.length === 0) return;
+
+  // 既存の proof_step / 操作ブロック群を全部捨てて作り直す（中途半端な状態を避けるため）
+  targetWorkspace.getTopBlocks(false).forEach((block) => {
+    if (block.type === 'proof_step') block.dispose(true);
+  });
+
+  // 新しい proof_step を作る
+  const proofStep = targetWorkspace.newBlock('proof_step');
+  proofStep.initSvg();
+  proofStep.render();
+
+  // 操作の骨組みを順に作って連結
   const operationInputConnection = proofStep.getInput('OPERATIONS')?.connection;
   if (!operationInputConnection) return;
 
-  const mathBlocks = targetWorkspace.getTopBlocks(false)
-      .filter(block => block && block.outputConnection && !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(block.type))
-      .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
-      
-  const leftExpressionBlock = mathBlocks[0] || null;
-  const rightExpressionBlock = mathBlocks.length >= 2 ? mathBlocks[mathBlocks.length - 1] : mathBlocks[0] || null;
+  let previousOp = null;
+  operationTypes.forEach((opType, index) => {
+    const opBlock = targetWorkspace.newBlock(opType);
+    opBlock.initSvg();
+    opBlock.render();
 
-  const operations = [];
-  let currentOp = proofStep.getInputTargetBlock('OPERATIONS');
-  while (currentOp) { operations.push(currentOp); currentOp = currentOp.getNextBlock(); }
+    if (index === 0) {
+      // 最初の操作は proof_step の OPERATIONS に接続
+      operationInputConnection.connect(opBlock.previousConnection);
+    } else if (previousOp && previousOp.nextConnection && opBlock.previousConnection) {
+      // 2個目以降は前の操作の次に接続
+      previousOp.nextConnection.connect(opBlock.previousConnection);
+    }
+    previousOp = opBlock;
+  });
+};
 
-  let conclusionOp = operations.find(op => op.type === 'conclusion_operation') || null;
-  if (!conclusionOp) {
-      conclusionOp = targetWorkspace.newBlock('conclusion_operation');
-      conclusionOp.initSvg(); conclusionOp.render();
+// answerState の proof_step から操作の型シーケンスを取り出す
+// 例: [replace_operation, simplify_operation, replace_operation, conclusion_operation]
+window.extractOperationTypesFromAnswer = function(problemData) {
+  const answerBlocks = problemData?.answerState?.blocks?.blocks;
+  if (!Array.isArray(answerBlocks)) return [];
+
+  const proofBlock = answerBlocks.find((b) => b && b.type === 'proof_step');
+  if (!proofBlock) return [];
+
+  const types = [];
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  while (current) {
+    if (typeof current.type === 'string') types.push(current.type);
+    current = current?.next?.block || null;
   }
-
-  if (isOverwriteOn) {
-      let replaceOp = operations.find(op => op.type === 'replace_operation') || null;
-      if (!replaceOp) {
-          replaceOp = targetWorkspace.newBlock('replace_operation');
-          replaceOp.initSvg(); replaceOp.render();
-      }
-      
-      if (operationInputConnection.targetBlock() !== replaceOp) {
-          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
-          operationInputConnection.connect(replaceOp.previousConnection);
-      }
-      if (replaceOp.nextConnection && replaceOp.nextConnection.targetBlock() !== conclusionOp) {
-          if (replaceOp.nextConnection.targetBlock()) replaceOp.nextConnection.targetBlock().unplug(true);
-          replaceOp.nextConnection.connect(conclusionOp.previousConnection);
-      }
-      
-      if (leftExpressionBlock && replaceOp.getInput('VALUE')?.connection && !replaceOp.getInput('VALUE').connection.targetBlock()) {
-          replaceOp.getInput('VALUE').connection.connect(leftExpressionBlock.outputConnection);
-      }
-  } else {
-      if (operationInputConnection.targetBlock() !== conclusionOp) {
-          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
-          operationInputConnection.connect(conclusionOp.previousConnection);
-      }
-      operations.forEach(op => { if (op !== conclusionOp) op.dispose(true); });
-      if (conclusionOp.nextConnection?.targetBlock()) conclusionOp.nextConnection.targetBlock().unplug(true);
-  }
-
-  if (rightExpressionBlock && conclusionOp.getInput('VALUE')?.connection && !conclusionOp.getInput('VALUE').connection.targetBlock()) {
-      conclusionOp.getInput('VALUE').connection.connect(rightExpressionBlock.outputConnection);
-  }
+  return types;
 };

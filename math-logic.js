@@ -431,9 +431,26 @@
         const formula = type === 'replace_operation'
           ? formulaTextFromInput(currentOperation)
           : null;
-        const after = type === 'conclusion_operation'
-          ? null
-          : exprFromInput(currentOperation, 'REPLACEMENT');
+        
+        // after の決定:
+        //   - conclusion_operation: null
+        //   - common_denominator_operation: REPLACEMENT があればそれ、なければ自動計算
+        //   - その他: REPLACEMENT そのまま
+        let after;
+        if (type === 'conclusion_operation') {
+          after = null;
+        } else if (type === 'common_denominator_operation') {
+          const fromInput = exprFromInput(currentOperation, 'REPLACEMENT');
+          if (fromInput) {
+            after = fromInput;
+          } else if (before) {
+            after = computeCommonDenominator(String(before));
+          } else {
+            after = '';
+          }
+        } else {
+          after = exprFromInput(currentOperation, 'REPLACEMENT');
+        }
 
         ast.push({
           step: stepIndex,
@@ -957,6 +974,17 @@
           && evaluateEquivalence(afterExpr, oneOverTan).ok;
         if (reciprocalReverse) return true;
       }
+
+      // 差分による検証（部分置換のケースを救う）
+      // before - after の差が、公式の関係（左辺 - 右辺）の式と等価か
+      // 例: before=「sin²θ - 1」、after=「sin²θ - (sin²θ + cos²θ)」のとき
+      //     before - after = (sin²θ + cos²θ) - 1 これは公式①の左辺-右辺と等価
+      const diffExpr = `((${beforeExpr}) - (${afterExpr}))`;
+      const evidenceForward = `((${leftSide}) - (${rightSide}))`;
+      const evidenceBackward = `((${rightSide}) - (${leftSide}))`;
+      
+      if (evaluateEquivalence(diffExpr, evidenceForward).ok) return true;
+      if (evaluateEquivalence(diffExpr, evidenceBackward).ok) return true;
     }
 
     return false;
@@ -995,7 +1023,9 @@
     if (!Array.isArray(astArray)) return [];
     return astArray.filter((stepData) => {
       const operationType = String(stepData?.type || '');
-      return operationType === 'replace_operation' || operationType === 'common_denominator_operation';
+      return operationType === 'replace_operation'
+        || operationType === 'common_denominator_operation'
+        || operationType === 'simplify_operation';
     });
   }
 
@@ -1048,6 +1078,12 @@
         return '「よって」の中身が、問題の右辺と一致していないよ。ゴールの式を入れてね。';
       case 'ERROR_CONCLUSION_NOT_LAST_RESULT':
         return '「よって」の中身が、最後の変形結果と一致していないよ。';
+      case 'ERROR_NO_TRANSFORM':
+        return '「よって」だけでは証明にならないよ。式を変形するブロック（置き換え・通分・計算）を入れて、左辺から右辺へ変形しよう。';
+      case 'ERROR_NO_CHANGE':
+        return `${stepPrefix}変形前と変形後が同じだよ。実際に式を変えてね。`;
+      case 'ERROR_PROBLEM_DATA_MISSING':
+        return '問題データに左辺・右辺が定義されていません。問題JSONの initialState を確認してください（コンソールに詳細あり）。';
       default:
         return 'エラーが起きたよ。ブロックと式を見直してみよう！';
     }
@@ -1070,22 +1106,43 @@
    *   5. 最後の操作の after（よって以外）が問題の右辺と「構造的に等価」
    *   6. 「よって」の中身が問題の右辺と「構造的に等価」
    */
+  /**
+   * 証明全体を検証する（最新仕様）
+   * 要件:
+   *   1. 操作（replace / common_denominator / simplify）が1個以上
+   *   2. 最初の操作の before が問題の左辺と「数値的に等価」
+   *   3. 最後の操作の after が問題の右辺と「数値的に等価」
+   *   4. 各操作で before と after が「構造的に異なる」（実際に変えた）
+   *   5. 各操作の before/after が「数値的に等価」（変形が正しい）
+   *   6. 連鎖: 直前の after ≡ 次の before（数値的等価）
+   *   7. よってブロックの中身 ≡ 問題の右辺（数値的に等価）
+   *   8. replace の場合は公式IDが妥当で verifyFormulaApplication が通る
+   *
+   * 「数値的に等価」 = evaluateEquivalence（簡単化を許す数値サンプリング）
+   * 「構造的に等価」 = isStructurallyEquivalent（順序入れ替えのみ許す）
+   *
+   * simplify_operation: 公式を使わず単純に計算・整理するだけ。
+   *   要件4と5（構造的に違う＋数値的に等価）だけチェックし、公式適用チェックは行わない。
+   */
   function validateProof(astArray, problemData) {
     if (!Array.isArray(astArray) || astArray.length === 0) {
       return { isValid: false, errorStepIndex: null, errorCode: 'ERROR_NO_PROOF_BLOCK', suggestions: [] };
     }
 
-    // 問題の左辺・右辺を取得
     const initialLeftExpr = getInitialLeftExpression(problemData);
     const initialRightExpr = getInitialRightExpression(problemData);
-    console.log('[validateProof] 問題の左辺=', initialLeftExpr, ' 右辺=', initialRightExpr);
+    console.log('[validateProof] 左辺=', initialLeftExpr, ' 右辺=', initialRightExpr);
 
     if (!initialLeftExpr || !initialRightExpr) {
-      console.warn('[validateProof] 問題データに左辺または右辺が定義されていません');
-      return { isValid: false, errorStepIndex: null, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
+      console.warn('[validateProof] 問題データに左辺または右辺が定義されていません', {
+        initialLeft: initialLeftExpr,
+        initialRight: initialRightExpr,
+        problemData_initialState: problemData?.initialState,
+      });
+      return { isValid: false, errorStepIndex: null, errorCode: 'ERROR_PROBLEM_DATA_MISSING', suggestions: [] };
     }
 
-    // 最後の結論ブロックの存在チェック
+    // 「よって」ブロックの存在チェック
     const lastStep = astArray[astArray.length - 1] || null;
     if (!lastStep || lastStep.type !== 'conclusion_operation') {
       return {
@@ -1096,45 +1153,33 @@
       };
     }
 
-    // === ステップ1: 最初の操作の before が問題の左辺と等価か ===
-    const firstTransform = astArray.find((s) => 
-      s && (s.type === 'replace_operation' || s.type === 'common_denominator_operation')
-    );
-    if (!firstTransform) {
-      // replace も通分もない → 直接よって。よっての中身が左辺と異なるなら不正解
-      const conclusionExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
-      if (!conclusionExpr) {
-        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
-      }
-      // 変形ステップが無いのに左辺≠右辺なら証明が成り立たない
-      if (!isStructurallyEquivalent(initialLeftExpr, initialRightExpr)) {
-        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
-      }
-      // 左辺=右辺の場合、よってに左辺(=右辺)を入れていれば正解
-      if (!isStructurallyEquivalent(conclusionExpr, initialRightExpr)) {
-        return { isValid: false, errorStepIndex: lastStep.step || 1, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
-      }
-      return { isValid: true, errorStepIndex: null, errorCode: null, suggestions: [] };
+    // 要件1: 変形ステップが1個以上
+    const transformSteps = getTransformSteps(astArray);
+    if (transformSteps.length === 0) {
+      return {
+        isValid: false,
+        errorStepIndex: lastStep.step || 1,
+        errorCode: 'ERROR_NO_TRANSFORM',
+        suggestions: [],
+      };
     }
 
-    const firstBefore = typeof firstTransform.before === 'string' ? firstTransform.before.trim() : '';
+    // 要件2: 最初の操作の before が問題の左辺と数値的に等価
+    const firstStep = transformSteps[0];
+    const firstBefore = typeof firstStep.before === 'string' ? firstStep.before.trim() : '';
     console.log('[validateProof] 最初の操作のbefore=', firstBefore);
     if (!firstBefore) {
-      return { isValid: false, errorStepIndex: firstTransform.step || 1, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
+      return { isValid: false, errorStepIndex: firstStep.step || 1, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
     }
-    if (!isStructurallyEquivalent(firstBefore, initialLeftExpr)) {
-      console.log('[validateProof] 最初のbeforeが左辺と不一致');
-      return { isValid: false, errorStepIndex: firstTransform.step || 1, errorCode: 'ERROR_INITIAL_LEFT_MISMATCH', suggestions: [] };
+    const leftCheck = evaluateEquivalence(firstBefore, initialLeftExpr);
+    if (!leftCheck.ok) {
+      return { isValid: false, errorStepIndex: firstStep.step || 1, errorCode: 'ERROR_INITIAL_LEFT_MISMATCH', suggestions: [] };
     }
 
-    // === ステップ2,3: 各変形ステップの個別検証 ===
-    for (let i = 0; i < astArray.length; i++) {
-      const stepData = astArray[i] || {};
-      const stepIndex = Number.isFinite(stepData.step) ? stepData.step : i + 1;
+    // 要件4, 5, 8: 各操作を個別に検証
+    for (const stepData of transformSteps) {
+      const stepIndex = Number.isFinite(stepData.step) ? stepData.step : 1;
       const operationType = String(stepData.type || '');
-
-      if (operationType !== 'replace_operation' && operationType !== 'common_denominator_operation') continue;
-
       const beforeExpr = typeof stepData.before === 'string' ? stepData.before.trim() : '';
       const afterExpr = typeof stepData.after === 'string' ? stepData.after.trim() : '';
       const formulaExpr = typeof stepData.formula === 'string' ? stepData.formula.trim() : '';
@@ -1143,7 +1188,12 @@
         return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
       }
 
-      // before → after が数学的に等価か（変形の正しさ）
+      // 要件4: before と after が構造的に違う（実際に変形した）
+      if (isStructurallyEquivalent(beforeExpr, afterExpr)) {
+        return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_NO_CHANGE', suggestions: [] };
+      }
+
+      // 要件5: before と after が数値的に等価（変形が正しい）
       const sameStepCheck = evaluateEquivalence(beforeExpr, afterExpr);
       if (!sameStepCheck.ok) {
         if (sameStepCheck.reason === 'non-finite' || sameStepCheck.reason === 'division-by-zero') {
@@ -1155,6 +1205,7 @@
         return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_EVALUATION', suggestions: [] };
       }
 
+      // 要件8: replace_operation の公式チェック（他の操作には適用しない）
       if (operationType === 'replace_operation') {
         if (!formulaExpr) {
           return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_REQUIRED', suggestions: [] };
@@ -1165,22 +1216,17 @@
         }
         const formulaMatch = verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
         if (!formulaMatch) {
-          const candidates = detectMatchingFormulaIds(beforeExpr, afterExpr)
-            .filter((c) => c !== formulaId)
-            .map((c) => formulaIdToLabel(c));
+          const candidates = (typeof detectMatchingFormulaIds === 'function'
+            ? detectMatchingFormulaIds(beforeExpr, afterExpr)
+            : []
+          ).filter((c) => c !== formulaId).map((c) => formulaIdToLabel(c));
           return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_MISMATCH', suggestions: candidates };
         }
       }
-
-      if (operationType === 'common_denominator_operation') {
-        if (hasTrigProfileChanged(beforeExpr, afterExpr)) {
-          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_COMMON_DENOMINATOR_RULE', suggestions: [] };
-        }
-      }
+      // simplify_operation と common_denominator_operation は公式チェックなし
     }
 
-    // === ステップ4: 変形間の連鎖チェック (直前のafter ≡ 次のbefore) ===
-    const transformSteps = getTransformSteps(astArray);
+    // 要件6: 操作間の連鎖（直前の after ≡ 次の before）
     for (let i = 1; i < transformSteps.length; i++) {
       const prevAfterExpr = typeof transformSteps[i - 1].after === 'string' ? transformSteps[i - 1].after.trim() : '';
       const currentBeforeExpr = typeof transformSteps[i].before === 'string' ? transformSteps[i].before.trim() : '';
@@ -1189,7 +1235,6 @@
       if (!prevAfterExpr || !currentBeforeExpr) {
         return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_EMPTY_INPUT', suggestions: [] };
       }
-
       const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
       if (!chainCheck.ok) {
         if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
@@ -1202,33 +1247,284 @@
       }
     }
 
-    // === ステップ5: 最後の変形のafterが問題の右辺と等価 ===
+    // 要件3: 最後の操作の after が問題の右辺と数値的に等価
     const lastTransform = transformSteps[transformSteps.length - 1];
-    if (lastTransform) {
-      const lastAfterExpr = typeof lastTransform.after === 'string' ? lastTransform.after.trim() : '';
-      console.log('[validateProof] 最後の変形のafter=', lastAfterExpr, ' 右辺=', initialRightExpr);
-      if (!lastAfterExpr) {
-        return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
-      }
-      if (!isStructurallyEquivalent(lastAfterExpr, initialRightExpr)) {
-        console.log('[validateProof] 最後のafterが右辺と不一致');
-        return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
-      }
+    const lastAfterExpr = typeof lastTransform.after === 'string' ? lastTransform.after.trim() : '';
+    console.log('[validateProof] 最後の操作のafter=', lastAfterExpr, ' 右辺=', initialRightExpr);
+    if (!lastAfterExpr) {
+      return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
+    }
+    const finalAfterCheck = evaluateEquivalence(lastAfterExpr, initialRightExpr);
+    if (!finalAfterCheck.ok) {
+      return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
     }
 
-    // === ステップ6: よっての中身が問題の右辺と等価 ===
+    // 要件7: よってブロックの中身が問題の右辺と数値的に等価
     const conclusionExpr = typeof lastStep.before === 'string' ? lastStep.before.trim() : '';
     console.log('[validateProof] よっての中身=', conclusionExpr, ' 右辺=', initialRightExpr);
     if (!conclusionExpr) {
       return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
     }
-    if (!isStructurallyEquivalent(conclusionExpr, initialRightExpr)) {
-      console.log('[validateProof] よっての中身が右辺と不一致');
+    const conclusionCheck = evaluateEquivalence(conclusionExpr, initialRightExpr);
+    if (!conclusionCheck.ok) {
       return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
     }
 
-    // すべてのチェック通過 → 正解
     return { isValid: true, errorStepIndex: null, errorCode: null, suggestions: [] };
+  }
+
+  // ============================================
+  // 通分の自動計算
+  // 戦略: 三角関数を一時変数に置換 → math.rationalize → 元に戻す
+  // ============================================
+
+  // 三角関数表記 → 一時変数 への置換マップ（長いものから先に処理）
+  const TRIG_TO_VAR_PATTERNS = [
+    [/sin\(theta\)\^2/g, '_SS'],
+    [/cos\(theta\)\^2/g, '_CC'],
+    [/tan\(theta\)\^2/g, '_TT'],
+    [/sin\(theta\)/g, '_S'],
+    [/cos\(theta\)/g, '_C'],
+    [/tan\(theta\)/g, '_T'],
+  ];
+
+  // 一時変数 → 三角関数表記 への逆置換
+  const VAR_TO_TRIG_PATTERNS = [
+    [/\b_SS\b/g, 'sin(theta)^2'],
+    [/\b_CC\b/g, 'cos(theta)^2'],
+    [/\b_TT\b/g, 'tan(theta)^2'],
+    [/\b_S\b/g, 'sin(theta)'],
+    [/\b_C\b/g, 'cos(theta)'],
+    [/\b_T\b/g, 'tan(theta)'],
+  ];
+
+  function substituteTrigToVars(expr) {
+    let result = String(expr);
+    for (const [pattern, replacement] of TRIG_TO_VAR_PATTERNS) {
+      result = result.replace(pattern, replacement);
+    }
+    return result;
+  }
+
+  function substituteVarsToTrig(expr) {
+    let result = String(expr);
+    for (const [pattern, replacement] of VAR_TO_TRIG_PATTERNS) {
+      result = result.replace(pattern, replacement);
+    }
+    return result;
+  }
+
+  /**
+   * 式を通分する。三角関数を一時変数に置換してから math.rationalize を使う。
+   * 通分できないか不要な場合は入力をそのまま返す。
+   */
+  function computeCommonDenominator(expr) {
+    const trimmed = String(expr || '').trim();
+    if (!trimmed) return '';
+    try {
+      const substituted = substituteTrigToVars(trimmed);
+      const ratNode = math.rationalize(substituted);
+      const ratStr = ratNode.toString();
+      const restored = substituteVarsToTrig(ratStr);
+      return restored;
+    } catch (e) {
+      // rationalize できないときは入力をそのまま返す（通分不要扱い）
+      return trimmed;
+    }
+  }
+
+  /**
+   * 内部表記の式を、人間が読みやすい形にフォーマットする。
+   * 例: sin(theta)^2 → sin²θ,  tan(theta) → tanθ,  * → ·
+   */
+  function prettyFormatExpression(expr) {
+    if (!expr) return '';
+    let s = String(expr);
+    // 三角関数の二乗を ² 記号で
+    s = s.replace(/sin\(theta\)\s*\^\s*2/g, 'sin²θ');
+    s = s.replace(/cos\(theta\)\s*\^\s*2/g, 'cos²θ');
+    s = s.replace(/tan\(theta\)\s*\^\s*2/g, 'tan²θ');
+    // 三角関数の単体
+    s = s.replace(/sin\(theta\)/g, 'sinθ');
+    s = s.replace(/cos\(theta\)/g, 'cosθ');
+    s = s.replace(/tan\(theta\)/g, 'tanθ');
+    // theta 単体
+    s = s.replace(/\btheta\b/g, 'θ');
+    // 掛け算記号を中点に
+    s = s.replace(/\s*\*\s*/g, '·');
+    // 余分な空白を整理
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  // ============================================
+  // mathjs の式（文字列または AST）→ Blockly ブロックの JSON 構造への変換
+  // ユーザーが通分結果を「実際のブロック」として扱えるようにするため。
+  // 対応する Blockly ブロック:
+  //   custom_number, term_theta, term_sin_of/cos_of/tan_of,
+  //   math_add, math_negate, math_multiply, math_fraction, math_square
+  // ============================================
+
+  // 内部ヘルパ: 1つの数値で `custom_number` ブロック JSON を作る
+  function _bNumber(n) {
+    return { type: 'custom_number', fields: { NUM: n } };
+  }
+  function _bTermTheta() { return { type: 'term_theta' }; }
+  function _bSinOf(angle) {
+    return { type: 'term_sin_of', inputs: { ANGLE: { block: angle } } };
+  }
+  function _bCosOf(angle) {
+    return { type: 'term_cos_of', inputs: { ANGLE: { block: angle } } };
+  }
+  function _bTanOf(angle) {
+    return { type: 'term_tan_of', inputs: { ANGLE: { block: angle } } };
+  }
+  function _bAdd(a, b) {
+    return { type: 'math_add', inputs: { A: { block: a }, B: { block: b } } };
+  }
+  function _bNegate(a) {
+    return { type: 'math_negate', inputs: { A: { block: a } } };
+  }
+  function _bMultiply(a, b) {
+    return { type: 'math_multiply', inputs: { A: { block: a }, B: { block: b } } };
+  }
+  function _bFraction(num, den) {
+    return { type: 'math_fraction', inputs: { NUMERATOR: { block: num }, DENOMINATOR: { block: den } } };
+  }
+  function _bSquare(a) {
+    return { type: 'math_square', inputs: { A: { block: a } } };
+  }
+
+  /**
+   * mathjs の AST ノードを Blockly ブロック JSON に変換する。
+   * 未対応のノードや変換失敗時は null を返す。
+   */
+  function mathNodeToBlocklyJson(node) {
+    if (!node) return null;
+
+    // 数値リテラル
+    if (node.isConstantNode) {
+      const v = node.value;
+      if (typeof v === 'number') {
+        // 負の数は math_negate で包む（custom_number は正の数前提）
+        if (v < 0) return _bNegate(_bNumber(-v));
+        return _bNumber(v);
+      }
+      return _bNumber(0);
+    }
+
+    // シンボル（変数）
+    if (node.isSymbolNode) {
+      if (node.name === 'theta') return _bTermTheta();
+      return null; // それ以外の変数は未対応
+    }
+
+    // 関数呼び出し（sin, cos, tan）
+    if (node.isFunctionNode) {
+      const fnName = node.fn?.name || node.name;
+      const arg = node.args && node.args[0];
+      const argBlock = mathNodeToBlocklyJson(arg);
+      if (!argBlock) return null;
+      if (fnName === 'sin') return _bSinOf(argBlock);
+      if (fnName === 'cos') return _bCosOf(argBlock);
+      if (fnName === 'tan') return _bTanOf(argBlock);
+      return null;
+    }
+
+    // 演算子
+    if (node.isOperatorNode) {
+      const op = node.op;
+      const args = node.args || [];
+
+      // 単項マイナス: -A
+      if (op === '-' && args.length === 1) {
+        const a = mathNodeToBlocklyJson(args[0]);
+        return a ? _bNegate(a) : null;
+      }
+
+      // 二項マイナス: A - B → math_add(A, math_negate(B))
+      if (op === '-' && args.length === 2) {
+        const a = mathNodeToBlocklyJson(args[0]);
+        const b = mathNodeToBlocklyJson(args[1]);
+        if (!a || !b) return null;
+        return _bAdd(a, _bNegate(b));
+      }
+
+      // 加算: 多項のときは左結合で reduce
+      if (op === '+' && args.length >= 2) {
+        const parts = args.map(mathNodeToBlocklyJson);
+        if (parts.some((p) => !p)) return null;
+        return parts.reduce((acc, p) => _bAdd(acc, p));
+      }
+
+      // 乗算: 多項のときは左結合で reduce
+      if (op === '*' && args.length >= 2) {
+        const parts = args.map(mathNodeToBlocklyJson);
+        if (parts.some((p) => !p)) return null;
+        return parts.reduce((acc, p) => _bMultiply(acc, p));
+      }
+
+      // 除算: A / B → math_fraction
+      if (op === '/' && args.length === 2) {
+        const num = mathNodeToBlocklyJson(args[0]);
+        const den = mathNodeToBlocklyJson(args[1]);
+        if (!num || !den) return null;
+        return _bFraction(num, den);
+      }
+
+      // べき乗: A ^ 2 → math_square、A ^ n（n が整数）は再帰的に積で展開
+      if (op === '^' && args.length === 2) {
+        const base = mathNodeToBlocklyJson(args[0]);
+        if (!base) return null;
+        // 指数が定数の整数か確認
+        const expNode = args[1];
+        if (expNode.isConstantNode && typeof expNode.value === 'number') {
+          const exp = expNode.value;
+          if (exp === 2) return _bSquare(base);
+          if (exp === 1) return base;
+          // 3以上の小さい整数は積で展開
+          if (Number.isInteger(exp) && exp > 2 && exp <= 6) {
+            // base^n = base * base * ... * base
+            let result = base;
+            for (let i = 1; i < exp; i++) {
+              // 各回新しいブロックインスタンスが必要なので JSON.parse(JSON.stringify(...)) で複製
+              result = _bMultiply(result, JSON.parse(JSON.stringify(base)));
+            }
+            return result;
+          }
+        }
+        return null; // それ以外のべき乗は未対応
+      }
+
+      // 括弧（ParenthesisNode が来た場合の念のため）
+      if (op === '' && args.length === 1) {
+        return mathNodeToBlocklyJson(args[0]);
+      }
+
+      return null;
+    }
+
+    // 括弧ノード
+    if (node.isParenthesisNode) {
+      return mathNodeToBlocklyJson(node.content);
+    }
+
+    return null;
+  }
+
+  /**
+   * 式文字列 → Blockly ブロック JSON 構造
+   * 失敗時は null を返す。
+   */
+  function mathExprToBlocklyJson(exprString) {
+    if (typeof exprString !== 'string' || !exprString.trim()) return null;
+    try {
+      const node = math.parse(exprString);
+      return mathNodeToBlocklyJson(node);
+    } catch (e) {
+      console.warn('[mathExprToBlocklyJson] 変換失敗:', e.message, '入力:', exprString);
+      return null;
+    }
   }
 
   Object.assign(globalScope, {
@@ -1246,5 +1542,9 @@
     collectAppliedFormulaIdsFromAST,
     getErrorMessage,
     validateProof,
+    computeCommonDenominator,
+    prettyFormatExpression,
+    expressionFromSerializedBlock,
+    mathExprToBlocklyJson,
   });
 }(window));

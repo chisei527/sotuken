@@ -1,11 +1,6 @@
 {
   "id": "0-7",
   "mathText": "\\[ \\sin^2\\theta + \\cos^2\\theta + \\tan^2\\theta = \\frac{1}{\\cos^2\\theta} \\]",
-  "requiredBlocks": [
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"replace_operation\"",
-    "\"type\":\"conclusion_operation\""
-  ],
   "requiredFormulas": [
     "formula_1",
     "formula_3"
@@ -98,7 +93,7 @@
         {
           "type": "proof_step",
           "x": 50,
-          "y": 150
+          "y": 220
         }
       ]
     }
@@ -109,8 +104,6 @@
       "blocks": [
         {
           "type": "math_add",
-          "x": 50,
-          "y": 50,
           "inputs": {
             "A": {
               "block": {
@@ -155,12 +148,12 @@
                 }
               }
             }
-          }
+          },
+          "x": 50,
+          "y": 50
         },
         {
           "type": "math_fraction",
-          "x": 600,
-          "y": 50,
           "inputs": {
             "NUMERATOR": {
               "block": {
@@ -182,12 +175,14 @@
                 }
               }
             }
-          }
+          },
+          "x": 600,
+          "y": 50
         },
         {
           "type": "proof_step",
           "x": 50,
-          "y": 150,
+          "y": 220,
           "inputs": {
             "OPERATIONS": {
               "block": {
@@ -199,11 +194,30 @@
                       "inputs": {
                         "A": {
                           "block": {
-                            "type": "math_square",
+                            "type": "math_add",
                             "inputs": {
                               "A": {
                                 "block": {
-                                  "type": "term_sin"
+                                  "type": "math_square",
+                                  "inputs": {
+                                    "A": {
+                                      "block": {
+                                        "type": "term_sin"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "math_square",
+                                  "inputs": {
+                                    "A": {
+                                      "block": {
+                                        "type": "term_cos"
+                                      }
+                                    }
+                                  }
                                 }
                               }
                             }
@@ -215,7 +229,7 @@
                             "inputs": {
                               "A": {
                                 "block": {
-                                  "type": "term_cos"
+                                  "type": "term_tan"
                                 }
                               }
                             }
@@ -231,9 +245,28 @@
                   },
                   "REPLACEMENT": {
                     "block": {
-                      "type": "custom_number",
-                      "fields": {
-                        "NUM": 1
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "custom_number",
+                            "fields": {
+                              "NUM": 1
+                            }
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_square",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_tan"
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
