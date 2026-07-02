@@ -53,9 +53,33 @@ window.sortBlocksByPosition = function(blocks) {
   });
 };
 
+// answerState (問題JSONの解答例) から操作ブロックのタイプ列を抽出する。
+// 本編の問題JSONは requiredBlocks を持たないので、解答例のブロック連鎖から
+// 「何のブロックが何個必要か」を推測してヒント自動生成に使う (フォールバック)。
+// 例: replace → replace → conclusion なら
+//     ['replace_operation', 'replace_operation', 'conclusion_operation']
+window.extractOperationTypesFromAnswerState = function(problemData) {
+  const proofBlock = problemData?.answerState?.blocks?.blocks?.find((block) => block?.type === 'proof_step');
+  let current = proofBlock?.inputs?.OPERATIONS?.block || null;
+  const types = [];
+  while (current) {
+    if (typeof current.type === 'string' && window.isProofOrOperationBlockType(current.type) && current.type !== 'proof_step') {
+      types.push(current.type);
+    }
+    current = current?.next?.block || null;
+  }
+  return types;
+};
+
 window.getTutorialTargetOperationState = function(stageId) {
   if (!window.workspace || !window.currentProblemData) return null;
-  const requiredTypes = window.parseRequiredBlockTypes(window.currentProblemData.requiredBlocks || []);
+
+  // requiredBlocks が明示されていればそれを使う (チュートリアル)。
+  // 空・未設定なら answerState から自動抽出する (本編用フォールバック)。
+  let requiredTypes = window.parseRequiredBlockTypes(window.currentProblemData.requiredBlocks || []);
+  if (requiredTypes.length === 0) {
+    requiredTypes = window.extractOperationTypesFromAnswerState(window.currentProblemData);
+  }
   if (requiredTypes.length === 0) return { isComplete: true, requiredTypes: [] };
 
   const blocksByType = Object.create(null);
@@ -113,14 +137,9 @@ window.getTutorialGoalState = function(stageId) {
 };
 
 window.getTutorialBannerText = function(stageId) {
-  // ① 本編ステージで JSON に hints が設定されている場合はそれを優先表示
-  if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(stageId)) {
-    if (window.currentProblemData && Array.isArray(window.currentProblemData.hints) && window.currentProblemData.hints.length > 0) {
-      const index = window.currentHintIndex || 0;
-      return `💡 ヒント ${index + 1}/${window.currentProblemData.hints.length}： ${window.currentProblemData.hints[index]}`;
-    }
-  }
-  // ② チュートリアルやヒント未設定の場合はブロックの配置状況から自動生成
+  // 本編・チュートリアル共通: 現在のブロック配置状況から次にやるべきことを自動生成する。
+  // 以前は本編用に problems/N.json の hints 配列を参照していたが、
+  // チュートリアルと同じ自動生成方式に統一した (旧 hints フィールドは無視される)。
   const state = window.getTutorialGoalState(stageId);
   return state ? state.text : '';
 };

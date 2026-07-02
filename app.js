@@ -7,6 +7,26 @@ window.setupEventListeners = function() {
   if (window.hasBoundEventListeners) return;
   window.hasBoundEventListeners = true;
 
+  // ⬅️➡️ 前の問題 / 次の問題ボタン
+  const btnPrev = document.getElementById('btn-prev-stage');
+  const btnNext = document.getElementById('btn-next-stage');
+  if (btnPrev) {
+    btnPrev.addEventListener('click', async () => {
+      const prev = window.getPrevStageId ? window.getPrevStageId(window.currentStageNumber) : null;
+      if (prev !== null && typeof window.transitionToStage === 'function') {
+        await window.transitionToStage(prev);
+      }
+    });
+  }
+  if (btnNext) {
+    btnNext.addEventListener('click', async () => {
+      const next = window.getNextStageId ? window.getNextStageId(window.currentStageNumber) : null;
+      if (next !== null && typeof window.transitionToStage === 'function') {
+        await window.transitionToStage(next);
+      }
+    });
+  }
+
   // 🔄 リセットボタン
   const btnReset = document.getElementById('btn-reset');
   if (btnReset) {
@@ -26,6 +46,15 @@ window.setupEventListeners = function() {
         return;
       }
       if (window.workspace) {
+        // 解答例を見やすくするため、まず拡大率を1.0に戻してスクロール位置もリセット
+        try {
+          if (typeof window.workspace.setScale === 'function') {
+            window.workspace.setScale(1);
+          }
+          if (typeof window.workspace.scroll === 'function') {
+            window.workspace.scroll(0, 0);
+          }
+        } catch (_) { /* 失敗してもクリア処理は続行 */ }
         window.workspace.clear();
         Blockly.serialization.workspaces.load(window.currentProblemData.answerState, window.workspace);
         if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
@@ -278,6 +307,7 @@ window.scheduleAutoAdvanceAfterClear = function() {
 window.bootApplication = function() {
   window.setupEventListeners();
   if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
+  if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();
 
   const entrance = document.getElementById('game-entrance');
   if (entrance && !entrance.classList.contains('hidden')) {
@@ -295,20 +325,167 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- データリセットと全開放機能（マップ画面のボタン用） ---
 window.resetSaveData = function() {
   if (!confirm('セーブデータとアンロックした公式をすべてリセットしますか？')) return;
-  localStorage.removeItem('s');
-  localStorage.removeItem('tutorial_progress');
-  localStorage.removeItem('tutorial_seen');
-  localStorage.removeItem('unlocked_formulas');
+  // APP_STORAGE_KEYS（unlock_all を含む）に登録されているキーを全て削除する。
+  // 個別 removeItem の積み上げだと unlock_all の消し忘れなど抜けが出るので、
+  // APP_STORAGE_KEYS を信頼の置ける単一の真実として使う。
+  const keys = Array.isArray(window.APP_STORAGE_KEYS)
+    ? window.APP_STORAGE_KEYS
+    : ['s', 'tutorial_progress', 'tutorial_seen', 'unlocked_formulas', 'unlock_all'];
+  keys.forEach((key) => { if (key) localStorage.removeItem(key); });
+
   window.clearedStages = [];
   window.unlockedFormulas = [];
   window.currentStreak = 0;
+  window.unlockAll = false;
+
+  if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();
   if (typeof window.renderStageMap === 'function') window.renderStageMap();
   if (typeof window.showToast === 'function') window.showToast('データを初期化しました。');
 };
 
+// 全問題を開放する / 解除する のトグル
 window.unlockAllStages = function() {
-  window.unlockAll = true;
-  localStorage.setItem('unlock_all', '1'); // リロードしても全開放が維持されるように保存
+  if (window.unlockAll) {
+    // 既に開放中 → 解除
+    window.unlockAll = false;
+    localStorage.removeItem('unlock_all');
+    if (typeof window.showToast === 'function') window.showToast('全開放を解除しました。');
+  } else {
+    // 開放
+    window.unlockAll = true;
+    localStorage.setItem('unlock_all', '1');
+    if (typeof window.showToast === 'function') window.showToast('全ステージを開放しました。');
+  }
+  if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();
   if (typeof window.renderStageMap === 'function') window.renderStageMap();
-  if (typeof window.showToast === 'function') window.showToast('全ステージを開放しました。');
 };
+
+// 全開放ボタンの文言を現在の状態に合わせて切り替える
+window.syncUnlockAllButtonLabel = function() {
+  const btn = document.getElementById('btn-unlock-all');
+  if (!btn) return;
+  btn.textContent = window.unlockAll ? '全開放を解除' : '全問題を開放';
+};
+// ============================================
+// 📘 公式リファレンスモーダル
+// ============================================
+// ヘッダーの「公式解説」ボタンから開く。
+// 解説コンテンツ本体 (公式解説、三角関数の基礎、SVG) は explanations.js に分離。
+// このセクションはモーダルの表示制御ロジックのみを担当。
+
+// 1つの解説エントリをモーダルに描画する。
+// formulaId で FORMULA_REGISTRY のエントリを、
+// basics_XX で TRIG_BASICS_ENTRIES を選ぶ。
+window.renderFormulaReference = function(entryId) {
+  // タブのアクティブ切り替え
+  document.querySelectorAll('#formula-ref-tabs .formula-ref-tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.entryId === entryId);
+  });
+
+  // FORMULA_REGISTRY の公式か、TRIG_BASICS_ENTRIES の基礎解説かを判定
+  const registry = window.FORMULA_REGISTRY || {};
+  const basics = window.TRIG_BASICS_ENTRIES || [];
+  const basicsEntry = basics.find((b) => b.id === entryId);
+
+  let textHtml = '';
+  let svgKey = null;
+
+  if (basicsEntry) {
+    // 三角関数の基礎エントリ
+    const body = basicsEntry.body;
+    const sectionsHtml = body.sections.map((s) => {
+      const content = s.isRawHtml ? s.body : `<p>${s.body}</p>`;
+      return `<h3>${s.heading}</h3>${content}`;
+    }).join('');
+    textHtml = `
+      <div class="formula-display">$$${body.displayLatex}$$</div>
+      ${sectionsHtml}
+    `;
+    svgKey = body.svgKey;
+  } else if (registry[entryId] && registry[entryId].explanation) {
+    // 公式エントリ
+    const exp = registry[entryId].explanation;
+    textHtml = `
+      <div class="formula-display">$$${exp.displayLatex}$$</div>
+      <h3>意味</h3><p>${exp.meaning}</p>
+      <h3>導出</h3><p>${exp.derivation}</p>
+      <h3>使いどころ</h3><p>${exp.usage}</p>
+      ${exp.variants && exp.variants.length > 0 ? `
+        <h3>派生形</h3>
+        <div class="formula-variants">
+          ${exp.variants.map((v) => `<div>$$${v}$$</div>`).join('')}
+        </div>` : ''}
+    `;
+    svgKey = exp.svgKey;
+  } else {
+    return;
+  }
+
+  const textArea = document.getElementById('formula-ref-text');
+  if (textArea) textArea.innerHTML = textHtml;
+
+  // SVG 図
+  const imageArea = document.getElementById('formula-ref-image');
+  if (imageArea) {
+    const svg = svgKey ? window.getFormulaReferenceSvg(svgKey) : '';
+    imageArea.innerHTML = svg
+      || '<div style="color: var(--cyber-muted); font-size: 0.85rem; text-align:center;">この項目には図はありません</div>';
+  }
+
+  // MathJax で数式を組版し直す
+  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+    window.MathJax.typesetPromise([textArea]).catch(() => { /* MathJax 未準備時は無視 */ });
+  }
+};
+
+// モーダルを開く。初期表示は「三角関数とは」から。
+window.openFormulaReferenceModal = function(initialEntryId) {
+  const modal = document.getElementById('formula-reference-modal');
+  const tabsArea = document.getElementById('formula-ref-tabs');
+  if (!modal || !tabsArea) return;
+
+  // タブ一覧を構築（三角関数の基礎 → 公式 の順）
+  const registry = window.FORMULA_REGISTRY || {};
+  const basics = window.TRIG_BASICS_ENTRIES || [];
+  const formulaIds = Object.keys(registry).filter((id) => registry[id].explanation);
+
+  const tabs = [];
+  basics.forEach((b) => tabs.push({ id: b.id, label: b.label }));
+  formulaIds.forEach((id) => tabs.push({ id, label: registry[id].label }));
+
+  tabsArea.innerHTML = tabs.map((t) =>
+    `<button class="formula-ref-tab" data-entry-id="${t.id}" type="button">${t.label}</button>`
+  ).join('');
+
+  tabsArea.querySelectorAll('.formula-ref-tab').forEach((tab) => {
+    tab.addEventListener('click', () => window.renderFormulaReference(tab.dataset.entryId));
+  });
+
+  // 初期表示するエントリ（指定なしなら最初のタブ）
+  const availableIds = tabs.map((t) => t.id);
+  const startId = initialEntryId && availableIds.includes(initialEntryId) ? initialEntryId : availableIds[0];
+  modal.classList.remove('hidden');
+  if (startId) window.renderFormulaReference(startId);
+};
+
+window.closeFormulaReferenceModal = function() {
+  const modal = document.getElementById('formula-reference-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
+// 起動時にボタンへハンドラを付ける
+(function setupFormulaReferenceButton() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const openBtn = document.getElementById('btn-formula-reference');
+    const closeBtn = document.getElementById('btn-formula-reference-close');
+    const modal = document.getElementById('formula-reference-modal');
+    if (openBtn) openBtn.addEventListener('click', () => window.openFormulaReferenceModal());
+    if (closeBtn) closeBtn.addEventListener('click', () => window.closeFormulaReferenceModal());
+    // モーダル背景クリックで閉じる
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) window.closeFormulaReferenceModal();
+      });
+    }
+  });
+})();

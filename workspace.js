@@ -22,6 +22,7 @@ window.buildToolboxConfig = function(problemData) {
           { kind: 'block', type: 'term_cos2' },
           { kind: 'block', type: 'term_theta' },
           { kind: 'block', type: 'math_add' },
+          { kind: 'block', type: 'math_subtract' },
           { kind: 'block', type: 'math_negate' },
           { kind: 'block', type: 'math_multiply' },
           { kind: 'block', type: 'math_fraction' },
@@ -60,6 +61,27 @@ const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
 });
 
 // 3. ワークスペースの起動（机を画面に置く）
+
+// 接続スナップ範囲を拡大して、穴への当たり判定を広くする。
+// Blocklyのバージョン差を吸収するため、定数とconfig両方に書き込む。
+// デフォルト: SNAP_RADIUS ~ 28, CONNECTING_SNAP_RADIUS ~ 68
+(function widenSnapRadius() {
+  const SNAP = 48;            // 接続中のブロックがスナップする距離
+  const CONNECTING_SNAP = 96; // ドラッグ中の接続候補ハイライト距離
+  try {
+    if (typeof Blockly !== 'undefined') {
+      // 旧API（フィールドの直接書き換え）
+      if ('SNAP_RADIUS' in Blockly) Blockly.SNAP_RADIUS = SNAP;
+      if ('CONNECTING_SNAP_RADIUS' in Blockly) Blockly.CONNECTING_SNAP_RADIUS = CONNECTING_SNAP;
+      // 新API（config経由）
+      if (Blockly.config) {
+        Blockly.config.snapRadius = SNAP;
+        Blockly.config.connectingSnapRadius = CONNECTING_SNAP;
+      }
+    }
+  } catch (_) { /* バージョン差で書き込めなくても致命的ではない */ }
+})();
+
 window.workspace = Blockly.inject('l', {
   toolbox: window.buildToolboxConfig(),
   renderer: 'zelos',

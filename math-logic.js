@@ -540,6 +540,11 @@
         const b = expressionFromSerializedBlock(readInputBlock(block, 'B')) || '0';
         return `(${a} + ${b})`;
       }
+      case 'math_subtract': {
+        const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '0';
+        const b = expressionFromSerializedBlock(readInputBlock(block, 'B')) || '0';
+        return `(${a} - ${b})`;
+      }
       case 'math_negate': {
         const a = expressionFromSerializedBlock(readInputBlock(block, 'A')) || '0';
         return `(-(${a}))`;
@@ -1275,58 +1280,81 @@
 
   // ============================================
   // 通分の自動計算
-  // 戦略: 三角関数を一時変数に置換 → math.rationalize → 元に戻す
+  // 戦略: 式の構文木(AST)を辿り、sin/cos/tan の呼び出しを
+  //       （引数が何であれ）一時変数に置換 → math.rationalize → 元に戻す。
+  //       正規表現の決め打ちではなく AST ベースなので、
+  //       cos(2*theta) や sin(theta/2) のような任意の角度にも対応できる。
   // ============================================
 
-  // 三角関数表記 → 一時変数 への置換マップ（長いものから先に処理）
-  const TRIG_TO_VAR_PATTERNS = [
-    [/sin\(theta\)\^2/g, '_SS'],
-    [/cos\(theta\)\^2/g, '_CC'],
-    [/tan\(theta\)\^2/g, '_TT'],
-    [/sin\(theta\)/g, '_S'],
-    [/cos\(theta\)/g, '_C'],
-    [/tan\(theta\)/g, '_T'],
-  ];
+  // 通分計算で扱う異なる三角関数項の数の上限（重さ対策）
+  const COMMON_DENOMINATOR_MAX_TRIG_TERMS = 8;
 
-  // 一時変数 → 三角関数表記 への逆置換
-  const VAR_TO_TRIG_PATTERNS = [
-    [/\b_SS\b/g, 'sin(theta)^2'],
-    [/\b_CC\b/g, 'cos(theta)^2'],
-    [/\b_TT\b/g, 'tan(theta)^2'],
-    [/\b_S\b/g, 'sin(theta)'],
-    [/\b_C\b/g, 'cos(theta)'],
-    [/\b_T\b/g, 'tan(theta)'],
-  ];
+  /**
+   * 式の AST を辿り、sin/cos/tan の FunctionNode を一時変数 (SymbolNode) に置換する。
+   * 同じ関数名・同じ引数（文字列表現が一致）の呼び出しは同じ変数にまとめる。
+   * 戻り値: { substitutedNode, restoreMap }
+   *   restoreMap: 一時変数名 → 元の FunctionNode（クローン）
+   */
+  function substituteTrigFunctionsInNode(node) {
+    const restoreMap = new Map(); // varName -> 元のFunctionNodeクローン
+    const keyToVarName = new Map(); // "fnName|argString" -> varName
+    let counter = 0;
 
-  function substituteTrigToVars(expr) {
-    let result = String(expr);
-    for (const [pattern, replacement] of TRIG_TO_VAR_PATTERNS) {
-      result = result.replace(pattern, replacement);
-    }
-    return result;
-  }
+    const substitutedNode = node.transform((n) => {
+      if (n.isFunctionNode) {
+        const fnName = n.fn && n.fn.name;
+        if (fnName === 'sin' || fnName === 'cos' || fnName === 'tan') {
+          const argString = n.args && n.args[0] ? n.args[0].toString() : '';
+          const key = `${fnName}|${argString}`;
+          let varName = keyToVarName.get(key);
+          if (!varName) {
+            varName = `_TRIGVAR${counter}`;
+            counter += 1;
+            keyToVarName.set(key, varName);
+            restoreMap.set(varName, n.clone());
+          }
+          return new math.SymbolNode(varName);
+        }
+      }
+      return n;
+    });
 
-  function substituteVarsToTrig(expr) {
-    let result = String(expr);
-    for (const [pattern, replacement] of VAR_TO_TRIG_PATTERNS) {
-      result = result.replace(pattern, replacement);
-    }
-    return result;
+    return { substitutedNode, restoreMap, distinctCount: keyToVarName.size };
   }
 
   /**
-   * 式を通分する。三角関数を一時変数に置換してから math.rationalize を使う。
-   * 通分できないか不要な場合は入力をそのまま返す。
+   * AST を辿り、一時変数 (SymbolNode) を元の三角関数呼び出しに復元する。
+   */
+  function restoreTrigFunctionsInNode(node, restoreMap) {
+    return node.transform((n) => {
+      if (n.isSymbolNode && restoreMap.has(n.name)) {
+        return restoreMap.get(n.name).clone();
+      }
+      return n;
+    });
+  }
+
+  /**
+   * 式を通分する。
+   * sin/cos/tan の呼び出しを（引数を問わず）一時変数に置換してから
+   * math.rationalize で通分し、元の三角関数表記に復元する。
+   * 通分できない・不要な場合や、異なる三角関数項が多すぎる場合は入力をそのまま返す。
    */
   function computeCommonDenominator(expr) {
     const trimmed = String(expr || '').trim();
     if (!trimmed) return '';
     try {
-      const substituted = substituteTrigToVars(trimmed);
-      const ratNode = math.rationalize(substituted);
-      const ratStr = ratNode.toString();
-      const restored = substituteVarsToTrig(ratStr);
-      return restored;
+      const node = math.parse(trimmed);
+      const { substitutedNode, restoreMap, distinctCount } = substituteTrigFunctionsInNode(node);
+
+      // 異なる三角関数項が多すぎる場合は自動化を諦める（重さ対策）
+      if (distinctCount > COMMON_DENOMINATOR_MAX_TRIG_TERMS) {
+        return trimmed;
+      }
+
+      const ratNode = math.rationalize(substitutedNode);
+      const restoredNode = restoreTrigFunctionsInNode(ratNode, restoreMap);
+      return restoredNode.toString();
     } catch (e) {
       // rationalize できないときは入力をそのまま返す（通分不要扱い）
       return trimmed;
@@ -1362,7 +1390,7 @@
   // ユーザーが通分結果を「実際のブロック」として扱えるようにするため。
   // 対応する Blockly ブロック:
   //   custom_number, term_theta, term_sin_of/cos_of/tan_of,
-  //   math_add, math_negate, math_multiply, math_fraction, math_square
+  //   math_add, math_subtract, math_negate, math_multiply, math_fraction, math_square
   // ============================================
 
   // 内部ヘルパ: 1つの数値で `custom_number` ブロック JSON を作る
@@ -1382,6 +1410,9 @@
   function _bAdd(a, b) {
     return { type: 'math_add', inputs: { A: { block: a }, B: { block: b } } };
   }
+  function _bSubtract(a, b) {
+    return { type: 'math_subtract', inputs: { A: { block: a }, B: { block: b } } };
+  }
   function _bNegate(a) {
     return { type: 'math_negate', inputs: { A: { block: a } } };
   }
@@ -1393,6 +1424,58 @@
   }
   function _bSquare(a) {
     return { type: 'math_square', inputs: { A: { block: a } } };
+  }
+
+  // 既製の短縮ブロック（sin2θ, cos2θ など）
+  function _bTermSin2() { return { type: 'term_sin2' }; }
+  function _bTermCos2() { return { type: 'term_cos2' }; }
+  // 角度の短縮ブロック (2θ, 3θ, 4θ, 5θ)
+  const _N_THETA_BLOCKS = {
+    2: 'term_two_theta',
+    3: 'term_three_theta',
+    4: 'term_four_theta',
+    5: 'term_five_theta',
+  };
+
+  /**
+   * arg ノードが N*theta（または theta*N）の形か判定し、N が整数で対応する
+   * 短縮角度ブロック (term_two_theta 等) があれば、そのブロック JSON を返す。
+   * 合致しなければ null。
+   */
+  function _matchNThetaShortcut(argNode) {
+    if (!argNode || !argNode.isOperatorNode) return null;
+    if (argNode.op !== '*' || !argNode.args || argNode.args.length !== 2) return null;
+    const [a, b] = argNode.args;
+    let nVal = null;
+    let isTheta = false;
+    if (a.isConstantNode && b.isSymbolNode && b.name === 'theta') {
+      nVal = a.value; isTheta = true;
+    } else if (b.isConstantNode && a.isSymbolNode && a.name === 'theta') {
+      nVal = b.value; isTheta = true;
+    }
+    if (!isTheta || typeof nVal !== 'number' || !Number.isInteger(nVal)) return null;
+    const typeName = _N_THETA_BLOCKS[nVal];
+    return typeName ? { type: typeName } : null;
+  }
+
+  /**
+   * sin/cos(N*theta) のような典型パターンに既製ブロック（term_sin2, term_cos2 等）が
+   * あれば、それを返す。なければ null（呼び出し元で通常の term_sin_of などにフォールバック）。
+   */
+  function _detectTrigShortcut(fnName, argNode) {
+    if (!argNode) return null;
+    // sin(2*theta) / cos(2*theta) -> term_sin2 / term_cos2
+    if (argNode.isOperatorNode && argNode.op === '*' && argNode.args && argNode.args.length === 2) {
+      const [a, b] = argNode.args;
+      const isTwoTheta =
+        (a.isConstantNode && a.value === 2 && b.isSymbolNode && b.name === 'theta') ||
+        (b.isConstantNode && b.value === 2 && a.isSymbolNode && a.name === 'theta');
+      if (isTwoTheta) {
+        if (fnName === 'sin') return _bTermSin2();
+        if (fnName === 'cos') return _bTermCos2();
+      }
+    }
+    return null;
   }
 
   /**
@@ -1423,6 +1506,12 @@
     if (node.isFunctionNode) {
       const fnName = node.fn?.name || node.name;
       const arg = node.args && node.args[0];
+
+      // ショートカット: sin(N*theta), cos(N*theta) の N=2,3,4,5 は既製ブロックがある
+      // (tan には対応する term_tan2 等が無いので扱わない)
+      const shortcut = _detectTrigShortcut(fnName, arg);
+      if (shortcut) return shortcut;
+
       const argBlock = mathNodeToBlocklyJson(arg);
       if (!argBlock) return null;
       if (fnName === 'sin') return _bSinOf(argBlock);
@@ -1442,12 +1531,12 @@
         return a ? _bNegate(a) : null;
       }
 
-      // 二項マイナス: A - B → math_add(A, math_negate(B))
+      // 二項マイナス: A - B → math_subtract（1ブロックで A − B を表現）
       if (op === '-' && args.length === 2) {
         const a = mathNodeToBlocklyJson(args[0]);
         const b = mathNodeToBlocklyJson(args[1]);
         if (!a || !b) return null;
-        return _bAdd(a, _bNegate(b));
+        return _bSubtract(a, b);
       }
 
       // 加算: 多項のときは左結合で reduce
@@ -1457,8 +1546,13 @@
         return parts.reduce((acc, p) => _bAdd(acc, p));
       }
 
-      // 乗算: 多項のときは左結合で reduce
+      // 乗算: N*theta なら短縮角度ブロックに、それ以外は通常通り
       if (op === '*' && args.length >= 2) {
+        // 2項のときだけ N*theta 短縮を試みる
+        if (args.length === 2) {
+          const nthetaShortcut = _matchNThetaShortcut(node);
+          if (nthetaShortcut) return nthetaShortcut;
+        }
         const parts = args.map(mathNodeToBlocklyJson);
         if (parts.some((p) => !p)) return null;
         return parts.reduce((acc, p) => _bMultiply(acc, p));
@@ -1547,4 +1641,6 @@
     expressionFromSerializedBlock,
     mathExprToBlocklyJson,
   });
+  console.log('[math-logic.js] 実行完了、FORMULA_REGISTRY 公開');
 }(window));
+console.log('[math-logic.js] IIFE 呼び出し完了');

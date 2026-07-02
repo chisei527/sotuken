@@ -1,3 +1,60 @@
+// ===== Blocklyコンテキストメニューの日本語化 =====
+// 右クリックメニュー項目の文言を日本語化し、ショートカットキーを併記する。
+// Blockly本体読み込み後、ブロック定義より前に実行する必要がある。
+(function localizeBlocklyMessages() {
+  if (typeof Blockly === 'undefined' || !Blockly.Msg) return;
+  const M = Blockly.Msg;
+  // ブロックを右クリックしたときのメニュー
+  M.DUPLICATE_BLOCK = '複製  (Ctrl+C → Ctrl+V)';
+  M.ADD_COMMENT = 'コメントを追加';
+  M.REMOVE_COMMENT = 'コメントを削除';
+  M.DUPLICATE_COMMENT = 'コメントを複製';
+  M.EDIT_COMMENT = 'コメントを編集';
+  M.EXTERNAL_INPUTS = '外側に表示';
+  M.INLINE_INPUTS = 'インラインに表示';
+  M.DELETE_BLOCK = 'ブロックを削除  (Delete)';
+  M.DELETE_X_BLOCKS = '%1個のブロックを削除  (Delete)';
+  M.DELETE_ALL_BLOCKS = '全 %1 ブロックを削除しますか？';
+  M.COLLAPSE_BLOCK = 'ブロックを折りたたむ';
+  M.COLLAPSE_ALL = '全ブロックを折りたたむ';
+  M.EXPAND_BLOCK = 'ブロックを展開';
+  M.EXPAND_ALL = '全ブロックを展開';
+  M.DISABLE_BLOCK = 'ブロックを無効化';
+  M.ENABLE_BLOCK = 'ブロックを有効化';
+  M.HELP = 'ヘルプ';
+  // ワークスペース（背景）を右クリックしたときのメニュー
+  M.UNDO = '元に戻す  (Ctrl+Z)';
+  M.REDO = 'やり直し  (Ctrl+Shift+Z)';
+  M.CLEAN_UP = 'ブロックを整列';
+  // その他のよく出てくる文言
+  M.CHANGE_VALUE_TITLE = '値を変更:';
+  M.RENAME_VARIABLE = '変数の名前を変更…';
+  M.NEW_VARIABLE = '新しい変数…';
+  M.IOS_OK = 'OK';
+  M.IOS_CANCEL = 'キャンセル';
+})();
+
+// ===== 不要なコンテキストメニュー項目の撤去 =====
+// コメント機能・折りたたむ機能・無効化機能はこのアプリでは使わないので、
+// 右クリックメニューから取り除く。
+(function removeUnusedContextMenuItems() {
+  if (typeof Blockly === 'undefined' || !Blockly.ContextMenuRegistry) return;
+  const registry = Blockly.ContextMenuRegistry.registry;
+  const itemsToRemove = [
+    'blockComment',          // コメントを追加/削除
+    'workspaceComment',      // ワークスペースコメント
+    'collapseWorkspace',     // 全ブロックを折りたたむ
+    'expandWorkspace',       // 全ブロックを展開
+    'collapseBlock',         // ブロックを折りたたむ
+    'expandBlock',           // ブロックを展開
+    'blockDisable',          // ブロックを無効化/有効化
+  ];
+  itemsToRemove.forEach((id) => {
+    try { registry.unregister(id); } catch (_) { /* 既に未登録なら無視 */ }
+  });
+})();
+
+
 class FieldSpacer extends Blockly.Field {
   constructor(width) {
     super('');
@@ -108,9 +165,25 @@ function defineMathBlocks() {
     },
   };
 
+  // (A) - (B) の二項マイナス。math_add(A, math_negate(B)) の組み合わせより見やすい1ブロック。
+  Blockly.Blocks.math_subtract = {
+    init() {
+      this.appendValueInput('A');
+      // マイナス記号を NEG_SIGN フィールドにすることで、CSS で大きく表示できる
+      this.appendValueInput('B').appendField('−', 'NEG_SIGN');
+      this.setInputsInline(true);
+      this.setOutput(true, null);
+      this.setColour(30);
+    },
+  };
+
   Blockly.Blocks.math_negate = {
     init() {
-      this.appendValueInput('A').appendField('-(');
+      // マイナス記号(U+2212 MINUS SIGN) と '(' を別フィールドにして、
+      // マイナスだけCSSで大きく見せられるようにする (data-argument-name="NEG_SIGN")
+      this.appendValueInput('A')
+        .appendField('−', 'NEG_SIGN')
+        .appendField('(');
       this.appendDummyInput().appendField(')');
       this.setInputsInline(true);
       this.setOutput(true, null);
@@ -221,48 +294,63 @@ function defineMathBlocks() {
 
   // 通分ブロック：VALUE 入力に式を入れると、通分後の式を「実際のブロック」として
   // REPLACEMENT に自動構築・接続する。ユーザーは結果ブロックをコピー・再利用できる。
+  // 
+  // パフォーマンス対策:
+  //   1. onchange は debounce (300ms) して連発を抑制
+  //   2. VALUE の式が長すぎる場合は自動変換をスキップ（処理時間が爆発するため）
+  //   3. 関心のあるイベントタイプだけを拾う
+  // 通分ブロック：ボタン押下式
+  //   VALUE 入力に式を入れて「通分する」ボタンを押すと、通分結果を
+  //   ブロック構造として REPLACEMENT 入力に自動構築・接続する。
+  //   onchange は使わないことで、Blockly のイベント連鎖による暴走を完全に回避。
   Blockly.Blocks.common_denominator_operation = {
     init() {
+      const self = this;
+
+      // 通分する ボタン用の SVG（データURL）
+      const buttonSvg =
+        'data:image/svg+xml;utf8,' +
+        encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="30" viewBox="0 0 60 30">' +
+          '<rect x="1" y="1" width="58" height="28" rx="6" ry="6" fill="#f8f8f8" stroke="#666" stroke-width="1"/>' +
+          '<text x="30" y="20" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#222">通分する</text>' +
+          '</svg>'
+        );
+
       this.appendValueInput('VALUE').appendField('通分');
-      this.appendDummyInput().appendField('→');
+      this.appendDummyInput()
+        .appendField(
+          new Blockly.FieldImage(buttonSvg, 60, 30, 'compute', function () {
+            if (self && typeof self.updateCommonDenominatorReplacement === 'function') {
+              console.log('[通分] ボタンクリック → 通分計算開始');
+              self.updateCommonDenominatorReplacement();
+            }
+          })
+        )
+        .appendField('→');
       this.appendValueInput('REPLACEMENT');
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(120);
-      this.setTooltip('VALUE に式を入れると、通分結果が自動でブロックとして出ます');
+      this.setTooltip('VALUE に式を入れて「通分する」ボタンを押すと、通分結果が REPLACEMENT に出ます');
 
-      // 再帰防止フラグ：自分が REPLACEMENT を書き換える間、onchange を抑制する
+      // 再帰防止フラグ
       this._isUpdatingReplacement = false;
-    },
-    onchange: function (event) {
-      if (!this.workspace || this.isInFlyout) return;
-      if (!event) return;
-      // 自身による更新中は無視（再帰防止）
-      if (this._isUpdatingReplacement) return;
-      // 関心のあるイベントだけ拾う
-      if (event.type !== Blockly.Events.BLOCK_MOVE
-          && event.type !== Blockly.Events.BLOCK_CHANGE
-          && event.type !== Blockly.Events.BLOCK_CREATE
-          && event.type !== Blockly.Events.BLOCK_DELETE) {
-        return;
-      }
-      this.updateCommonDenominatorReplacement();
     },
     /**
      * VALUE 接続のブロックを式文字列に変換し、通分結果をブロック構造として
-     * REPLACEMENT 入力に自動接続する。
+     * REPLACEMENT 入力に自動接続する。「通分する」ボタンが押されたときに呼ばれる。
      */
-    updateCommonDenominatorReplacement: function () {
+    updateCommonDenominatorReplacement() {
       const valueBlock = this.getInputTargetBlock('VALUE');
+      console.log('[通分] updateCommonDenominatorReplacement 呼び出し VALUE=', !!valueBlock);
 
-      // VALUE が空 → REPLACEMENT も空にする
       if (!valueBlock) {
         this._setReplacementBlock(null);
         return;
       }
 
-      // VALUE ブロックをシリアライズして式文字列に変換
       let exprStr = '';
       try {
         if (typeof Blockly.serialization?.blocks?.save === 'function'
@@ -274,12 +362,20 @@ function defineMathBlocks() {
         exprStr = '';
       }
 
+      console.log('[通分] VALUE の式=', exprStr);
+
       if (!exprStr) {
         this._setReplacementBlock(null);
         return;
       }
 
-      // 通分計算
+      // 式が長すぎる場合は自動化を諦める（重さ対策）
+      if (exprStr.length > 100) {
+        console.log('[通分] 式が長すぎるため自動通分をスキップ:', exprStr.length, '文字');
+        this._setReplacementBlock(null);
+        return;
+      }
+
       let computed = '';
       try {
         if (typeof window.computeCommonDenominator === 'function') {
@@ -289,13 +385,14 @@ function defineMathBlocks() {
         computed = '';
       }
 
+      console.log('[通分] 計算結果=', computed);
+
       if (!computed || computed === exprStr) {
-        // 通分不要 or 失敗 → REPLACEMENT を空にする
+        console.log('[通分] 通分不要 or 失敗');
         this._setReplacementBlock(null);
         return;
       }
 
-      // 文字列 → Blockly ブロック JSON 構造に変換
       let blockJson = null;
       try {
         if (typeof window.mathExprToBlocklyJson === 'function') {
@@ -306,18 +403,18 @@ function defineMathBlocks() {
       }
 
       if (!blockJson) {
+        console.log('[通分] ブロックJSON変換失敗');
         this._setReplacementBlock(null);
         return;
       }
 
+      console.log('[通分] ブロック構築開始');
       this._setReplacementBlock(blockJson);
     },
     /**
      * REPLACEMENT 入力に指定したブロック JSON を接続する。
-     * 既存の REPLACEMENT ブロックは破棄してから新しいものを接続する。
-     * blockJson が null のときは REPLACEMENT を空にする。
      */
-    _setReplacementBlock: function (blockJson) {
+    _setReplacementBlock(blockJson) {
       this._isUpdatingReplacement = true;
       try {
         const replacementInput = this.getInput('REPLACEMENT');
@@ -325,7 +422,6 @@ function defineMathBlocks() {
         const connection = replacementInput.connection;
         if (!connection) return;
 
-        // 既存の REPLACEMENT ブロックを破棄
         const existingBlock = connection.targetBlock();
         if (existingBlock) {
           existingBlock.dispose(false);
@@ -333,7 +429,6 @@ function defineMathBlocks() {
 
         if (!blockJson) return;
 
-        // 新しいブロックを構築して接続
         const newBlock = Blockly.serialization.blocks.append(blockJson, this.workspace);
         if (newBlock && newBlock.outputConnection) {
           connection.connect(newBlock.outputConnection);

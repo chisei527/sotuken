@@ -10,6 +10,7 @@
 
     <script defer src="app-state.js"></script>
     <script defer src="math-logic.js"></script>
+    <script defer src="explanations.js"></script>
     <script defer src="app-effects.js"></script>
     <script defer src="app-ui.js"></script>
     <script defer src="blocks.js"></script>
@@ -92,9 +93,10 @@
           background: linear-gradient(180deg, rgba(4, 15, 36, 0.95) 0%, rgba(2, 8, 20, 0.8) 100%);
           color: var(--cyber-text); 
           padding: 14px 20px; 
-          display: flex; 
-          justify-content: space-between; 
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
           align-items: center; 
+          gap: 14px;
           border-bottom: 1px solid rgba(56, 189, 248, 0.35);
           box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
           backdrop-filter: blur(12px);
@@ -312,6 +314,12 @@
         .blocklyText[data-argument-name="FORMULA_TEXT"] {
           opacity: 0.92;
         }
+        /* math_negate ブロックのマイナス記号(NEG_SIGN)を強調表示 */
+        .blocklyText[data-argument-name="NEG_SIGN"],
+        text[data-id$="NEG_SIGN"] {
+          font-size: 22px !important;
+          font-weight: 900 !important;
+        }
         /* シャッター演出(cyber-transition, z-index:10000)より手前に出すモーダル */
         #formula-unlock-modal,
         #tutorial-intro-modal { z-index: 10001; }
@@ -506,11 +514,39 @@
 
         .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #030814; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: none; }
         .curtain.hidden { opacity: 0; }
-        #streak-counter { font-weight: 800; font-size: 1rem; background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--glass-border); }
-        .header-center { display: flex; align-items: center; gap: 14px; }
+        #stage-nav-buttons { display: flex; gap: 6px; }
+        .stage-nav-btn {
+          font-weight: 700; font-size: 1.1rem;
+          background: rgba(255,255,255,0.08); padding: 6px 14px;
+          border-radius: 999px; border: 1px solid var(--glass-border);
+          color: inherit; cursor: pointer;
+          transition: background 0.15s, opacity 0.15s;
+        }
+        .stage-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
+        .stage-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* ヘッダー3列レイアウト */
+        .header-left  { display: flex; align-items: center; gap: 14px; justify-self: start; }
+        .header-center{ display: flex; align-items: center; gap: 14px; justify-self: center; }
+        .header-right { display: flex; align-items: center; gap: 14px; justify-self: end; }
+
         .overwrite-toggle-btn { font-size: 0.82rem; padding: 6px 12px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
-        .overwrite-toggle-btn.on { background: rgba(34, 197, 94, 0.2); border-color: var(--cyber-green); color: #22c55e; }
+        .overwrite-toggle-btn.on  { background: rgba(34, 197, 94, 0.2); border-color: var(--cyber-green); color: #22c55e; }
         .overwrite-toggle-btn.off { background: rgba(255, 255, 255, 0.08); border-color: var(--glass-border); color: var(--cyber-text); }
+
+        /* 📘 公式解説ボタン：ガイド機能ボタンとトーンを揃える */
+        .header-tool-btn {
+          font-size: 0.82rem; padding: 6px 12px; border-radius: 8px;
+          border: 1px solid var(--glass-border);
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--cyber-text);
+          font-weight: 700; cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .header-tool-btn:hover {
+          background: rgba(56, 189, 248, 0.18);
+          border-color: rgba(56, 189, 248, 0.5);
+        }
 
         /* 🚀 Blockly ツールボックスの完全ダークサイバー化 */
         #l .blocklyToolboxDiv {
@@ -524,6 +560,96 @@
         #l .blocklyTreeLabel { color: #ffffff !important; font-weight: 900 !important; font-size: 15px !important; }
         .blocklyFlyoutBackground { fill: rgba(5, 16, 36, 0.94) !important; stroke: rgba(56, 189, 248, 0.3) !important; stroke-width: 2px !important; rx: 16px; ry: 16px; }
         .blocklyScrollbarHandle { fill: rgba(56, 189, 248, 0.5) !important; }
+
+        /* 📘 公式リファレンスモーダル */
+        .formula-ref-card {
+          background: linear-gradient(135deg, rgba(8, 22, 44, 0.98), rgba(15, 30, 60, 0.96));
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          border-radius: 18px;
+          padding: 24px 28px;
+          max-width: 920px;
+          width: 92vw;
+          max-height: 88vh;
+          overflow-y: auto;
+          color: var(--cyber-text);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+        .formula-ref-card h2 {
+          margin: 0 0 12px 0;
+          color: var(--cyber-text);
+          font-weight: 900;
+          letter-spacing: 0.04em;
+        }
+        .formula-ref-tabs {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+        .formula-ref-tab {
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          color: var(--cyber-muted);
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+        .formula-ref-tab:hover { background: rgba(56, 189, 248, 0.15); color: #fff; }
+        .formula-ref-tab.active {
+          background: rgba(56, 189, 248, 0.3);
+          border-color: rgba(56, 189, 248, 0.6);
+          color: #fff;
+        }
+        .formula-ref-body {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 280px;
+          gap: 20px;
+        }
+        .formula-ref-body .formula-text-area h3 {
+          color: #7dd3fc;
+          font-size: 1rem;
+          margin: 14px 0 6px 0;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+        }
+        .formula-ref-body .formula-text-area p {
+          line-height: 1.7;
+          margin: 4px 0 12px 0;
+          color: #cbd5e1;
+        }
+        .formula-display {
+          font-size: 1.4rem;
+          padding: 12px 16px;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          text-align: center;
+          margin-bottom: 12px;
+        }
+        .formula-variants {
+          background: rgba(0, 0, 0, 0.25);
+          border: 1px solid var(--glass-border);
+          border-radius: 8px;
+          padding: 10px 14px;
+          margin-top: 8px;
+        }
+        .formula-variants div { margin: 4px 0; }
+        .formula-ref-image {
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .formula-ref-image svg { max-width: 100%; height: auto; }
+        @media (max-width: 700px) {
+          .formula-ref-body { grid-template-columns: 1fr; }
+          .formula-ref-image { order: -1; }
+        }
     </style>
 </head>
 <body>
@@ -588,6 +714,21 @@
       </div>
     </div>
 
+    <!-- 📘 公式リファレンスモーダル（ヘッダー「公式解説」ボタンから開く） -->
+    <div id="formula-reference-modal" class="overlay-screen hidden">
+      <div class="formula-ref-card">
+        <h2>📘 公式リファレンス</h2>
+        <div class="formula-ref-tabs" id="formula-ref-tabs"><!-- タブをJSで生成 --></div>
+        <div class="formula-ref-body">
+          <div class="formula-text-area" id="formula-ref-text"><!-- 内容をJSで生成 --></div>
+          <div class="formula-ref-image" id="formula-ref-image"><!-- SVGをJSで生成 --></div>
+        </div>
+        <div style="margin-top: 18px; text-align: right;">
+          <button id="btn-formula-reference-close" class="action-btn btn-primary" type="button">閉じる</button>
+        </div>
+      </div>
+    </div>
+
     <div id="stage-map-screen" class="screen hidden a">
       <div class="map-topbar">
         <div class="map-title-wrap">
@@ -596,7 +737,7 @@
         </div>
         <div class="map-controls">
           <span id="map-progress">0 / 141 CLEAR</span>
-          <button class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
+          <button id="btn-unlock-all" class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
           <button class="map-control-btn" onclick="resetSaveData()">データリセット</button>
         </div>
       </div>
@@ -618,12 +759,20 @@
 
     <div id="p" class="a">
         <div id="h">
-          <button id="btn-back">ステージ選択</button>
+          <div class="header-left">
+            <button id="btn-back">ステージ選択</button>
+            <div id="stage-nav-buttons">
+              <button id="btn-prev-stage" class="stage-nav-btn" title="前の問題へ">←</button>
+              <button id="btn-next-stage" class="stage-nav-btn" title="次の問題へ">→</button>
+            </div>
+          </div>
           <div class="header-center">
             <div id="r">STAGE</div>
-            <button id="btn-overwrite-permission" class="overwrite-toggle-btn off">ガイド機能: OFF</button>
           </div>
-          <div id="streak-counter">🔥 0</div>
+          <div class="header-right">
+            <button id="btn-overwrite-permission" class="overwrite-toggle-btn off">ガイド機能: OFF</button>
+            <button id="btn-formula-reference" class="header-tool-btn" type="button" title="公式を解説します">📘 公式解説</button>
+          </div>
         </div>
         
         <div id="tutorial-progress-shell">

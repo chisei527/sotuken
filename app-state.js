@@ -141,12 +141,7 @@ window.getNextTutorialStageId = function(stageId) {
   return window.getTutorialStageId(currentIndex + 1);
 };
 
-window.getTutorialBannerText = function(stageId) {
-  if (!window.isTutorialStageId(stageId)) return '';
-  const hints = Array.isArray(window.currentProblemData?.hints) ? window.currentProblemData.hints : [];
-  const firstHint = hints.find((hint) => typeof hint === 'string' && hint.trim()) || '';
-  return firstHint.trim();
-};
+// (旧 getTutorialBannerText 定義は app-guide.js に一本化されました)
 
 // ------------------------------------------------------------
 // チュートリアル進行状態の判定
