@@ -11,8 +11,20 @@
 // ------------------------------------------------------------
 window.UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
 window.MAX_STAGE_NUMBER = 100;
-window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
+window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7', '0-8'];
 window.APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', window.UNLOCKED_FORMULAS_STORAGE_KEY];
+
+// ------------------------------------------------------------
+// 【開発用】起動時に localStorage を自動リセットするフラグ。
+// テスト中は毎回まっさらな状態から始めたいので true にする。
+// 本番リリース時は false にする。
+// ------------------------------------------------------------
+window.AUTO_RESET_ON_LOAD = true;
+if (window.AUTO_RESET_ON_LOAD) {
+  window.APP_STORAGE_KEYS.forEach((key) => { if (key) localStorage.removeItem(key); });
+  console.log('[app-state] AUTO_RESET_ON_LOAD が有効なため localStorage をリセットしました');
+}
+
 window.MAP_WORLD_MIN_WIDTH = 3600;
 window.MAP_WORLD_MIN_HEIGHT = 2400;
 window.MAP_NODE_SIZE = 94;

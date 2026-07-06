@@ -68,66 +68,42 @@
     };
   }
 
-  // 新しい公式を1つずつ画像つきで紹介するモーダル
+  // 新しい公式を1つずつキャラダイアログで紹介する
+  // 旧: formula-unlock-modal による自動再生方式
+  // 新: character-dialog + character-scenes を経由してフリエちゃんが喋る
   async function showFormulaUnlockModal(formulaIds) {
     const ids = Array.from(new Set((Array.isArray(formulaIds) ? formulaIds : []).map((id) => String(id)).filter(Boolean)));
     if (ids.length === 0) return;
 
-    const { modal, title, meta, image, fallback, closeButton } = getFormulaUnlockModalNodes();
-    if (!modal || !title || !meta || !image || !fallback || !closeButton) return;
+    // キャラダイアログが未ロードのときは何もせず抜ける (安全策)
+    if (typeof window.openFormulaUnlockedScene !== 'function') return;
 
-    modal.classList.remove('hidden');
-
-    await new Promise((resolve) => {
-      let index = 0;
-
-      const render = () => {
-        const formulaId = ids[index];
-        const fallbackLabel = typeof window.formulaIdToLabel === 'function' ? window.formulaIdToLabel(formulaId) : formulaId;
-
-        // FORMULA_BLOCK_DEFS から「番号」と「読みやすい数式」を引く（blocks.js と同じ表記）
-        let displayNumber = '';
-        let displayFormula = '';
-        if (typeof FORMULA_BLOCK_DEFS !== 'undefined' && Array.isArray(FORMULA_BLOCK_DEFS)) {
-          const entry = FORMULA_BLOCK_DEFS.find((e) => e && e[0] === formulaId);
-          if (entry) {
-            displayNumber = entry[1] || '';
-            displayFormula = entry[2] || '';
-          }
+    for (const formulaId of ids) {
+      // 表示用の公式名を作る (番号 + 数式)
+      const fallbackLabel = typeof window.formulaIdToLabel === 'function' ? window.formulaIdToLabel(formulaId) : formulaId;
+      let displayNumber = '';
+      let displayFormula = '';
+      if (typeof FORMULA_BLOCK_DEFS !== 'undefined' && Array.isArray(FORMULA_BLOCK_DEFS)) {
+        const entry = FORMULA_BLOCK_DEFS.find((e) => e && e[0] === formulaId);
+        if (entry) {
+          displayNumber = entry[1] || '';
+          displayFormula = entry[2] || '';
         }
-        const label = displayNumber && displayFormula ? `${displayNumber}  ${displayFormula}` : fallbackLabel;
+      }
+      const label = (displayNumber && displayFormula) ? `${displayNumber} ${displayFormula}` : fallbackLabel;
 
-        title.textContent = '新しい公式を覚えよう！';
-        meta.textContent = `UNLOCK: ${label}  (${index + 1} / ${ids.length})`;
-        fallback.style.display = 'none';
-        fallback.textContent = '';
-
-        image.style.display = 'block';
-        image.alt = label;
-        image.onerror = () => {
-          image.style.display = 'none';
-          fallback.textContent = `画像が見つかりませんでした。\n\n${label}`;
-          fallback.style.display = 'block';
-        };
-        // 画像は asset/ フォルダの formula_X.png を参照
-        image.src = `asset/${formulaId}.png`;
-
-        closeButton.textContent = index >= ids.length - 1 ? '確認して開始' : '次へ';
-      };
-
-      closeButton.onclick = () => {
-        index += 1;
-        if (index >= ids.length) {
-          modal.classList.add('hidden');
-          closeButton.onclick = null;
+      // 1公式ごとにダイアログを開いて、確認ボタン押下まで待つ
+      await new Promise((resolve) => {
+        // アクションを一時的に差し替えて、閉じたときに次公式に進めるようにする
+        const originalClose = window.CHARACTER_SCENE_ACTIONS.close_dialog;
+        window.CHARACTER_SCENE_ACTIONS.close_dialog = function() {
+          window.closeCharacterDialog();
+          window.CHARACTER_SCENE_ACTIONS.close_dialog = originalClose;
           resolve();
-          return;
-        }
-        render();
-      };
-
-      render();
-    });
+        };
+        window.openFormulaUnlockedScene({ formulaLabel: label });
+      });
+    }
   }
 
 // ステージの問題データを見て、初遭遇の公式があればモーダルを出してアンロック
@@ -144,25 +120,48 @@
     // ★ 修正1: ロードを止めないよう、先に裏側でアンロック状態をセーブしてしまう
     unlockFormulaIds(newlyFound);
 
+    // 基礎チュートリアル中はアンロック演出を保留する。
+    // 基礎チュートリアル完了時に flushPendingFormulaUnlock() が発火する。
+    if (window._basicsTutorialActive) {
+      window._pendingUnlockFormulaIds = (window._pendingUnlockFormulaIds || []).concat(newlyFound);
+      console.log('[app-unlock] 基礎チュートリアル中のため公式アンロック演出を保留:', newlyFound);
+      return newlyFound;
+    }
+
     // ★ 修正2: ここで「await」を使うとシャッターが一生開かなくなるため、独立した監視処理を走らせる
-    const waitShutterAndShow = () => {
-      const transitionLayer = document.getElementById('cyber-transition');
-      
-      // シャッターが閉じている最中なら、100ミリ秒後にまた確認する（待ち続ける）
-      if (transitionLayer && (transitionLayer.classList.contains('active') || transitionLayer.classList.contains('booting'))) {
-        setTimeout(waitShutterAndShow, 100);
-      } else {
-        // シャッターが完全に開いた！ → 0.4秒の余韻のあとにモーダルを手前にバーンと出す
-        setTimeout(() => {
-          showFormulaUnlockModal(newlyFound);
-        }, 400);
-      }
-    };
-    waitShutterAndShow(); // 監視スタート
+    waitShutterThen(() => showFormulaUnlockModal(newlyFound));
 
     // ★ 修正3: 関数自体はすぐに終了させて、ロード処理とシャッターを開ける動作を先に進ませる！
     return newlyFound;
   }
+
+  // シャッター (cyber-transition) が完全に開き終わってから callback を実行するヘルパ。
+  // シャッターが開いていなければ 100ms 単位で polling、開き終わった後 400ms の余韻を持たせる。
+  function waitShutterThen(callback) {
+    const check = () => {
+      const transitionLayer = document.getElementById('cyber-transition');
+      if (transitionLayer && (transitionLayer.classList.contains('active') || transitionLayer.classList.contains('booting'))) {
+        setTimeout(check, 100);
+      } else {
+        setTimeout(callback, 400);
+      }
+    };
+    check();
+  }
+
+  // 基礎チュートリアル完了時に、保留されていた公式アンロック演出を発火する。
+  // character-scenes.js の exec_tutorial_start の onComplete から呼ばれる。
+  // シャッター演出が続いている間は待って、開き終わってから実行する。
+  window.flushPendingFormulaUnlock = function() {
+    const pending = window._pendingUnlockFormulaIds || [];
+    if (pending.length === 0) return;
+    window._pendingUnlockFormulaIds = [];
+    console.log('[app-unlock] 保留されていた公式アンロックを発火 (シャッター待ち):', pending);
+    waitShutterThen(() => showFormulaUnlockModal(pending));
+  };
+
+  // シャッター待ちヘルパを外部に公開 (basics-tutorial などから使えるように)
+  window.waitShutterThen = waitShutterThen;
   // window へ公開
   window.getKnownFormulaIds = getKnownFormulaIds;
   window.sanitizeUnlockedFormulas = sanitizeUnlockedFormulas;

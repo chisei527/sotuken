@@ -349,6 +349,52 @@ window.loadStage = async function(stageNumber) {
 
       if (typeof window.updateStageNavButtons === 'function') window.updateStageNavButtons();
 
+      // ==================================
+      // ステージ進入時のパルチュートリアル起動フック
+      // 各ステージには PAL_TUTORIAL_SCRIPTS[stageId] で台本が定義されている場合があり、
+      // そのステージに初めて入ったときだけパルチュートリアルを起動する。
+      // 例外: 0-1 は character-scenes.js の exec_tutorial_start から起動されるためスキップ
+      // ==================================
+      if (isTutorialStage && String(stageNumber) !== '0-1'
+          && typeof window.startPalTutorial === 'function'
+          && window.PAL_TUTORIAL_SCRIPTS && window.PAL_TUTORIAL_SCRIPTS[String(stageNumber)]) {
+        window._palTutorialStageSeen = window._palTutorialStageSeen || {};
+        if (!window._palTutorialStageSeen[String(stageNumber)]) {
+          window._palTutorialStageSeen[String(stageNumber)] = true;
+
+          // 起動条件を全て満たしてから開始する:
+          //   1. シャッター (cyber-transition) が開き終わっている
+          //   2. 公式アンロック演出 (character-dialog) が表示されていない
+          //   3. 保留中の公式アンロック (_pendingUnlockFormulaIds) が全て解決されている
+          // これらを 200ms 間隔で polling する (シャッター判定は waitShutterThen が担当)。
+          const isCharacterDialogVisible = () => {
+            const host = document.getElementById('character-dialog-host');
+            return host && !host.classList.contains('hidden');
+          };
+          const hasPendingUnlock = () => (window._pendingUnlockFormulaIds || []).length > 0;
+
+          const waitAllConditionsThenStart = () => {
+            if (isCharacterDialogVisible() || hasPendingUnlock()) {
+              setTimeout(waitAllConditionsThenStart, 200);
+              return;
+            }
+            // すべての条件を満たしたので、余韻として 600ms 待ってから起動
+            setTimeout(() => {
+              console.log(`[loadStage] パルチュートリアル起動 (stageId=${stageNumber})`);
+              window.startPalTutorial(String(stageNumber), function () {
+                console.log(`[loadStage] パルチュートリアル完了 (stageId=${stageNumber})`);
+              });
+            }, 600);
+          };
+
+          // まずシャッターが開き終わるのを待つ、次に公式アンロック演出の終了を待つ
+          if (typeof window.waitShutterThen === 'function') {
+            window.waitShutterThen(waitAllConditionsThenStart);
+          } else {
+            setTimeout(waitAllConditionsThenStart, 500);
+          }
+        }
+      }
   } catch (error) {
       console.error('[StageLoadError]', error);
       if (typeof window.showToast === 'function') {

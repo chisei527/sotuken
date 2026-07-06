@@ -1,9 +1,26 @@
 {
   "id": 11,
-  "mathText": "\\[ \\tan^2\\theta \\cdot \\cos^2\\theta + \\cos^2\\theta = 1 \\]",
+  "mathText": "\\[ \\frac{\\cos^2\\theta}{\\sin\\theta} + \\sin\\theta = \\frac{1}{\\sin\\theta} \\]",
   "requiredFormulas": [
-    "formula_2",
     "formula_1"
+  ],
+  "hints": [
+    "まずは左側の『証明』から「通分」ブロックを引き出して、式を1つの分数にまとめましょう。",
+    "「通分する」ボタンを押すと自動で通分結果が出ます。",
+    "分子が cos²θ + sin²θ になれば、公式①で 1 に置き換えられます。"
+  ],
+  "requiredBlocks": [
+    "proof_step",
+    "common_denominator_operation",
+    "replace_operation",
+    "conclusion_operation",
+    "math_add",
+    "math_fraction",
+    "math_square",
+    "term_sin",
+    "term_cos",
+    "formula_1",
+    "custom_number"
   ],
   "initialState": {
     "blocks": {
@@ -11,47 +28,28 @@
       "blocks": [
         {
           "type": "math_add",
+          "x": 50,
+          "y": 50,
           "inputs": {
             "A": {
               "block": {
-                "type": "math_multiply",
+                "type": "math_fraction",
                 "inputs": {
-                  "A": {
+                  "NUMERATOR": {
                     "block": {
                       "type": "math_square",
                       "inputs": {
                         "A": {
                           "block": {
-                            "type": "term_tan_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_theta"
-                                }
-                              }
-                            }
+                            "type": "term_cos"
                           }
                         }
                       }
                     }
                   },
-                  "B": {
+                  "DENOMINATOR": {
                     "block": {
-                      "type": "math_square",
-                      "inputs": {
-                        "A": {
-                          "block": {
-                            "type": "term_cos_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_theta"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                      "type": "term_sin"
                     }
                   }
                 }
@@ -59,35 +57,40 @@
             },
             "B": {
               "block": {
-                "type": "math_square",
-                "inputs": {
-                  "A": {
-                    "block": {
-                      "type": "term_cos_of",
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "type": "term_theta"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+                "type": "term_sin"
               }
             }
           }
         },
         {
-          "type": "custom_number",
-          "fields": {
-            "NUM": 1
+          "type": "math_fraction",
+          "x": 600,
+          "y": 50,
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "custom_number",
+                "fields": {
+                  "NUM": 1
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            }
           }
         },
         {
           "type": "proof_step",
           "x": 50,
-          "y": 250
+          "y": 200
+        },
+        {
+          "type": "formula_1",
+          "x": 440,
+          "y": 200
         }
       ]
     }
@@ -98,47 +101,28 @@
       "blocks": [
         {
           "type": "math_add",
+          "x": 50,
+          "y": 50,
           "inputs": {
             "A": {
               "block": {
-                "type": "math_multiply",
+                "type": "math_fraction",
                 "inputs": {
-                  "A": {
+                  "NUMERATOR": {
                     "block": {
                       "type": "math_square",
                       "inputs": {
                         "A": {
                           "block": {
-                            "type": "term_tan_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_theta"
-                                }
-                              }
-                            }
+                            "type": "term_cos"
                           }
                         }
                       }
                     }
                   },
-                  "B": {
+                  "DENOMINATOR": {
                     "block": {
-                      "type": "math_square",
-                      "inputs": {
-                        "A": {
-                          "block": {
-                            "type": "term_cos_of",
-                            "inputs": {
-                              "ANGLE": {
-                                "block": {
-                                  "type": "term_theta"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                      "type": "term_sin"
                     }
                   }
                 }
@@ -146,37 +130,39 @@
             },
             "B": {
               "block": {
-                "type": "math_square",
-                "inputs": {
-                  "A": {
-                    "block": {
-                      "type": "term_cos_of",
-                      "inputs": {
-                        "ANGLE": {
-                          "block": {
-                            "type": "term_theta"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+                "type": "term_sin"
               }
             }
           }
         },
         {
-          "type": "custom_number",
-          "fields": {
-            "NUM": 1
+          "type": "math_fraction",
+          "x": 600,
+          "y": 50,
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "custom_number",
+                "fields": {
+                  "NUM": 1
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_sin"
+              }
+            }
           }
         },
         {
           "type": "proof_step",
+          "x": 50,
+          "y": 200,
           "inputs": {
             "OPERATIONS": {
               "block": {
-                "type": "replace_operation",
+                "type": "common_denominator_operation",
                 "inputs": {
                   "VALUE": {
                     "block": {
@@ -184,44 +170,23 @@
                       "inputs": {
                         "A": {
                           "block": {
-                            "type": "math_multiply",
+                            "type": "math_fraction",
                             "inputs": {
-                              "A": {
+                              "NUMERATOR": {
                                 "block": {
                                   "type": "math_square",
                                   "inputs": {
                                     "A": {
                                       "block": {
-                                        "type": "term_tan_of",
-                                        "inputs": {
-                                          "ANGLE": {
-                                            "block": {
-                                              "type": "term_theta"
-                                            }
-                                          }
-                                        }
+                                        "type": "term_cos"
                                       }
                                     }
                                   }
                                 }
                               },
-                              "B": {
+                              "DENOMINATOR": {
                                 "block": {
-                                  "type": "math_square",
-                                  "inputs": {
-                                    "A": {
-                                      "block": {
-                                        "type": "term_cos_of",
-                                        "inputs": {
-                                          "ANGLE": {
-                                            "block": {
-                                              "type": "term_theta"
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
+                                  "type": "term_sin"
                                 }
                               }
                             }
@@ -229,79 +194,27 @@
                         },
                         "B": {
                           "block": {
-                            "type": "math_square",
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "type": "term_cos_of",
-                                  "inputs": {
-                                    "ANGLE": {
-                                      "block": {
-                                        "type": "term_theta"
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                            "type": "term_sin"
                           }
                         }
                       }
                     }
                   },
-                  "FORMULA": {
-                    "block": {
-                      "type": "formula_2"
-                    }
-                  },
                   "REPLACEMENT": {
                     "block": {
-                      "type": "math_add",
+                      "type": "math_fraction",
                       "inputs": {
-                        "A": {
+                        "NUMERATOR": {
                           "block": {
-                            "type": "math_multiply",
+                            "type": "math_add",
                             "inputs": {
                               "A": {
                                 "block": {
-                                  "type": "math_fraction",
+                                  "type": "math_square",
                                   "inputs": {
-                                    "NUMERATOR": {
+                                    "A": {
                                       "block": {
-                                        "type": "math_square",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "term_sin_of",
-                                              "inputs": {
-                                                "ANGLE": {
-                                                  "block": {
-                                                    "type": "term_theta"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "DENOMINATOR": {
-                                      "block": {
-                                        "type": "math_square",
-                                        "inputs": {
-                                          "A": {
-                                            "block": {
-                                              "type": "term_cos_of",
-                                              "inputs": {
-                                                "ANGLE": {
-                                                  "block": {
-                                                    "type": "term_theta"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
+                                        "type": "term_cos"
                                       }
                                     }
                                   }
@@ -313,14 +226,7 @@
                                   "inputs": {
                                     "A": {
                                       "block": {
-                                        "type": "term_cos_of",
-                                        "inputs": {
-                                          "ANGLE": {
-                                            "block": {
-                                              "type": "term_theta"
-                                            }
-                                          }
-                                        }
+                                        "type": "term_sin"
                                       }
                                     }
                                   }
@@ -329,23 +235,9 @@
                             }
                           }
                         },
-                        "B": {
+                        "DENOMINATOR": {
                           "block": {
-                            "type": "math_square",
-                            "inputs": {
-                              "A": {
-                                "block": {
-                                  "type": "term_cos_of",
-                                  "inputs": {
-                                    "ANGLE": {
-                                      "block": {
-                                        "type": "term_theta"
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                            "type": "term_sin"
                           }
                         }
                       }
@@ -354,56 +246,23 @@
                 },
                 "next": {
                   "block": {
-                    "type": "simplify_operation",
+                    "type": "replace_operation",
                     "inputs": {
                       "VALUE": {
                         "block": {
-                          "type": "math_add",
+                          "type": "math_fraction",
                           "inputs": {
-                            "A": {
+                            "NUMERATOR": {
                               "block": {
-                                "type": "math_multiply",
+                                "type": "math_add",
                                 "inputs": {
                                   "A": {
                                     "block": {
-                                      "type": "math_fraction",
+                                      "type": "math_square",
                                       "inputs": {
-                                        "NUMERATOR": {
+                                        "A": {
                                           "block": {
-                                            "type": "math_square",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "term_sin_of",
-                                                  "inputs": {
-                                                    "ANGLE": {
-                                                      "block": {
-                                                        "type": "term_theta"
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        },
-                                        "DENOMINATOR": {
-                                          "block": {
-                                            "type": "math_square",
-                                            "inputs": {
-                                              "A": {
-                                                "block": {
-                                                  "type": "term_cos_of",
-                                                  "inputs": {
-                                                    "ANGLE": {
-                                                      "block": {
-                                                        "type": "term_theta"
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
+                                            "type": "term_cos"
                                           }
                                         }
                                       }
@@ -415,14 +274,7 @@
                                       "inputs": {
                                         "A": {
                                           "block": {
-                                            "type": "term_cos_of",
-                                            "inputs": {
-                                              "ANGLE": {
-                                                "block": {
-                                                  "type": "term_theta"
-                                                }
-                                              }
-                                            }
+                                            "type": "term_sin"
                                           }
                                         }
                                       }
@@ -431,68 +283,34 @@
                                 }
                               }
                             },
-                            "B": {
+                            "DENOMINATOR": {
                               "block": {
-                                "type": "math_square",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
+                                "type": "term_sin"
                               }
                             }
                           }
                         }
                       },
+                      "FORMULA": {
+                        "block": {
+                          "type": "formula_1"
+                        }
+                      },
                       "REPLACEMENT": {
                         "block": {
-                          "type": "math_add",
+                          "type": "math_fraction",
                           "inputs": {
-                            "A": {
+                            "NUMERATOR": {
                               "block": {
-                                "type": "math_square",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_sin_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
+                                "type": "custom_number",
+                                "fields": {
+                                  "NUM": 1
                                 }
                               }
                             },
-                            "B": {
+                            "DENOMINATOR": {
                               "block": {
-                                "type": "math_square",
-                                "inputs": {
-                                  "A": {
-                                    "block": {
-                                      "type": "term_cos_of",
-                                      "inputs": {
-                                        "ANGLE": {
-                                          "block": {
-                                            "type": "term_theta"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
+                                "type": "term_sin"
                               }
                             }
                           }
@@ -501,76 +319,23 @@
                     },
                     "next": {
                       "block": {
-                        "type": "replace_operation",
+                        "type": "conclusion_operation",
                         "inputs": {
                           "VALUE": {
                             "block": {
-                              "type": "math_add",
+                              "type": "math_fraction",
                               "inputs": {
-                                "A": {
+                                "NUMERATOR": {
                                   "block": {
-                                    "type": "math_square",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "term_sin_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
+                                    "type": "custom_number",
+                                    "fields": {
+                                      "NUM": 1
                                     }
                                   }
                                 },
-                                "B": {
+                                "DENOMINATOR": {
                                   "block": {
-                                    "type": "math_square",
-                                    "inputs": {
-                                      "A": {
-                                        "block": {
-                                          "type": "term_cos_of",
-                                          "inputs": {
-                                            "ANGLE": {
-                                              "block": {
-                                                "type": "term_theta"
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "FORMULA": {
-                            "block": {
-                              "type": "formula_1"
-                            }
-                          },
-                          "REPLACEMENT": {
-                            "block": {
-                              "type": "custom_number",
-                              "fields": {
-                                "NUM": 1
-                              }
-                            }
-                          }
-                        },
-                        "next": {
-                          "block": {
-                            "type": "conclusion_operation",
-                            "inputs": {
-                              "VALUE": {
-                                "block": {
-                                  "type": "custom_number",
-                                  "fields": {
-                                    "NUM": 1
+                                    "type": "term_sin"
                                   }
                                 }
                               }

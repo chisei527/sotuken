@@ -20,6 +20,13 @@ window.switchScreen = function(screenId) {
   if (screenId === 'stage-map-screen' && typeof window.centerMapCameraOnCurrentStage === 'function') {
     requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(true));
   }
+
+  // パル常駐マスコット: プレイ画面 (#p) 表示中だけ見える
+  if (screenId === 'p') {
+    if (typeof window.showCharacterMascot === 'function') window.showCharacterMascot();
+  } else {
+    if (typeof window.hideCharacterMascot === 'function') window.hideCharacterMascot();
+  }
   
   // 画面に合わせた背景画像の切り替え
   window.setAppBackgroundByKey(screenId === 'p' ? 'stage' : (screenId === 'stage-map-screen' || screenId === 'c' ? 'select' : 'title'));
@@ -47,6 +54,12 @@ window.openGameEntrance = function() {
   if (entrance) entrance.classList.remove('hidden', 'show-choices');
   if (typeof window.hideTutorialOverlay === 'function') window.hideTutorialOverlay();
   window.setAppBackgroundByKey('title');
+  // キャラダイアログ版のモード選択も同時に開く
+  // (タイトルタップで show-choices を付けるハンドラは通らないため、明示的に呼ぶ)
+  if (typeof window.openModeSelectWithCharacter === 'function') {
+    entrance?.classList.add('show-choices');
+    window.openModeSelectWithCharacter();
+  }
 };
 
 // 5. 画面下部に通知メッセージ（トースト）を出す

@@ -8,12 +8,13 @@ window.getTutorialAllowedBlockTypes = function(stageId) {
                        'math_add', 'math_negate', 'math_multiply', 'math_fraction', 'math_square'];
   const stageRestrictions = {
     '0-1': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
-    '0-2': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
-    '0-3': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_3'] },
-    '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
-    '0-5': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
-    '0-6': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1'] },
-    '0-7': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
+    '0-2': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-3': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
+    '0-4': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_3'] },
+    '0-5': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-6': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_2'] },
+    '0-7': { operations: ['replace_operation', 'common_denominator_operation', 'conclusion_operation'], formulas: ['formula_1'] },
+    '0-8': { operations: ['replace_operation', 'conclusion_operation'], formulas: ['formula_1', 'formula_3'] },
   };
   const restriction = stageRestrictions[stage] || null;
   if (!restriction) return { allowed: true, types: null };

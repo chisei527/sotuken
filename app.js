@@ -181,6 +181,12 @@ window.setupEventListeners = function() {
         window.tutorialModeActive = false;
         if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
 
+        // 4. キャラダイアログのモード選択画面を再表示する
+        // (旧の entrance-card は CSS で常時非表示にしてあるので、キャラを明示的に呼ぶ)
+        if (typeof window.openModeSelectWithCharacter === 'function') {
+          window.openModeSelectWithCharacter();
+        }
+
       } else {
         // 💡 本編ステージの場合: 従来どおり、全体のステージ選択マップ画面へルーティング
         if (typeof window.routeToTarget === 'function') window.routeToTarget();
@@ -190,10 +196,17 @@ window.setupEventListeners = function() {
   // 🎮 エントランス（最初の画面）の画面タップで遷移
   const entrance = document.getElementById('game-entrance');
   if (entrance) {
-    entrance.addEventListener('click', () => {
+    entrance.addEventListener('click', (e) => {
+      // キャラダイアログ内のクリックはエントランスクリックとして扱わない
+      if (e.target.closest('#character-dialog-host')) return;
       if (!entrance.classList.contains('show-choices')) {
         entrance.classList.add('show-choices');
         if (typeof window.setAppBackgroundByKey === 'function') window.setAppBackgroundByKey('stage');
+        // 既存のエントランスカードは CSS で常時非表示にしてあるため、
+        // 前面ではキャラダイアログを開く。
+        if (typeof window.openModeSelectWithCharacter === 'function') {
+          window.openModeSelectWithCharacter();
+        }
       }
     });
   }
