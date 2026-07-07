@@ -1,6 +1,6 @@
 {
   "id": 4,
-  "mathText": "\\[ \\sin^2\\theta - 1 = -\\cos^2\\theta \\\\]",
+  "mathText": "\\[ \\sin^2\\theta - 1 = -\\cos^2\\theta \\]",
   "requiredFormulas": [
     "formula_1"
   ],

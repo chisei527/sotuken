@@ -1,0 +1,351 @@
+{
+  "id": 18,
+  "mathText": "\\[ \\frac{1}{\\cos\\theta} - \\cos\\theta = \\frac{\\sin^2\\theta}{\\cos\\theta} \\]",
+  "requiredFormulas": [
+    "formula_1"
+  ],
+  "hints": [
+    "まず「通分」ブロックで分母を cos に揃えます。",
+    "分子が 1 - cos²θ になれば、公式①(1 - cos²θ = sin²θ)で書き換えられます。"
+  ],
+  "requiredBlocks": [
+    "proof_step",
+    "common_denominator_operation",
+    "replace_operation",
+    "conclusion_operation",
+    "math_subtract",
+    "math_fraction",
+    "math_square",
+    "term_sin",
+    "term_cos",
+    "formula_1",
+    "custom_number"
+  ],
+  "initialState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "math_subtract",
+          "inputs": {
+            "A": {
+              "block": {
+                "type": "math_fraction",
+                "inputs": {
+                  "NUMERATOR": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  },
+                  "DENOMINATOR": {
+                    "block": {
+                      "type": "term_cos"
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_fraction",
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_sin"
+                    }
+                  }
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 200
+        },
+        {
+          "type": "formula_1",
+          "x": 440,
+          "y": 200
+        }
+      ]
+    }
+  },
+  "answerState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "math_subtract",
+          "inputs": {
+            "A": {
+              "block": {
+                "type": "math_fraction",
+                "inputs": {
+                  "NUMERATOR": {
+                    "block": {
+                      "type": "custom_number",
+                      "fields": {
+                        "NUM": 1
+                      }
+                    }
+                  },
+                  "DENOMINATOR": {
+                    "block": {
+                      "type": "term_cos"
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_fraction",
+          "inputs": {
+            "NUMERATOR": {
+              "block": {
+                "type": "math_square",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_sin"
+                    }
+                  }
+                }
+              }
+            },
+            "DENOMINATOR": {
+              "block": {
+                "type": "term_cos"
+              }
+            }
+          },
+          "x": 600,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 200,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "common_denominator_operation",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "math_subtract",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "math_fraction",
+                            "inputs": {
+                              "NUMERATOR": {
+                                "block": {
+                                  "type": "custom_number",
+                                  "fields": {
+                                    "NUM": 1
+                                  }
+                                }
+                              },
+                              "DENOMINATOR": {
+                                "block": {
+                                  "type": "term_cos"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "math_fraction",
+                      "inputs": {
+                        "NUMERATOR": {
+                          "block": {
+                            "type": "math_subtract",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "custom_number",
+                                  "fields": {
+                                    "NUM": 1
+                                  }
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "math_square",
+                                  "inputs": {
+                                    "A": {
+                                      "block": {
+                                        "type": "term_cos"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "DENOMINATOR": {
+                          "block": {
+                            "type": "term_cos"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "replace_operation",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_fraction",
+                          "inputs": {
+                            "NUMERATOR": {
+                              "block": {
+                                "type": "math_subtract",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "custom_number",
+                                      "fields": {
+                                        "NUM": 1
+                                      }
+                                    }
+                                  },
+                                  "B": {
+                                    "block": {
+                                      "type": "math_square",
+                                      "inputs": {
+                                        "A": {
+                                          "block": {
+                                            "type": "term_cos"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "term_cos"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "FORMULA": {
+                        "block": {
+                          "type": "formula_1"
+                        }
+                      },
+                      "REPLACEMENT": {
+                        "block": {
+                          "type": "math_fraction",
+                          "inputs": {
+                            "NUMERATOR": {
+                              "block": {
+                                "type": "math_square",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "term_sin"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "DENOMINATOR": {
+                              "block": {
+                                "type": "term_cos"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "next": {
+                      "block": {
+                        "type": "conclusion_operation",
+                        "inputs": {
+                          "VALUE": {
+                            "block": {
+                              "type": "math_fraction",
+                              "inputs": {
+                                "NUMERATOR": {
+                                  "block": {
+                                    "type": "math_square",
+                                    "inputs": {
+                                      "A": {
+                                        "block": {
+                                          "type": "term_sin"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "DENOMINATOR": {
+                                  "block": {
+                                    "type": "term_cos"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
