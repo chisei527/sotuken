@@ -38,6 +38,8 @@ window.setupEventListeners = function() {
   }
 
   // 💡 答えボタン
+  // ❌ あきらめるボタン (元 btn-answer)
+  // 押下 → フリエが確認 → 「あきらめる」を選ぶと初めて答えが表示される
   const btnAnswer = document.getElementById('btn-answer');
   if (btnAnswer) {
     btnAnswer.addEventListener('click', () => {
@@ -45,24 +47,132 @@ window.setupEventListeners = function() {
         if (typeof window.showToast === 'function') window.showToast('まだ解答例はありません', false);
         return;
       }
-      if (window.workspace) {
-        // 解答例を見やすくするため、まず拡大率を1.0に戻してスクロール位置もリセット
-        try {
-          if (typeof window.workspace.setScale === 'function') {
-            window.workspace.setScale(1);
-          }
-          if (typeof window.workspace.scroll === 'function') {
-            window.workspace.scroll(0, 0);
-          }
-        } catch (_) { /* 失敗してもクリア処理は続行 */ }
-        window.workspace.clear();
-        Blockly.serialization.workspaces.load(window.currentProblemData.answerState, window.workspace);
-        if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
-        if (typeof window.arrangeBlocks === 'function') window.arrangeBlocks();
-        if (typeof window.showToast === 'function') window.showToast('解答例を表示しました');
-      }
+      // フリエの確認シーンを開く
+      window.startCharacterDialog('give_up_confirm', {
+        onChoiceSelected: (actionId) => {
+          const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+          if (typeof action === 'function') action();
+        },
+      });
     });
   }
+
+  // 答え表示 + ギブアップ済みフラグを立てる (character-scenes から呼ばれる)
+  window.revealAnswerAndMarkGiveUp = function () {
+    if (!window.currentProblemData || !window.currentProblemData.answerState || !window.workspace) return;
+    // ワークスペースを一旦クリアして answer をロード
+    try {
+      if (typeof window.workspace.setScale === 'function') window.workspace.setScale(1);
+      if (typeof window.workspace.scroll === 'function') window.workspace.scroll(0, 0);
+    } catch (_) { /* 失敗してもクリアは続行 */ }
+    window.workspace.clear();
+    Blockly.serialization.workspaces.load(window.currentProblemData.answerState, window.workspace);
+    if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
+    if (typeof window.arrangeBlocks === 'function') window.arrangeBlocks();
+
+    // ギブアップ済みフラグを永続化する。
+    if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(window.currentStageNumber)) {
+      const numStage = Number(window.currentStageNumber);
+      if (numStage) {
+        if (!(window.giveUppedStages || []).includes(numStage)) {
+          window.giveUppedStages = window.giveUppedStages || [];
+          window.giveUppedStages.push(numStage);
+          localStorage.setItem('gu', JSON.stringify(window.giveUppedStages));
+          console.log('[app] ギブアップ記録:', numStage, window.giveUppedStages);
+        }
+        if (!window.clearedStages.includes(numStage)) {
+          window.clearedStages.push(numStage);
+          localStorage.setItem('s', JSON.stringify(window.clearedStages));
+          console.log('[app] ギブアップ扱いでクリア判定:', numStage);
+        }
+      }
+    }
+
+    // 「正解をチェック」を隠す (実質クリア状態)
+    const btnSubmit = document.getElementById('btn-submit');
+    if (btnSubmit) btnSubmit.style.display = 'none';
+
+    // リセット・あきらめる (残ってれば正解チェックも) の操作を無効化する。
+    // 答え表示中に押されると流れが壊れるため。
+    ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
+      const b = document.getElementById(id);
+      if (b) {
+        b.disabled = true;
+        b.classList.add('pal-tutorial-disabled');
+      }
+    });
+
+    // ワークスペースも読み取り専用にする (ブロックを動かせない、ゴミ箱に落とせない)
+    document.body.classList.add('answer-reveal-locked');
+
+    // 「解説を聞く」ボタンを画面中央下寄りに表示する。
+    window.showListenExplainButton();
+  };
+
+  // 「解説を聞く」ボタンを画面下中央に生成して表示する
+  window.showListenExplainButton = function () {
+    // 既に存在していたら再利用 (二重表示防止)
+    let btn = document.getElementById('btn-listen-explain');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'btn-listen-explain';
+      btn.type = 'button';
+      btn.className = 'listen-explain-btn';
+      btn.innerHTML = '解説を聞く <span class="listen-explain-arrow">▶</span>';
+      document.body.appendChild(btn);
+      btn.addEventListener('click', () => {
+        window.hideListenExplainButton();
+        // パルによる公式解説シーンを開く
+        const requiredFormulas = (window.currentProblemData && window.currentProblemData.requiredFormulas) || [];
+        window.startCharacterDialog('answer_reveal_pal_explain', {
+          context: { requiredFormulas },
+          onChoiceSelected: (actionId) => {
+            const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+            if (typeof action === 'function') action();
+          },
+        });
+      });
+    }
+    // フェードイン
+    btn.classList.remove('hidden');
+    requestAnimationFrame(() => btn.classList.add('show'));
+  };
+
+  // 「解説を聞く」ボタンを非表示にする
+  window.hideListenExplainButton = function () {
+    const btn = document.getElementById('btn-listen-explain');
+    if (!btn) return;
+    btn.classList.remove('show');
+    setTimeout(() => btn.classList.add('hidden'), 220);
+  };
+
+  // パルの解説後に「次のステージへ」を押したときの実処理
+  window.advanceToNextStage = function () {
+    // 答え表示中のロックを解除
+    document.body.classList.remove('answer-reveal-locked');
+    ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
+      const b = document.getElementById(id);
+      if (b) {
+        b.disabled = false;
+        b.classList.remove('pal-tutorial-disabled');
+      }
+    });
+
+    // 次ステージ番号を計算
+    let nextStageNumber = null;
+    if (typeof window.getNextStageId === 'function') {
+      nextStageNumber = window.getNextStageId(window.currentStageNumber);
+    }
+    if (nextStageNumber) {
+      window.currentStageNumber = nextStageNumber;
+      if (typeof window.loadStage === 'function') {
+        window.loadStage(nextStageNumber);
+      }
+    } else {
+      // 次のステージがない場合は、ステージ選択マップに戻す
+      if (typeof window.routeToTarget === 'function') window.routeToTarget();
+    }
+  };
 
   // 🛠️ ガイド機能 ON/OFF ボタン
   const btnOverwrite = document.getElementById('btn-overwrite-permission');
@@ -142,6 +252,12 @@ window.setupEventListeners = function() {
              window.clearedStages.push(numStage);
              localStorage.setItem('s', JSON.stringify(window.clearedStages));
            }
+           // 過去にギブアップしていたステージを自力クリアしたら、ギブアップ済みリストから削除して「格上げ」する
+           if (numStage && window.giveUppedStages && window.giveUppedStages.includes(numStage)) {
+             window.giveUppedStages = window.giveUppedStages.filter((n) => n !== numStage);
+             localStorage.setItem('gu', JSON.stringify(window.giveUppedStages));
+             console.log('[app] ギブアップ済みから自力クリアに格上げ:', numStage);
+           }
         }
         
         btnSubmit.style.display = 'none';
@@ -150,30 +266,51 @@ window.setupEventListeners = function() {
       } else {
         window.currentStreak = 0;
         if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(false);
-        const userMessage = typeof window.getErrorMessage === 'function' ? window.getErrorMessage(validation.errorCode, validation.errorStepIndex, validation.suggestions) : '式が正しくありません';
-        if (typeof window.showToast === 'function') window.showToast(`<span style='color:#ff4b4b'>${userMessage}</span>`);
+
+        // 不正解時: フリエ登場「もう一度 / 解説を見る」の選択肢
+        // ただし、そもそも「まだ穴が空いている」系のエラーの場合は従来通り toast だけ表示。
+        const isPartial = validation && (
+          validation.errorCode === 'proof_incomplete' ||
+          validation.errorCode === 'no_proof_step' ||
+          validation.errorCode === 'empty_slot'
+        );
+        if (!isPartial) {
+          // 画面フラッシュ + 「不正解！」テキストのエフェクト
+          const flash = document.createElement('div');
+          flash.className = 'wrong-flash-overlay';
+          document.body.appendChild(flash);
+          const stamp = document.createElement('div');
+          stamp.className = 'wrong-stamp-effect';
+          stamp.textContent = '不正解！';
+          document.body.appendChild(stamp);
+          setTimeout(() => {
+            if (flash.parentNode) flash.remove();
+            if (stamp.parentNode) stamp.remove();
+          }, 700);
+
+          // エフェクト後にフリエの不正解確認シーンを開く
+          setTimeout(() => {
+            window.startCharacterDialog('incorrect_confirm', {
+              onChoiceSelected: (actionId) => {
+                const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+                if (typeof action === 'function') action();
+              },
+            });
+          }, 700);
+        } else {
+          // 未完成の状態: 従来通り toast だけ
+          const userMessage = typeof window.getErrorMessage === 'function' ? window.getErrorMessage(validation.errorCode, validation.errorStepIndex, validation.suggestions) : '式が正しくありません';
+          if (typeof window.showToast === 'function') window.showToast(`<span style='color:#ff4b4b'>${userMessage}</span>`);
+        }
       }
     });
   }
 
-// 🔙 戻るボタン（ステージ選択 / チュートリアル中はチュートリアルをやめる、として振る舞う）
-// ラベルの切り替えは 0-1 開始時に「チュートリアルをやめる」、0-3 進入時に「ステージ選択」に戻す。
-// (character-scenes.js と main.js から明示的に btn-back.textContent を書き換える)
+// 🔙 戻るボタン（ステージ選択ボタンの挙動制御）
   const btnBack = document.getElementById('btn-back');
   if (btnBack) {
     btnBack.addEventListener('click', () => {
-      // チュートリアル (フリエ基礎 or パル) が進行中なら、まず両方を強制終了する
-      const isBasicsActive = typeof window.isBasicsTutorialActive === 'function' && window.isBasicsTutorialActive();
-      const isPalActive = typeof window.isPalTutorialActive === 'function' && window.isPalTutorialActive();
-      if (isBasicsActive || isPalActive) {
-        if (isBasicsActive && typeof window.abortBasicsTutorial === 'function') window.abortBasicsTutorial();
-        if (isPalActive && typeof window.abortPalTutorial === 'function') window.abortPalTutorial();
-        window._basicsTutorialActive = false;
-        document.body.classList.remove('basics-tutorial-active');
-        window._pendingUnlockFormulaIds = [];
-      }
-
-      // 💡 判定: 現在チュートリアルモード（0-1〜0-8）を実行中かどうか
+      // 💡 判定: 現在チュートリアルモード（0-1〜0-7）を実行中かどうか
       if (window.tutorialModeActive || (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber))) {
         
         // 1. 起動画面（エントランス）のhiddenを解除し、2択が表示された状態（show-choices）にする
@@ -187,17 +324,15 @@ window.setupEventListeners = function() {
         // 2. 現在開いているパズルメイン画面（#p）を非表示にする
         const pScreen = document.getElementById('p');
         if (pScreen) {
-          pScreen.classList.remove('b');
+          pScreen.classList.remove('b'); // 表示クラスを消去して非表示化
         }
         
         // 3. チュートリアルモードのフラグを安全にリセット
         window.tutorialModeActive = false;
         if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
 
-        // 4. ボタンラベルを通常に戻す (モード選択に戻るので)
-        btnBack.textContent = 'ステージ選択';
-
-        // 5. キャラダイアログのモード選択画面を再表示する
+        // 4. キャラダイアログのモード選択画面を再表示する
+        // (旧の entrance-card は CSS で常時非表示にしてあるので、キャラを明示的に呼ぶ)
         if (typeof window.openModeSelectWithCharacter === 'function') {
           window.openModeSelectWithCharacter();
         }

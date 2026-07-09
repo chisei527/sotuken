@@ -35,9 +35,9 @@ window.CHARACTER_SCENE_ACTIONS = {
     });
   },
   // tutorial_intro の確認ボタン → パルの自己紹介を挟んでからチュートリアル開始
+  // 2回目以降のパルは intro_pal_repeat (短縮版)
   confirm_tutorial_start: function() {
     window._pendingStartAction = 'exec_tutorial_start';
-    // パルの登場も 2 回目以降は短縮版に切り替える
     const palSceneId = window._palIntroSeen ? 'intro_pal_repeat' : 'intro_pal';
     window.startCharacterDialog(palSceneId, {
       onChoiceSelected: (actionId) => {
@@ -68,6 +68,60 @@ window.CHARACTER_SCENE_ACTIONS = {
       window.CHARACTER_SCENE_ACTIONS.exec_main_stage_1();
     } else {
       window.closeCharacterDialog();
+    }
+  },
+
+  // ==================================
+  // 不正解・ギブアップフロー
+  // ==================================
+  // 不正解モーダルで「もう一度」→ 単に閉じるだけ、ユーザーは自由に再挑戦できる
+  incorrect_retry: function() {
+    window.closeCharacterDialog();
+  },
+  // 不正解モーダルで「解説を見る」 → answer_reveal_intro シーンへ
+  incorrect_giveup: function() {
+    window.closeCharacterDialog();
+    setTimeout(() => {
+      window.startCharacterDialog('answer_reveal_intro', {
+        onChoiceSelected: (actionId) => {
+          const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+          if (typeof action === 'function') action();
+        },
+      });
+    }, 300);
+  },
+  // 「あきらめる」ボタン確認: 「もう少し頑張る」 → 閉じるだけ
+  giveup_cancel: function() {
+    window.closeCharacterDialog();
+  },
+  // 「あきらめる」ボタン確認: 「あきらめる」 → answer_reveal_intro シーンへ
+  giveup_confirm: function() {
+    window.closeCharacterDialog();
+    setTimeout(() => {
+      window.startCharacterDialog('answer_reveal_intro', {
+        onChoiceSelected: (actionId) => {
+          const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+          if (typeof action === 'function') action();
+        },
+      });
+    }, 300);
+  },
+  // 答え表示: 正解の骨格をワークスペースに読み込み、ギブアップ済みフラグを立てる
+  answer_reveal_show: function() {
+    window.closeCharacterDialog();
+    // 実際の解答表示・状態記録は app.js 側の関数に任せる (workspace 操作込みなので)
+    if (typeof window.revealAnswerAndMarkGiveUp === 'function') {
+      window.revealAnswerAndMarkGiveUp();
+    }
+  },
+  // パルの解説後、次のステージへ進む
+  answer_reveal_next_stage: function() {
+    window.closeCharacterDialog();
+    // 通常の「次ステージへ自動遷移」処理を発火
+    if (typeof window.advanceToNextStage === 'function') {
+      window.advanceToNextStage();
+    } else if (typeof window.scheduleAutoAdvanceAfterClear === 'function') {
+      window.scheduleAutoAdvanceAfterClear();
     }
   },
   // 実際のチュートリアル開始
@@ -165,17 +219,12 @@ window.CHARACTER_SCENE_ACTIONS = {
 
 /**
  * モード選択画面をキャラダイアログで開く。
- * 旧カードは CSS 側で確実に隠すので、ここでは特に触らない。
- */
-/**
- * モード選択画面をキャラダイアログで開く。
  * 2 回目以降のセッション内呼び出しでは、フリエ・パルとも短縮版シーンを使う。
  */
 window.openModeSelectWithCharacter = function() {
   const sceneId = window._modeSelectSeen ? 'intro_mode_select_repeat' : 'intro_mode_select';
   window.startCharacterDialog(sceneId, {
     onChoiceSelected: (actionId) => {
-      // ここまで来たら1回はモード選択画面を見終わったとみなす
       window._modeSelectSeen = true;
       const action = window.CHARACTER_SCENE_ACTIONS[actionId];
       if (typeof action === 'function') action();

@@ -165,4 +165,89 @@ window.CHARACTER_SCENES = {
       },
     ],
   },
+
+  // 「正解をチェック」で不正解だったときにフリエが登場して選択肢を出す
+  incorrect_confirm: {
+    character: 'furie',
+    portrait: 'think',
+    lines: [
+      'あっ、この解答だと少し違うみたいだよ！',
+      'どうする？もう一度自分でやってみる？それとも、答えを見て解説を聞いてみる？',
+    ],
+    choices: [
+      { label: 'もう一度やってみる 💪', subLabel: '', actionId: 'incorrect_retry' },
+      { label: '解説を見る 💡', subLabel: 'ギブアップして答えを見ます', actionId: 'incorrect_giveup' },
+    ],
+  },
+
+  // 「あきらめる」ボタンを押したときの最終確認
+  give_up_confirm: {
+    character: 'furie',
+    portrait: 'think',
+    lines: [
+      '本当にあきらめる？',
+      'あきらめると、この問題は「ヒント使用」の記録になっちゃうよ？',
+    ],
+    choices: [
+      { label: 'もう少し頑張る 💪', subLabel: '', actionId: 'giveup_cancel' },
+      { label: 'あきらめる 💡', subLabel: '答えと解説を見ます', actionId: 'giveup_confirm' },
+    ],
+  },
+
+  // 答え表示直前にフリエが登場して切り出す
+  answer_reveal_intro: {
+    character: 'furie',
+    portrait: 'default',
+    lines: [
+      'じゃあ、正解の並びを見てみよう！',
+      'ここからはパルに解説してもらうね！',
+    ],
+    choices: [
+      { label: '見る 👀', subLabel: '', actionId: 'answer_reveal_show' },
+    ],
+  },
+
+  // 答え表示後にパルが登場して、そのステージで使う公式について解説する
+  // context.requiredFormulas: string[] (使う公式ID配列) が buildLines に渡される
+  answer_reveal_pal_explain: {
+    character: 'hippalcos',
+    portrait: 'explain',
+    buildLines: (ctx) => {
+      const req = Array.isArray(ctx && ctx.requiredFormulas) ? ctx.requiredFormulas : [];
+      const lines = [];
+      lines.push('じゃあ、この問題のポイントを説明するね！');
+
+      // 各公式の解説を組み立て
+      const explains = {
+        formula_1: '「公式① sin²θ + cos²θ = 1」を使って、sin²+cos² が出てくる部分を「1」に書き換えたよ！',
+        formula_2: '「公式② tanθ = sinθ/cosθ」を使って、tan を sin と cos の分数に開くと、他の関数と組み合わせて計算しやすくなるんだ！',
+        formula_3: '「公式③ 1 + tan²θ = 1/cos²θ」を使って、1+tan² を 1/cos² に書き換えたよ！',
+      };
+
+      if (req.length === 0) {
+        lines.push('今回はブロックを整理するだけで解けたね！');
+      } else if (req.length === 1) {
+        const key = req[0];
+        if (explains[key]) lines.push(explains[key]);
+      } else {
+        // 複数公式を使う問題
+        const names = req.map((k) => {
+          if (k === 'formula_1') return '公式①';
+          if (k === 'formula_2') return '公式②';
+          if (k === 'formula_3') return '公式③';
+          return k;
+        });
+        lines.push(`今回は ${names.join(' と ')} を組み合わせるのがポイントだよ！`);
+        req.forEach((k) => {
+          if (explains[k]) lines.push(explains[k]);
+        });
+      }
+
+      lines.push('この解き方を覚えて、次の問題にチャレンジしてみよう！');
+      return lines;
+    },
+    choices: [
+      { label: '次のステージへ ▶', subLabel: '', actionId: 'answer_reveal_next_stage' },
+    ],
+  },
 };

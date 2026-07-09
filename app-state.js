@@ -12,7 +12,7 @@
 window.UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
 window.MAX_STAGE_NUMBER = 100;
 window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7', '0-8'];
-window.APP_STORAGE_KEYS = ['s', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', window.UNLOCKED_FORMULAS_STORAGE_KEY];
+window.APP_STORAGE_KEYS = ['s', 'gu', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', window.UNLOCKED_FORMULAS_STORAGE_KEY];
 
 // ------------------------------------------------------------
 // 【開発用】起動時に localStorage を自動リセットするフラグ。
@@ -103,6 +103,9 @@ window.saveUnlockedFormulasToStorage = function(formulaIds) {
 // 共有状態（書き換わる値）— すべて window 直書きで一元化
 // ------------------------------------------------------------
 window.clearedStages = JSON.parse(localStorage.getItem('s')) || [];
+// ギブアップ済み(=あきらめて解説を見た)ステージ。「クリア」とは別カテゴリで管理する。
+// 後で本人がクリアしたら、こっちのリストから削除して clearedStages に格上げ。
+window.giveUppedStages = JSON.parse(localStorage.getItem('gu')) || [];
 window.unlockAll = localStorage.getItem('unlock_all') === '1';
 window.unlockedFormulas = window.loadUnlockedFormulasFromStorage();
 window.currentStageNumber = 0;
