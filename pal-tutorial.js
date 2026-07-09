@@ -405,4 +405,9 @@
     window.closeCharacterDialog();
     currentState = null;
   };
+
+  // 現在パルチュートリアル進行中かどうかを外部から確認できるようにする
+  window.isPalTutorialActive = function () {
+    return currentState !== null;
+  };
 })();

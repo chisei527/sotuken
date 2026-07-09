@@ -18,11 +18,17 @@
  * サイバー系遷移演出などの副作用を維持できる。
  */
 window.CHARACTER_SCENE_ACTIONS = {
-  // モード選択: チュートリアルを選んだ → まずキャラの説明シーンに入る
-  // (動画モーダルは廃止し、フリエちゃんが直接説明を担当)
+  // モード選択: チュートリアルを選んだ → キャラの説明シーンに入る
+  // 2回目以降は tutorial_intro をスキップして、直接パル登場フェーズへ
   start_tutorial: async function() {
+    if (window._tutorialIntroSeen) {
+      // 2回目以降: 説明省略、パルの短縮登場だけ
+      window.CHARACTER_SCENE_ACTIONS.confirm_tutorial_start();
+      return;
+    }
     window.startCharacterDialog('tutorial_intro', {
       onChoiceSelected: (actionId) => {
+        window._tutorialIntroSeen = true;
         const action = window.CHARACTER_SCENE_ACTIONS[actionId];
         if (typeof action === 'function') action();
       },
@@ -30,9 +36,10 @@ window.CHARACTER_SCENE_ACTIONS = {
   },
   // tutorial_intro の確認ボタン → パルの自己紹介を挟んでからチュートリアル開始
   confirm_tutorial_start: function() {
-    // 「次に開始するのはチュートリアル」というマークを立ててからパル登場
     window._pendingStartAction = 'exec_tutorial_start';
-    window.startCharacterDialog('intro_pal', {
+    // パルの登場も 2 回目以降は短縮版に切り替える
+    const palSceneId = window._palIntroSeen ? 'intro_pal_repeat' : 'intro_pal';
+    window.startCharacterDialog(palSceneId, {
       onChoiceSelected: (actionId) => {
         const action = window.CHARACTER_SCENE_ACTIONS[actionId];
         if (typeof action === 'function') action();
@@ -42,7 +49,8 @@ window.CHARACTER_SCENE_ACTIONS = {
   // モード選択: 本編1に直接飛ぶ → こちらもパルの自己紹介を挟む
   start_main_stage_1: function() {
     window._pendingStartAction = 'exec_main_stage_1';
-    window.startCharacterDialog('intro_pal', {
+    const palSceneId = window._palIntroSeen ? 'intro_pal_repeat' : 'intro_pal';
+    window.startCharacterDialog(palSceneId, {
       onChoiceSelected: (actionId) => {
         const action = window.CHARACTER_SCENE_ACTIONS[actionId];
         if (typeof action === 'function') action();
@@ -51,6 +59,7 @@ window.CHARACTER_SCENE_ACTIONS = {
   },
   // パルの自己紹介終了 → 保留されていた開始アクションを実行
   confirm_pal_intro: function() {
+    window._palIntroSeen = true; // 次回以降は短縮版に
     const pending = window._pendingStartAction;
     window._pendingStartAction = null;
     if (pending === 'exec_tutorial_start') {
@@ -158,9 +167,16 @@ window.CHARACTER_SCENE_ACTIONS = {
  * モード選択画面をキャラダイアログで開く。
  * 旧カードは CSS 側で確実に隠すので、ここでは特に触らない。
  */
+/**
+ * モード選択画面をキャラダイアログで開く。
+ * 2 回目以降のセッション内呼び出しでは、フリエ・パルとも短縮版シーンを使う。
+ */
 window.openModeSelectWithCharacter = function() {
-  window.startCharacterDialog('intro_mode_select', {
+  const sceneId = window._modeSelectSeen ? 'intro_mode_select_repeat' : 'intro_mode_select';
+  window.startCharacterDialog(sceneId, {
     onChoiceSelected: (actionId) => {
+      // ここまで来たら1回はモード選択画面を見終わったとみなす
+      window._modeSelectSeen = true;
       const action = window.CHARACTER_SCENE_ACTIONS[actionId];
       if (typeof action === 'function') action();
       else console.warn('[character-scenes] unknown actionId:', actionId);

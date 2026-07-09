@@ -278,4 +278,9 @@
     hideWaitingHint();
     currentState = null;
   };
+
+  // 現在フリエ基礎チュートリアル進行中かどうかを外部から確認できるようにする
+  window.isBasicsTutorialActive = function () {
+    return currentState !== null;
+  };
 })();

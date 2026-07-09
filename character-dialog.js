@@ -36,8 +36,9 @@
           <div class="character-dialog-bubble" id="character-dialog-bubble">
             <div class="character-dialog-name" id="character-dialog-name"></div>
             <div class="character-dialog-text" id="character-dialog-text"></div>
-            <button class="character-dialog-next" id="character-dialog-next" type="button">次へ ▶</button>
+            <button class="character-dialog-next" id="character-dialog-next" type="button" aria-label="次へ">次へ ▶</button>
           </div>
+          <div class="character-dialog-tap-hint" id="character-dialog-tap-hint">タップして進む</div>
           <div class="character-dialog-choices hidden" id="character-dialog-choices"></div>
         </div>
         <div class="character-dialog-portrait-column">
@@ -49,9 +50,16 @@
 
     // 「次へ」ボタン
     host.querySelector('#character-dialog-next').addEventListener('click', advanceLine);
-    // 吹き出し全体をクリックしても進める (「次へ」ボタン以外をタップしたときの副導線)
-    host.querySelector('#character-dialog-bubble').addEventListener('click', (e) => {
-      if (e.target.closest('#character-dialog-next')) return; // 二重発火防止
+    // ホスト全体 (立ち絵・背景含む) をタップしても進める。
+    // 制限:
+    //   - 選択肢表示中 (bubble に dimmed クラス) は無効
+    //   - 選択肢ボタン (choices エリア内) のクリックは除外 (選択が発火するように)
+    //   - 「次へ」ボタン自体のクリックは除外 (二重発火防止)
+    host.addEventListener('click', (e) => {
+      if (e.target.closest('#character-dialog-next')) return;
+      if (e.target.closest('#character-dialog-choices')) return;
+      const bubble = document.getElementById('character-dialog-bubble');
+      if (bubble && bubble.classList.contains('dimmed')) return;
       advanceLine();
     });
     return host;
@@ -116,6 +124,12 @@
     // 立ち絵と吹き出しがフェードインする演出のため、次フレームで showクラス を付与
     requestAnimationFrame(() => host.classList.add('show'));
 
+    // セッション内で初めてのキャラダイアログなら、「タップして進む」ヒント文を表示する。
+    // advanceLine が呼ばれたら (＝1回でも進んだら) このクラスは外れて、以降表示されない。
+    if (!window._characterDialogTapHintSeen) {
+      host.classList.add('is-first-visit');
+    }
+
     renderCurrentLine();
   };
 
@@ -176,6 +190,13 @@
     const state = currentDialogState;
     const textEl = document.getElementById('character-dialog-text');
     if (!textEl) return;
+
+    // 「タップして進む」ヒント文はセッション中に1回でも進めたら以降表示しない
+    if (!window._characterDialogTapHintSeen) {
+      window._characterDialogTapHintSeen = true;
+      const host = document.getElementById(DIALOG_HOST_ID);
+      if (host) host.classList.remove('is-first-visit');
+    }
 
     // タイプライター途中でクリックされた場合は、まず全文表示にスキップ
     if (state._typingTimer) {

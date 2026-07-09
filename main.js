@@ -301,6 +301,19 @@ window.loadStage = async function(stageNumber) {
       if (stageText) stageText.innerText = isTutorialStage ? `TUTORIAL ${window.getTutorialStageIndex(stageNumber) + 1}/${window.TUTORIAL_STAGE_IDS.length}` : `STAGE ${stageNumber}`;
       if (problemText) problemText.innerText = window.currentProblemData?.mathText || '';
 
+      // btn-back のラベルを状況に合わせて切り替える
+      // 0-1, 0-2 はキャラチュートリアルが必ず出るので「チュートリアルをやめる」で強制終了させる
+      // 0-3 以降はチュートリアルなしなので「ステージ選択」でモード選択に戻る
+      const btnBack = document.getElementById('btn-back');
+      if (btnBack) {
+        const sid = String(stageNumber);
+        if (sid === '0-1' || sid === '0-2') {
+          btnBack.textContent = 'チュートリアルをやめる';
+        } else {
+          btnBack.textContent = 'ステージ選択';
+        }
+      }
+
       if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); }
 
       if (window.workspace) {

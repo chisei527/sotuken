@@ -62,24 +62,46 @@ const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
 
 // 3. ワークスペースの起動（机を画面に置く）
 
-// 接続スナップ範囲を拡大して、穴への当たり判定を広くする。
-// Blocklyのバージョン差を吸収するため、定数とconfig両方に書き込む。
-// デフォルト: SNAP_RADIUS ~ 28, CONNECTING_SNAP_RADIUS ~ 68
+// 接続スナップ範囲を画面幅に応じて段階的に切り替える。
+// 大画面では広めに、小画面では狭めに設定して、ワークスペースが狭いときの
+// 「ちょっと近づけただけで吸われる」問題を回避する。
+// リサイズ時にも切り替える (即時 Blockly に反映される)。
 (function widenSnapRadius() {
-  const SNAP = 48;            // 接続中のブロックがスナップする距離
-  const CONNECTING_SNAP = 96; // ドラッグ中の接続候補ハイライト距離
-  try {
-    if (typeof Blockly !== 'undefined') {
-      // 旧API（フィールドの直接書き換え）
-      if ('SNAP_RADIUS' in Blockly) Blockly.SNAP_RADIUS = SNAP;
-      if ('CONNECTING_SNAP_RADIUS' in Blockly) Blockly.CONNECTING_SNAP_RADIUS = CONNECTING_SNAP;
-      // 新API（config経由）
-      if (Blockly.config) {
-        Blockly.config.snapRadius = SNAP;
-        Blockly.config.connectingSnapRadius = CONNECTING_SNAP;
+  // 画面幅に応じた (SNAP, CONNECTING_SNAP) を返す。
+  // メディアクエリの区切りは CSS 側の :root ブレークポイントと揃える。
+  function getSnapValuesForWidth(width) {
+    if (width >= 1920) return [48, 96]; // 大画面 (現状維持)
+    if (width >= 1600) return [40, 80]; // 一般的な大型モニタ
+    if (width >= 1280) return [32, 64]; // 一般的な PC
+    if (width >= 1024) return [24, 48]; // 小型ノート
+    return [20, 40];                    // 超小画面
+  }
+
+  function applySnapForCurrentSize() {
+    const [SNAP, CONNECTING_SNAP] = getSnapValuesForWidth(window.innerWidth || 1280);
+    try {
+      if (typeof Blockly !== 'undefined') {
+        // 旧API (フィールドの直接書き換え)
+        if ('SNAP_RADIUS' in Blockly) Blockly.SNAP_RADIUS = SNAP;
+        if ('CONNECTING_SNAP_RADIUS' in Blockly) Blockly.CONNECTING_SNAP_RADIUS = CONNECTING_SNAP;
+        // 新API (config 経由)
+        if (Blockly.config) {
+          Blockly.config.snapRadius = SNAP;
+          Blockly.config.connectingSnapRadius = CONNECTING_SNAP;
+        }
       }
-    }
-  } catch (_) { /* バージョン差で書き込めなくても致命的ではない */ }
+    } catch (_) { /* バージョン差で書き込めなくても致命的ではない */ }
+    console.log('[widenSnapRadius] width=' + window.innerWidth + ' → SNAP=' + SNAP + ', CONNECTING_SNAP=' + CONNECTING_SNAP);
+  }
+
+  applySnapForCurrentSize();
+
+  // リサイズ時にも再計算 (デバウンス 200ms)
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applySnapForCurrentSize, 200);
+  });
 })();
 
 window.workspace = Blockly.inject('l', {
