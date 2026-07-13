@@ -310,7 +310,19 @@ window.setupEventListeners = function() {
   const btnBack = document.getElementById('btn-back');
   if (btnBack) {
     btnBack.addEventListener('click', () => {
-      // 💡 判定: 現在チュートリアルモード（0-1〜0-7）を実行中かどうか
+      // チュートリアル (フリエ基礎 or パル) が進行中なら、まず両方を強制終了する
+      const isBasicsActive = typeof window.isBasicsTutorialActive === 'function' && window.isBasicsTutorialActive();
+      const isPalActive = typeof window.isPalTutorialActive === 'function' && window.isPalTutorialActive();
+      if (isBasicsActive || isPalActive) {
+        if (isBasicsActive && typeof window.abortBasicsTutorial === 'function') window.abortBasicsTutorial();
+        if (isPalActive && typeof window.abortPalTutorial === 'function') window.abortPalTutorial();
+        window._basicsTutorialActive = false;
+        document.body.classList.remove('basics-tutorial-active');
+        document.body.classList.remove('furie-tutorial-active');
+        window._pendingUnlockFormulaIds = [];
+      }
+
+      // 💡 判定: 現在チュートリアルモード（0-1〜0-8）を実行中かどうか
       if (window.tutorialModeActive || (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber))) {
         
         // 1. 起動画面（エントランス）のhiddenを解除し、2択が表示された状態（show-choices）にする
@@ -331,8 +343,10 @@ window.setupEventListeners = function() {
         window.tutorialModeActive = false;
         if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
 
-        // 4. キャラダイアログのモード選択画面を再表示する
-        // (旧の entrance-card は CSS で常時非表示にしてあるので、キャラを明示的に呼ぶ)
+        // 4. ボタンラベルを通常に戻す
+        btnBack.textContent = 'ステージ選択';
+
+        // 5. キャラダイアログのモード選択画面を再表示する
         if (typeof window.openModeSelectWithCharacter === 'function') {
           window.openModeSelectWithCharacter();
         }

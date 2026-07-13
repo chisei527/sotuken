@@ -1,0 +1,253 @@
+/* ========================================
+           パル (ヒッパルコス) 常駐マスコット + radial menu
+           character-mascot.js が制御する。
+           サイズは --pal-size 変数で段階的に制御 (メディアクエリで切替)。
+           radial menu の位置は --pal-size に対する割合で計算される。
+           ======================================== */
+        :root {
+          --pal-size: 800px;
+          --pal-menu-item-size: 150px;
+          --pal-menu-label-size: 1.05rem;
+          --pal-menu-sublabel-size: 0.75rem;
+          --pal-menu-item-padding: 12px;
+        }
+        @media (max-width: 1919px) {
+          :root {
+            --pal-size: 700px;
+            --pal-menu-item-size: 140px;
+            --pal-menu-label-size: 1rem;
+            --pal-menu-sublabel-size: 0.72rem;
+            --pal-menu-item-padding: 11px;
+          }
+        }
+        @media (max-width: 1599px) {
+          :root {
+            --pal-size: 550px;
+            --pal-menu-item-size: 120px;
+            --pal-menu-label-size: 0.9rem;
+            --pal-menu-sublabel-size: 0.68rem;
+            --pal-menu-item-padding: 9px;
+          }
+        }
+        @media (max-width: 1279px) {
+          :root {
+            --pal-size: 400px;
+            --pal-menu-item-size: 100px;
+            --pal-menu-label-size: 0.8rem;
+            --pal-menu-sublabel-size: 0.62rem;
+            --pal-menu-item-padding: 7px;
+          }
+        }
+        @media (max-width: 1023px) {
+          :root {
+            --pal-size: 300px;
+            --pal-menu-item-size: 80px;
+            --pal-menu-label-size: 0.7rem;
+            --pal-menu-sublabel-size: 0.58rem;
+            --pal-menu-item-padding: 6px;
+          }
+        }
+
+        .character-mascot-host {
+          position: fixed;
+          right: 0;
+          bottom: 0;
+          width: var(--pal-size);
+          height: var(--pal-size);
+          z-index: 2900;
+          pointer-events: none;
+        }
+        .character-mascot-host.hidden { display: none !important; }
+
+        .character-mascot-pal {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: var(--pal-size);
+          height: var(--pal-size);
+          padding: 0;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          pointer-events: auto;
+          filter: drop-shadow(0 8px 24px rgba(56, 189, 248, 0.5));
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .character-mascot-pal:hover {
+          transform: translateY(-12px);
+          filter: drop-shadow(0 16px 32px rgba(56, 189, 248, 0.75));
+        }
+        .character-mascot-pal img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: bottom right;
+          user-select: none;
+        }
+
+        .character-mascot-menu {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+        }
+
+        .character-mascot-menu-item {
+          position: absolute;
+          width: var(--pal-menu-item-size);
+          height: var(--pal-menu-item-size);
+          padding: var(--pal-menu-item-padding);
+          border-radius: 50%;
+          background: linear-gradient(145deg, rgba(29, 78, 216, 0.9), rgba(14, 165, 233, 0.85));
+          border: 2px solid rgba(56, 189, 248, 0.7);
+          color: #fff;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.4);
+          opacity: 0;
+          transform: scale(0.4);
+          transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.4, 1.2);
+          pointer-events: none;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        .character-mascot-menu-item:hover {
+          background: linear-gradient(145deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
+          transform: scale(1.08) !important;
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+        .character-mascot-menu-item.is-active {
+          background: linear-gradient(145deg, rgba(21, 128, 61, 0.9), rgba(34, 197, 94, 0.85));
+          border-color: rgba(74, 222, 128, 0.9);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 30px rgba(74, 222, 128, 0.7);
+        }
+        .character-mascot-menu-item.is-active:hover {
+          background: linear-gradient(145deg, rgba(21, 128, 61, 1), rgba(34, 197, 94, 1));
+        }
+        .character-mascot-menu-label {
+          font-size: var(--pal-menu-label-size);
+          line-height: 1.2;
+          text-align: center;
+        }
+        .character-mascot-menu-sublabel {
+          font-size: var(--pal-menu-sublabel-size);
+          opacity: 0.85;
+          margin-top: 4px;
+        }
+
+        /* radial menu 展開時: パルサイズに対する割合で配置 */
+        .character-mascot-host.menu-open .character-mascot-menu-item {
+          opacity: 1;
+          transform: scale(1);
+          pointer-events: auto;
+        }
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up {
+          right: calc(var(--pal-size) * 0.25);
+          bottom: calc(var(--pal-size) * 0.70);
+        }
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up-left {
+          right: calc(var(--pal-size) * 0.59);
+          bottom: calc(var(--pal-size) * 0.59);
+        }
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-left {
+          right: calc(var(--pal-size) * 0.70);
+          bottom: calc(var(--pal-size) * 0.25);
+        }
+
+        /* 展開前の初期位置 (割合ベース) */
+        .character-mascot-menu-item {
+          right: calc(var(--pal-size) * 0.31);
+          bottom: calc(var(--pal-size) * 0.31);
+        }
+
+        /* ==== 三角関数の解説サブメニュー ==== */
+        .character-mascot-submenu {
+          position: fixed;
+          inset: 0;
+          z-index: 3100;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.65);
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .character-mascot-submenu.show { opacity: 1; }
+        .character-mascot-submenu.hidden { display: none !important; }
+
+        .character-mascot-submenu-card {
+          width: min(var(--submenu-card-width, 720px), 92vw);
+          background: linear-gradient(135deg, rgba(8, 22, 44, 0.98), rgba(15, 30, 60, 0.96));
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          border-radius: 20px;
+          padding: var(--submenu-card-padding, 24px 28px);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.15);
+          color: var(--cyber-text);
+          transform: translateY(20px);
+          transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        .character-mascot-submenu.show .character-mascot-submenu-card { transform: translateY(0); }
+
+        .character-mascot-submenu-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 18px;
+        }
+        .character-mascot-submenu-title {
+          font-size: var(--submenu-title-size, 1.3rem);
+          font-weight: 900;
+          color: #e0f2fe;
+        }
+        .character-mascot-submenu-close {
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid var(--glass-border);
+          color: var(--cyber-text);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          font-size: 1.2rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .character-mascot-submenu-close:hover { background: rgba(239, 68, 68, 0.25); }
+
+        .character-mascot-submenu-body {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+        }
+        @media (max-width: 700px) {
+          .character-mascot-submenu-body { grid-template-columns: 1fr 1fr; }
+        }
+        .character-mascot-submenu-item {
+          padding: var(--submenu-item-padding, 16px 18px);
+          text-align: left;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid var(--glass-border);
+          border-radius: 12px;
+          color: var(--cyber-text);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .character-mascot-submenu-item:hover {
+          background: rgba(56, 189, 248, 0.2);
+          border-color: rgba(56, 189, 248, 0.6);
+          transform: translateY(-2px);
+        }
+        .character-mascot-submenu-item-label {
+          font-size: var(--submenu-item-label-size, 0.9rem);
+          font-weight: 800;
+          color: #7dd3fc;
+          margin-bottom: 6px;
+        }
+        .character-mascot-submenu-item-title {
+          font-size: var(--submenu-item-title-size, 1rem);
+          font-weight: 700;
+          line-height: 1.3;
+        }

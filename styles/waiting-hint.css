@@ -1,0 +1,168 @@
+/* ========================================
+           操作基礎チュートリアル (0-0) 用の待機ヒント
+           basics-tutorial.js が制御する。
+           大きなイントロ/完了セリフは既存の character-dialog を流用するため、
+           ここでは操作待機中の上部バナーだけを定義する。
+           ======================================== */
+        .basics-tutorial-waiting-hint {
+          position: fixed;
+          top: 90px;
+          left: 50%;
+          transform: translate(-50%, -20px);
+          z-index: 3200;
+          max-width: min(680px, 88vw);
+          opacity: 0;
+          transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+        }
+        .basics-tutorial-waiting-hint.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .basics-tutorial-waiting-hint.hidden { display: none !important; }
+        .basics-tutorial-waiting-hint-inner {
+          background: rgba(8, 20, 44, 0.96);
+          border: 2px solid rgba(251, 191, 36, 0.75);
+          border-radius: 18px;
+          padding: 20px 28px;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 32px rgba(251, 191, 36, 0.4);
+          animation: basicsTutorialHintPulse 1.8s infinite ease-in-out;
+          text-align: center;
+        }
+        .basics-tutorial-waiting-hint-text {
+          font-size: 1.4rem;
+          font-weight: 800;
+          color: #fef3c7;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+          line-height: 1.5;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          align-items: center;
+          gap: 8px;
+        }
+        /* インラインで表示するブロック SVG のサイズ調整 */
+        .basics-tutorial-hint-block {
+          /* 画面幅で段階変化させる。実際の値は :root の --hint-block-height メディアクエリで指定 */
+          height: var(--hint-block-height, 1.6em);
+          width: auto;
+          vertical-align: middle;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+        .basics-tutorial-waiting-hint-explain {
+          margin-top: 14px;
+          padding: 6px 16px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid var(--glass-border);
+          color: var(--cyber-muted);
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .basics-tutorial-waiting-hint-explain:hover {
+          background: rgba(255, 255, 255, 0.18);
+          color: #fff;
+        }
+        @keyframes basicsTutorialHintPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 32px rgba(251, 191, 36, 0.4); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 56px rgba(251, 191, 36, 0.75); }
+        }
+
+        /* フリエ基礎チュートリアル中のみパル常駐を隠す (パルチュートリアルでは隠さない) */
+        body.furie-tutorial-active .character-mascot-host {
+          display: none !important;
+        }
+
+        /* パルチュートリアル中の無効化ボタン */
+        .pal-tutorial-disabled {
+          opacity: 0.35 !important;
+          pointer-events: none !important;
+          filter: grayscale(0.6);
+        }
+
+        /* ========================================
+           パルチュートリアル (0-1) 用の待機ヒント
+           basics-tutorial の上部中央バナーと似た形だが、
+           パル用に青緑系の色調にする。
+           ======================================== */
+        .pal-tutorial-waiting-hint {
+          position: fixed;
+          top: 160px;
+          left: 50%;
+          transform: translate(-50%, -20px);
+          z-index: 3200;
+          max-width: min(680px, 88vw);
+          opacity: 0;
+          transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+        }
+        .pal-tutorial-waiting-hint.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .pal-tutorial-waiting-hint.hidden { display: none !important; }
+        .pal-tutorial-waiting-hint-inner {
+          background: rgba(8, 20, 44, 0.96);
+          border: 2px solid rgba(74, 222, 128, 0.75);
+          border-radius: 18px;
+          padding: 20px 28px;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 32px rgba(74, 222, 128, 0.4);
+          animation: palTutorialHintPulse 1.8s infinite ease-in-out;
+          text-align: center;
+        }
+        .pal-tutorial-waiting-hint-text {
+          font-size: 1.4rem;
+          font-weight: 800;
+          color: #dcfce7;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+          line-height: 1.5;
+        }
+        .pal-tutorial-waiting-hint-explain {
+          margin-top: 14px;
+          padding: 6px 16px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid var(--glass-border);
+          color: var(--cyber-muted);
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .pal-tutorial-waiting-hint-explain:hover {
+          background: rgba(255, 255, 255, 0.18);
+          color: #fff;
+        }
+        /* 巻き戻し警告時: 赤系にフラッシュ */
+        .pal-tutorial-waiting-hint-text .pal-tutorial-revert {
+          color: #fca5a5;
+          font-weight: 900;
+        }
+        @keyframes palTutorialHintPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 32px rgba(74, 222, 128, 0.4); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 56px rgba(74, 222, 128, 0.75); }
+        }
+        /* パルチュートリアル中に無効化された下部アクションボタン */
+        .action-btn.pal-tutorial-disabled {
+          opacity: 0.35;
+          filter: grayscale(0.6);
+          cursor: not-allowed;
+        }
+        .action-btn.pal-tutorial-disabled:hover {
+          transform: none;
+        }
+
+        /* ========================================
+           パルに統合された旧UI要素を視覚的に隠す
+           character-mascot.js が click() で内部発火する必要があるため
+           DOM ノード自体は残し、CSS で display: none する。
+           ======================================== */
+        #btn-hint,
+        #btn-overwrite-permission,
+        #btn-formula-reference {
+          display: none !important;
+        }

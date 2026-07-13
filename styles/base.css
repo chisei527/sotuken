@@ -1,0 +1,52 @@
+/* =====================================================
+           CYBERPUNK GLASS THEME: ネオンブルー＆グラスモフィズム
+           ===================================================== */
+        :root {
+          --cyber-bg: #030814;
+          --cyber-text: #e6f0ff;
+          --cyber-muted: rgba(203, 213, 225, 0.7);
+          --cyber-blue: #38bdf8;       /* ネオンシアン */
+          --cyber-purple: #a78bfa;     /* ネオンバイオレット */
+          --cyber-green: #22c55e;      /* 正解グリーン */
+          --cyber-red: #fb7185;        /* 不正解レッド */
+          --cyber-dark-blue: #061a3a;
+          
+          /* ガラスの質感共通パーツ */
+          --glass-bg: rgba(6, 22, 44, 0.65);
+          --glass-border: rgba(56, 189, 248, 0.25);
+          --cyber-glow: 0 0 12px rgba(56, 189, 248, 0.4);
+          --cyber-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+
+          /* チュートリアル待機ヒント内のブロック SVG の高さ。
+             メディアクエリで段階的に切り替え、小画面で文字と重ならないようにする。
+             文字とのバランスを取るため 1.5em を基準に、小画面ほど小さく。 */
+          --hint-block-height: 1.5em;
+        }
+
+        /* 待機ヒント内 SVG の高さを画面幅で段階可変 */
+        @media (max-width: 1599px) {
+          :root { --hint-block-height: 1.35em; }
+        }
+        @media (max-width: 1279px) {
+          :root { --hint-block-height: 1.2em; }
+        }
+        @media (max-width: 1023px) {
+          :root { --hint-block-height: 1.1em; }
+        }
+
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background-color: var(--cyber-bg);
+          font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif;
+          color: var(--cyber-text);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-attachment: fixed;
+          transition: background-image 260ms ease;
+        }
+
+        .a { display: none; height: 100%; flex-direction: column; }
+        .b { display: flex; }

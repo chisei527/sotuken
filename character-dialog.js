@@ -108,6 +108,12 @@
       lineIndex: 0,
       choices: Array.isArray(scene.choices) ? scene.choices : [],
       characterName: character.name,
+      // シーンのデフォルト話者情報 (lines[i] が文字列のときに使われる)
+      defaultCharacterKey: scene.character,
+      defaultPortraitKey: scene.portrait,
+      // 選択肢がなく nextActionId が指定されているシーンでは、最後の行タップで
+      // その actionId を発火してシーンチェーンする
+      nextActionId: scene.nextActionId || null,
       onChoiceSelected: options.onChoiceSelected || function () {},
     };
 
@@ -156,7 +162,31 @@
   function renderCurrentLine() {
     if (!currentDialogState) return;
     const state = currentDialogState;
-    const line = state.lines[state.lineIndex] || '';
+    const rawLine = state.lines[state.lineIndex];
+
+    // line は string または { character, portrait, text } オブジェクト
+    // オブジェクトの場合は話者/立ち絵を一時的に切り替える
+    let text = '';
+    let characterKey = state.defaultCharacterKey;
+    let portraitKey = state.defaultPortraitKey;
+    if (rawLine && typeof rawLine === 'object') {
+      text = String(rawLine.text || '');
+      if (rawLine.character) characterKey = rawLine.character;
+      if (rawLine.portrait) portraitKey = rawLine.portrait;
+    } else {
+      text = String(rawLine || '');
+    }
+
+    // 話者情報を適用 (立ち絵・名前を切り替え)
+    const character = window.CHARACTER_PROFILES && window.CHARACTER_PROFILES[characterKey];
+    if (character) {
+      const portraitPath = character.portraits[portraitKey] || character.portraits.default;
+      const portraitEl = document.getElementById('character-dialog-portrait');
+      const nameEl = document.getElementById('character-dialog-name');
+      if (portraitEl && portraitEl.src.indexOf(portraitPath) === -1) portraitEl.src = portraitPath;
+      if (nameEl) nameEl.textContent = character.name;
+    }
+
     const textEl = document.getElementById('character-dialog-text');
     const nextBtn = document.getElementById('character-dialog-next');
     if (!textEl || !nextBtn) return;
@@ -166,9 +196,9 @@
     let charIndex = 0;
     if (state._typingTimer) clearInterval(state._typingTimer);
     state._typingTimer = setInterval(() => {
-      textEl.textContent += line.charAt(charIndex);
+      textEl.textContent += text.charAt(charIndex);
       charIndex += 1;
-      if (charIndex >= line.length) {
+      if (charIndex >= text.length) {
         clearInterval(state._typingTimer);
         state._typingTimer = null;
       }
@@ -202,7 +232,10 @@
     if (state._typingTimer) {
       clearInterval(state._typingTimer);
       state._typingTimer = null;
-      textEl.textContent = state.lines[state.lineIndex] || '';
+      // rawLine が文字列でもオブジェクトでも text だけを取り出す
+      const raw = state.lines[state.lineIndex];
+      const fullText = (raw && typeof raw === 'object') ? String(raw.text || '') : String(raw || '');
+      textEl.textContent = fullText;
       return;
     }
 
@@ -212,9 +245,17 @@
       return;
     }
 
-    // 最終行を過ぎた: 選択肢がある → 出す、無ければ閉じる
+    // 最終行を過ぎた: 選択肢がある → 出す
+    // 選択肢が無く nextActionId がある → その actionId を発火 (シーンチェーン)
+    // どちらもなければダイアログを閉じる
     if (state.choices.length > 0) {
       renderChoices();
+    } else if (state.nextActionId) {
+      try {
+        state.onChoiceSelected(state.nextActionId);
+      } catch (e) {
+        console.warn('[character-dialog] onChoiceSelected (nextActionId) threw:', e);
+      }
     } else {
       window.closeCharacterDialog();
     }
@@ -240,10 +281,16 @@
       </button>
     `).join('');
     choicesEl.classList.remove('hidden');
+    // 誤タップ防止: 選択肢が出現してから 400ms は反応させない。
+    // 吹き出しを進めるための連打が選択肢に届いても、この期間はクリックされない。
+    choicesEl.classList.add('is-locked');
     requestAnimationFrame(() => choicesEl.classList.add('show'));
+    setTimeout(() => choicesEl.classList.remove('is-locked'), 400);
 
     choicesEl.querySelectorAll('.character-dialog-choice').forEach((btn) => {
       btn.addEventListener('click', () => {
+        // is-locked 期間中のクリックは無視
+        if (choicesEl.classList.contains('is-locked')) return;
         const idx = Number(btn.dataset.index);
         const choice = state.choices[idx];
         if (!choice) return;

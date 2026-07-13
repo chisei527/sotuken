@@ -1,0 +1,61 @@
+/* ステージ選択（旧画面） */
+        #c { 
+          align-items: center; 
+          justify-content: flex-start; 
+          background: rgba(2, 12, 32, 0.6) !important; 
+          color: var(--cyber-text) !important; 
+          padding: 20px; 
+          overflow: hidden;
+          backdrop-filter: blur(8px);
+        }
+        #c button {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(167, 139, 250, 0.1)) !important;
+          color: var(--cyber-text) !important;
+          border: 1px solid var(--glass-border) !important;
+          border-radius: 14px !important;
+          font-weight: 900 !important;
+          box-shadow: var(--cyber-shadow) !important;
+          cursor: pointer;
+        }
+
+        .d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 600px; width: 100%; margin-bottom: 30px;}
+        .e { background-color: white; color: #1976d2; border: none; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; position: relative;}
+        .f { position: absolute; top: -5px; right: -5px; font-size: 1.2em; display: none; }
+        .g .f { display: block; }
+
+        /* パズルメイン画面 */
+        #p { position: relative; background: transparent; }
+
+        /* 🚀 上部サイバーヘッダー */
+        #h { 
+          background: linear-gradient(180deg, rgba(4, 15, 36, 0.95) 0%, rgba(2, 8, 20, 0.8) 100%);
+          color: var(--cyber-text); 
+          padding: 14px 20px; 
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          align-items: center; 
+          gap: 14px;
+          border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
+          backdrop-filter: blur(12px);
+          z-index: 10;
+        }
+        #h button { 
+          background: rgba(255, 255, 255, 0.04); 
+          border: 1px solid var(--glass-border); 
+          color: var(--cyber-text); 
+          padding: 10px 18px; 
+          border-radius: 12px; 
+          cursor: pointer; 
+          font-weight: 800; 
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+          transition: all 0.15s ease;
+        }
+        #h button:hover {
+          background: rgba(56, 189, 248, 0.15);
+          border-color: var(--cyber-blue);
+          box-shadow: var(--cyber-glow);
+        }
+        #h button:active { transform: translateY(1px); }
+
+        /* 🚀 クールな問題文カード */

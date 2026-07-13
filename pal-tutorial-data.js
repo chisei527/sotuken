@@ -24,7 +24,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       completeLines: [
         'ばっちり！「置き換え」ブロックは、ある値を別の値に書き換える魔法だよ！',
       ],
-      hintHtml: '「操作」から「置き換え」ブロックを「よって〜となる」の中に入れよう！',
+      hintHtml: () => `「操作」から ${window.BlockSvg.replaceOperation()} を ${window.BlockSvg.proofStep()} の中に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;
@@ -45,7 +45,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       completeLines: [
         'いいね！ここが「これから書き換える式」の場所だよ！',
       ],
-      hintHtml: '「sin²θ + cos²θ」の式を「置き換え」の一番上の穴に入れよう！',
+      hintHtml: () => `「sin²θ + cos²θ」の式 (${window.BlockSvg.add()}) を ${window.BlockSvg.replaceOperation()} の一番上の穴に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;
@@ -66,7 +66,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       completeLines: [
         'そう、この位置が「使う公式」の場所！',
       ],
-      hintHtml: '「公式」から「公式①」を「置き換え」の真ん中の穴に入れよう！',
+      hintHtml: () => `「公式」から ${window.BlockSvg.formula(1)} を ${window.BlockSvg.replaceOperation()} の真ん中の穴に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;
@@ -87,7 +87,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       completeLines: [
         '完璧！これで置き換えの準備が整ったよ！',
       ],
-      hintHtml: '「1」のブロックを「置き換え」の一番下の穴に入れよう！',
+      hintHtml: () => `${window.BlockSvg.number('1')} のブロックを ${window.BlockSvg.replaceOperation()} の一番下の穴に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;

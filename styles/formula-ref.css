@@ -1,0 +1,106 @@
+/* 📘 公式リファレンスモーダル */
+        .formula-ref-card {
+          position: relative;
+          background: linear-gradient(135deg, rgba(8, 22, 44, 0.98), rgba(15, 30, 60, 0.96));
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          border-radius: 18px;
+          padding: 24px 28px;
+          max-width: 920px;
+          width: 92vw;
+          max-height: 88vh;
+          overflow-y: auto;
+          color: var(--cyber-text);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+        /* 閉じるボタンをカード右上に固定配置 (パルと重ならない位置) */
+        #btn-formula-reference-close {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          width: 36px;
+          height: 36px;
+          padding: 0;
+          border-radius: 50%;
+          font-size: 1.1rem;
+          font-weight: 900;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2;
+        }
+        .formula-ref-card h2 {
+          margin: 0 0 12px 0;
+          color: var(--cyber-text);
+          font-weight: 900;
+          letter-spacing: 0.04em;
+        }
+        .formula-ref-tabs {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+        .formula-ref-tab {
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          color: var(--cyber-muted);
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+        .formula-ref-tab:hover { background: rgba(56, 189, 248, 0.15); color: #fff; }
+        .formula-ref-tab.active {
+          background: rgba(56, 189, 248, 0.3);
+          border-color: rgba(56, 189, 248, 0.6);
+          color: #fff;
+        }
+        .formula-ref-body {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 280px;
+          gap: 20px;
+        }
+        .formula-ref-body .formula-text-area h3 {
+          color: #7dd3fc;
+          font-size: 1rem;
+          margin: 14px 0 6px 0;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+        }
+        .formula-ref-body .formula-text-area p {
+          line-height: 1.7;
+          margin: 4px 0 12px 0;
+          color: #cbd5e1;
+        }
+        .formula-display {
+          font-size: 1.4rem;
+          padding: 12px 16px;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          text-align: center;
+          margin-bottom: 12px;
+        }
+        .formula-variants {
+          background: rgba(0, 0, 0, 0.25);
+          border: 1px solid var(--glass-border);
+          border-radius: 8px;
+          padding: 10px 14px;
+          margin-top: 8px;
+        }
+        .formula-variants div { margin: 4px 0; }
+        .formula-ref-image {
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid var(--glass-border);
+          border-radius: 10px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .formula-ref-image svg { max-width: 100%; height: auto; }
+        @media (max-width: 700px) {
+          .formula-ref-body { grid-template-columns: 1fr; }
+          .formula-ref-image { order: -1; }
+        }

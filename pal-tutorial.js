@@ -212,7 +212,12 @@
     currentState.stepIndex = stepIndex;
     currentState.phase = 'waiting';
 
-    showWaitingHint(step.hintHtml || '↑ 操作してみて！');
+    // hintHtml は文字列 or 関数。関数なら実行時に評価してブロック SVG を注入できる。
+    let hintHtml = step.hintHtml;
+    if (typeof hintHtml === 'function') {
+      try { hintHtml = hintHtml(); } catch (_) { hintHtml = ''; }
+    }
+    showWaitingHint(hintHtml || '↑ 操作してみて！');
 
     // buttonWait: DOM ボタンクリックを capture で捕獲
     if (step.buttonWait && step.buttonId) {

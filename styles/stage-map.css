@@ -1,0 +1,159 @@
+.skip-challenge-card, .tutorial-intro-card, .formula-unlock-card {
+          background: linear-gradient(180deg, rgba(10, 28, 60, 0.9) 0%, rgba(4, 12, 32, 0.8) 100%);
+          border: 1px solid rgba(56, 189, 248, 0.35);
+          box-shadow: 0 30px 70px rgba(0,0,0,0.6), var(--cyber-glow);
+          color: var(--cyber-text); border-radius: 24px; padding: 34px; max-width: 520px; width: min(92vw, 520px); text-align: center; backdrop-filter: blur(14px);
+        }
+
+      /* 🗺️ マップ画面 (ダイナミック・ウェーブ・ネットワーク仕様) */
+        #stage-map-screen { 
+          position: relative; 
+          background: radial-gradient(circle at 50% 50%, #061535 0%, #020714 100%) !important; 
+          color: #e8f6ff; 
+          overflow: hidden; 
+          align-items: stretch; 
+          justify-content: flex-start; 
+        }
+        #stage-map-screen::before {
+          content: ""; position: absolute; inset: 0;
+          background: linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+          background-size: 40px 40px; pointer-events: none; z-index: 0;
+        }
+        .map-topbar { 
+          display: flex; justify-content: space-between; align-items: center; 
+          padding: 20px 30px; 
+          background: rgba(3, 11, 28, 0.85); 
+          backdrop-filter: blur(16px); 
+          border-bottom: 2px solid rgba(56, 189, 248, 0.35); 
+          z-index: 10; position: relative;
+          box-shadow: 0 4px 25px rgba(0,0,0,0.6);
+        }
+        .map-title-wrap h1 { margin: 0; font-size: 1.7rem; letter-spacing: 0.05em; text-shadow: 0 0 10px rgba(56, 189, 248, 0.6); font-family: monospace; }
+        .map-subtitle { margin: 6px 0 0; color: #a5f3fc; font-weight: 700; font-size: 0.9rem; }
+        .map-controls { display: flex; gap: 12px; align-items: center; }
+        .map-control-btn { border: 1px solid var(--glass-border); background: rgba(56, 189, 248, 0.12); color: #ffffff; padding: 10px 16px; border-radius: 12px; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
+        .map-control-btn:hover { background: rgba(56, 189, 248, 0.25); box-shadow: var(--cyber-glow); }
+        #map-progress { font-weight: 800; color: #fef08a; }
+        .map-canvas { position: relative; flex: 1; overflow: auto; overscroll-behavior: contain; }
+        
+        #map-world { position: relative; min-width: 100%; height: 100%; min-height: 450px; }
+        #map-nodes { position: relative; width: 100%; height: 100%; z-index: 2; } 
+
+        /* ⚡ 接続用データパルスライン */
+        .map-road { 
+          position: absolute; height: 8px; /* 太く */
+          background: rgba(30, 41, 59, 0.8); 
+          border: none; overflow: hidden;
+          border-radius: 4px;
+          transform-origin: 0 50%;
+          z-index: 1;
+        }
+        .map-road::after {
+          content: ""; position: absolute; inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
+          transform: translateX(-100%);
+        }
+        .map-road.unlocked { 
+          background: rgba(56, 189, 248, 0.25);
+          box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+        .map-road.unlocked::after { animation: cyberDataPulse 2s infinite linear; }
+        .map-road.cleared { 
+          background: rgba(34, 197, 94, 0.4);
+          box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+        }
+        .map-road.cleared::after {
+          background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.9), transparent);
+          animation: cyberDataPulse 1.2s infinite linear;
+        }
+        @keyframes cyberDataPulse { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+        /* 🎮 大型・近未来タクティカル・データノード */
+        .map-node {
+          position: absolute; width: 140px; height: 140px; /* 大幅に拡大 */
+          border-radius: 28px 8px 28px 8px; /* エッジの効いたサイバー形状 */
+          display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 14px;
+          border: 2px solid rgba(148, 163, 184, 0.3); 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: pointer; backdrop-filter: blur(12px); transition: all 0.3s cubic-bezier(0.2, 1, 0.2, 1);
+          background: rgba(11, 19, 38, 0.9); color: rgba(226, 232, 240, 0.4);
+          font-family: monospace; z-index: 3;
+        }
+        .map-node::before {
+          content: ""; position: absolute; inset: 5px;
+          border: 1px solid transparent; border-radius: 22px 6px 22px 6px;
+          pointer-events: none; transition: all 0.2s;
+        }
+        
+        .map-node.locked {
+          background: repeating-linear-gradient(45deg, rgba(251, 113, 133, 0.04), rgba(251, 113, 133, 0.04) 10px, rgba(11, 19, 38, 0.92) 10px, rgba(11, 19, 38, 0.92) 20px) !important;
+          border-color: rgba(251, 113, 133, 0.3) !important; cursor: not-allowed; box-shadow: none !important;
+        }
+        .map-node.locked .map-node-number { color: rgba(251, 113, 133, 0.4) !important; text-shadow: none !important; }
+        .map-node.locked .map-node-label { color: rgba(251, 113, 133, 0.3) !important; }
+
+        .map-node.unlocked { 
+          background: linear-gradient(135deg, rgba(6, 30, 66, 0.9), rgba(3, 12, 32, 0.8)); color: #ffffff; border-color: rgba(56, 189, 248, 0.7);
+          box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.3), 0 8px 25px rgba(0,0,0,0.6);
+        }
+        .map-node.unlocked::before { border-color: rgba(56, 189, 248, 0.3); }
+        .map-node.unlocked .map-node-number { color: #ffffff; text-shadow: 0 0 12px rgba(56, 189, 248, 0.8); }
+        .map-node.unlocked .map-node-label { color: #7dd3fc; font-weight: 800; }
+
+        .map-node.cleared { 
+          background: linear-gradient(135deg, rgba(4, 47, 26, 0.9), rgba(2, 16, 24, 0.8)); color: #e0f2fe; border-color: rgba(34, 197, 94, 0.7);
+          box-shadow: inset 0 0 20px rgba(34, 197, 94, 0.25), 0 8px 25px rgba(0,0,0,0.6);
+        }
+        .map-node.cleared::before { border-color: rgba(34, 197, 94, 0.3); }
+        .map-node.cleared .map-node-number { color: #4ade80; text-shadow: 0 0 12px rgba(34, 197, 94, 0.7); }
+        .map-node.cleared .map-node-label { color: #86efac; font-weight: 800; }
+
+        .map-node.current { 
+          border-color: #38bdf8 !important; animation: cyberNodePulse 1.8s infinite alternate ease-in-out;
+          box-shadow: 0 0 35px rgba(56, 189, 248, 0.7), inset 0 0 25px rgba(56, 189, 248, 0.5) !important; z-index: 4;
+        }
+        .map-node.current::before { border-color: #66f7d6; animation: cyberInnerFramePulse 0.9s infinite alternate; }
+        
+        .map-node:hover:not(:disabled) { 
+          transform: translate(-50%, -50%) scale(1.1) !important; 
+          border-color: #66f7d6 !important; box-shadow: 0 15px 40px rgba(102, 247, 214, 0.45) !important; z-index: 5;
+        }
+        .map-node:hover::before { border-color: #66f7d6; }
+
+        .map-node-number { font-size: 1.9rem; font-weight: 950; letter-spacing: -0.02em; }
+        .map-node-label { font-size: 0.75rem; font-weight: 900; opacity: 0.85; letter-spacing: 0.05em; margin-top: 2px; }
+        
+        .node-status-tag {
+          font-size: 0.65rem; font-weight: 950; padding: 3px 8px; border-radius: 6px;
+          text-transform: uppercase; margin-top: 8px; letter-spacing: 0.1em;
+        }
+        .locked .node-status-tag { background: rgba(251, 113, 133, 0.15); color: #fb7185; }
+        .unlocked .node-status-tag { background: rgba(56, 189, 248, 0.18); color: #38bdf8; }
+        .cleared .node-status-tag { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+        .current .node-status-tag { background: #66f7d6; color: #030814; text-shadow: none; font-weight: 950; }
+
+        /* ✨ 背景の動的パーティクル */
+        .cyber-bg-particle {
+          position: absolute; width: 4px; height: 4px;
+          background: #38bdf8; border-radius: 50%; opacity: 0;
+          box-shadow: 0 0 10px #38bdf8, 0 0 20px #a78bfa;
+          animation: floatCyberParticle linear infinite;
+          pointer-events: none; z-index: 0;
+        }
+        @keyframes floatCyberParticle {
+          0% { transform: translateY(100px) scale(0.5); opacity: 0; }
+          20% { opacity: 0.6; }
+          80% { opacity: 0.6; }
+          100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+        }
+
+        /* 🚀 ゲーム開始画面（エントランス） */
+        #game-entrance { position: fixed; inset: 0; z-index: 2400; display: flex; align-items: center; justify-content: center; background: rgba(3, 10, 24, 0.4); }
+        #game-entrance:not(.show-choices) .entrance-card { display: none; }
+        /* キャラダイアログへ完全移行したため、旧選択カードは常に描画しない
+           (JS からは click() で発火できるが、視覚的には表示されない) */
+        .entrance-card { display: none !important; }
+        #game-entrance.show-choices #start-prompt-text { display: none; }
+        #game-entrance.hidden { display: none !important; }
+        #game-entrance { cursor: pointer; } 
+        #game-entrance.show-choices { cursor: default; }

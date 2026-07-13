@@ -1,0 +1,242 @@
+.character-dialog-host {
+          position: fixed; inset: 0; z-index: 3000;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0 40px;
+          background: linear-gradient(180deg, rgba(4, 15, 36, 0.55) 0%, rgba(2, 8, 20, 0.5) 100%);
+          backdrop-filter: blur(6px);
+          opacity: 0;
+          transition: opacity 0.35s ease;
+        }
+        .character-dialog-host.show { opacity: 1; }
+        .character-dialog-host.hidden { display: none !important; }
+        /* キャラダイアログ表示中は、下にある旧選択カードや「TAP TO START」を描画しない
+           (半透明の背景越しに透けて見えるのを完全に防ぐ) */
+        body:has(.character-dialog-host:not(.hidden)) .entrance-card,
+        body:has(.character-dialog-host:not(.hidden)) #start-prompt-text {
+          display: none !important;
+        }
+
+        .character-dialog-scene {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+          align-items: stretch;
+          gap: 20px;
+          width: min(1400px, 96vw);
+          height: min(88vh, 900px);
+        }
+
+        /* ── 立ち絵 ── */
+        .character-dialog-portrait-column {
+          display: flex; align-items: flex-end; justify-content: center;
+          position: relative;
+          overflow: visible;
+        }
+        .character-dialog-portrait {
+          height: 100%;
+          max-width: 100%;
+          object-fit: contain;
+          object-position: bottom center;
+          filter: drop-shadow(0 8px 40px rgba(56, 189, 248, 0.4));
+          transform: translateY(30px);
+          opacity: 0;
+          transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+                      opacity 0.7s ease;
+        }
+        .character-dialog-host.show .character-dialog-portrait {
+          transform: translateY(0);
+          opacity: 1;
+        }
+
+        /* ── 吹き出し + 選択肢の縦カラム ── */
+        .character-dialog-bubble-column {
+          display: flex; flex-direction: column; justify-content: center;
+          gap: 20px;
+          padding: 20px 0;
+        }
+
+        /* ── 吹き出し ── */
+        .character-dialog-bubble {
+          position: relative;
+          background: rgba(8, 20, 44, 0.95);
+          border: 2px solid rgba(56, 189, 248, 0.6);
+          border-radius: 24px;
+          padding: 24px 28px;
+          box-shadow: 0 12px 40px rgba(56, 189, 248, 0.3);
+          color: #e0f2fe;
+          transform: translateX(-40px);
+          opacity: 0;
+          transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+                      opacity 0.6s ease;
+          cursor: pointer;
+        }
+        .character-dialog-host.show .character-dialog-bubble {
+          transform: translateX(0);
+          opacity: 1;
+          transition-delay: 0.2s;
+        }
+        .character-dialog-bubble.dimmed {
+          opacity: 0.4;
+          transform: scale(0.96);
+          pointer-events: none;
+          transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        /* 吹き出しの尾: 右辺から少し出て、キャラのほうを指す */
+        .character-dialog-bubble::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          right: -18px;
+          transform: translateY(-50%);
+          border-width: 12px 0 12px 20px;
+          border-style: solid;
+          border-color: transparent transparent transparent rgba(56, 189, 248, 0.6);
+        }
+        .character-dialog-bubble::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          right: -15px;
+          transform: translateY(-50%);
+          border-width: 10px 0 10px 17px;
+          border-style: solid;
+          border-color: transparent transparent transparent rgba(8, 20, 44, 0.95);
+          z-index: 1;
+        }
+        .character-dialog-name {
+          font-size: 0.9rem;
+          font-weight: 800;
+          color: #7dd3fc;
+          letter-spacing: 0.08em;
+          margin-bottom: 10px;
+        }
+        .character-dialog-text {
+          font-size: 1.4rem;
+          line-height: 1.7;
+          font-weight: 500;
+          min-height: 4em;
+          color: #f1f5f9;
+        }
+        /* 「次へ」の視覚要素:
+           ボタンぽさは撤去し、右下角に控えめに点滅する矢印だけを表示する。
+           クリック処理は既存の #character-dialog-next にそのまま依存。 */
+        .character-dialog-next {
+          display: block;
+          margin: 12px 0 0 auto;
+          padding: 0;
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: transparent;
+          font-size: 0;
+          line-height: 0;
+          width: 28px;
+          height: 28px;
+          position: relative;
+          transition: transform 0.2s ease;
+        }
+        .character-dialog-next::before {
+          content: '▼';
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 1.4rem;
+          font-weight: 900;
+          color: rgba(125, 211, 252, 0.55);
+          text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+          animation: characterDialogNextPulse 1.4s ease-in-out infinite;
+        }
+        .character-dialog-next:hover {
+          transform: translateY(-2px);
+        }
+        .character-dialog-next:hover::before {
+          color: rgba(125, 211, 252, 0.95);
+        }
+        @keyframes characterDialogNextPulse {
+          0%, 100% {
+            transform: translateX(-50%) translateY(0);
+            opacity: 0.55;
+          }
+          50% {
+            transform: translateX(-50%) translateY(4px);
+            opacity: 1;
+          }
+        }
+
+        /* 初回だけ表示する「タップして進む」ヒント */
+        .character-dialog-tap-hint {
+          text-align: center;
+          font-size: 0.85rem;
+          color: rgba(125, 211, 252, 0.7);
+          letter-spacing: 0.08em;
+          margin-top: 8px;
+          opacity: 0;
+          transition: opacity 0.4s ease;
+          pointer-events: none;
+        }
+        .character-dialog-host.is-first-visit .character-dialog-tap-hint {
+          opacity: 1;
+          animation: characterDialogTapHintPulse 2s ease-in-out infinite;
+        }
+        @keyframes characterDialogTapHintPulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+
+        /* ── 選択肢 (吹き出し終わり後にポップアップ) ── */
+        .character-dialog-choices {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        .character-dialog-choices.hidden { display: none; }
+        .character-dialog-choices.show {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        /* 出現直後の 400ms 間は連打の余勢で押されないよう反応を無効化する */
+        .character-dialog-choices.is-locked {
+          pointer-events: none;
+        }
+        .character-dialog-choice {
+          padding: 18px 22px;
+          text-align: left;
+          background: linear-gradient(145deg, rgba(29, 78, 216, 0.85), rgba(14, 165, 233, 0.75));
+          border: 1px solid rgba(56, 189, 248, 0.5);
+          border-radius: 16px;
+          color: #fff;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .character-dialog-choice:nth-child(2) {
+          background: linear-gradient(145deg, rgba(109, 40, 217, 0.85), rgba(79, 70, 229, 0.75));
+        }
+        .character-dialog-choice:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 24px rgba(56, 189, 248, 0.4);
+          border-color: rgba(56, 189, 248, 0.9);
+        }
+        .character-dialog-choice-label {
+          font-size: 1.15rem;
+          font-weight: 900;
+          color: #f0f9ff;
+          margin-bottom: 4px;
+        }
+        .character-dialog-choice-sub {
+          font-size: 0.85rem;
+          color: #bae6fd;
+        }
+
+        @media (max-width: 900px) {
+          .character-dialog-scene {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr auto;
+            height: 96vh;
+          }
+          .character-dialog-portrait-column { order: -1; }
+          .character-dialog-bubble::after,
+          .character-dialog-bubble::before { display: none; }
+        }

@@ -1,0 +1,140 @@
+/* ==== 不正解エフェクト (画面フラッシュ + 「不正解！」テキスト) ==== */
+        .wrong-flash-overlay {
+          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+          background: rgba(239, 68, 68, 0.28);
+          pointer-events: none; z-index: 9998;
+          animation: wrongFlash 0.6s ease-out forwards;
+        }
+        @keyframes wrongFlash {
+          0% { opacity: 0; }
+          25% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        .wrong-stamp-effect {
+          position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          z-index: 9999; pointer-events: none; color: #ff4b4b; font-family: 'Arial Black', sans-serif;
+          font-size: clamp(56px, 9vw, 116px); font-weight: 900; letter-spacing: 0.08em;
+          text-shadow: 0 0 12px rgba(255, 75, 75, 0.95), 0 0 32px rgba(239, 68, 68, 0.7);
+          animation: wrongStampPop 0.6s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
+        }
+        @keyframes wrongStampPop {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(2.4) rotate(6deg); }
+          25% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
+          85% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        }
+
+        /* ==== 「解説を聞く」ボタン (答え表示後にユーザーが押してパル解説を呼ぶ) ==== */
+        .listen-explain-btn {
+          position: fixed;
+          left: 50%;
+          bottom: 110px;
+          transform: translate(-50%, 20px);
+          padding: 16px 36px;
+          font-family: inherit;
+          font-size: 1.15rem;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          color: #fff;
+          background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
+          border: 2px solid rgba(125, 211, 252, 0.7);
+          border-radius: 999px;
+          cursor: pointer;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5);
+          opacity: 0;
+          z-index: 3200;
+          transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+          animation: listenExplainPulse 1.8s ease-in-out infinite;
+        }
+        .listen-explain-btn.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .listen-explain-btn.hidden { display: none !important; }
+        .listen-explain-btn:hover {
+          background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+        .listen-explain-arrow {
+          display: inline-block;
+          margin-left: 6px;
+          transition: transform 0.2s ease;
+        }
+        .listen-explain-btn:hover .listen-explain-arrow {
+          transform: translateX(4px);
+        }
+        @keyframes listenExplainPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(56, 189, 248, 0.85); }
+        }
+
+        /* 答え表示中 (body.answer-reveal-locked): ワークスペースの操作を止める。
+           ブロックを動かしたり削除したりできると、答え表示が崩れて解説の流れが壊れるため。
+           ただしパンやズームは邪魔したくないので blocklyWorkspace ではなく draggable 要素だけ狙う */
+        body.answer-reveal-locked .blocklyBlockCanvas,
+        body.answer-reveal-locked .blocklyTrash,
+        body.answer-reveal-locked .blocklyToolbox,
+        body.answer-reveal-locked .blocklyFlyout {
+          pointer-events: none !important;
+        }
+
+        /* 各種オーバーレイ画面 */
+        .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 8, 20, 0.8); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        
+        /* 公式ブロック内の番号フィールドを太字＆少し大きく強調 */
+        /* 正解時の青い波紋エフェクト */
+        .success-ripple {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: 4px solid rgba(56, 189, 248, 0.9);
+          transform: translate(-50%, -50%);
+          z-index: 9998;
+          pointer-events: none;
+          animation: successRipple 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          box-shadow: 0 0 60px rgba(56, 189, 248, 0.7);
+        }
+        @keyframes successRipple {
+          0% {
+            opacity: 1;
+            width: 40px;
+            height: 40px;
+            border-width: 6px;
+          }
+          70% {
+            opacity: 0.7;
+          }
+          100% {
+            opacity: 0;
+            width: 1400px;
+            height: 1400px;
+            border-width: 1px;
+          }
+        }
+
+        /* 正解時の CLEAR! スタンプ */
+        .clear-stamp-effect {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 9999;
+          pointer-events: none;
+          color: #66f7d6;
+          font-family: 'Arial Black', sans-serif;
+          font-size: clamp(64px, 10vw, 132px);
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-shadow: 0 0 12px rgba(102, 247, 214, 0.95), 0 0 32px rgba(56, 189, 248, 0.8);
+          animation: clearStampPop 1.2s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
+        }
+        @keyframes clearStampPop {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(3) rotate(-12deg); }
+          20% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+          100% { opacity: 0; transform: translate(-50%, calc(-50% - 20px)) scale(0.9); }
+        }

@@ -52,61 +52,58 @@ window.CHARACTER_SCENES = {
     portrait: 'welcome',
     lines: [
       'はじめまして！わたし、有葉フリエ。',
+      { character: 'hippalcos', portrait: 'joy', text: 'はじめまして！ぼくはヒッパルコス、パルって呼んでね！' },
       'これから一緒に、三角関数の証明パズルを解いていくよ！',
       'まずどうする？基本操作をゆっくり覚えていくか、いきなり本編に飛び込むか、選んでね！',
     ],
     choices: [
       {
-        label: '基本論理の学習（推奨）',
-        subLabel: 'ブロックの使い方をチュートリアルで学ぶ',
+        label: '基本操作から覚える（おすすめ）',
+        subLabel: 'まずは基本の使い方をチュートリアルで学ぶよ',
         actionId: 'start_tutorial',
       },
       {
-        label: '数式領域への直接介入',
-        subLabel: 'いきなり本編ステージ1から始める',
+        label: '本編に飛び込む',
+        subLabel: 'いきなり本編ステージ1から始めるよ',
         actionId: 'start_main_stage_1',
       },
     ],
   },
 
-  // モード選択画面 (2回目以降): 挨拶を短くしてすぐ選ばせる
+  // モード選択画面 (2回目以降): 挨拶を短くしてすぐ選ばせる。パルも一言挟む
   intro_mode_select_repeat: {
     character: 'furie',
     portrait: 'joyPlain',
     lines: [
       'おかえり！次はどうする？',
+      { character: 'hippalcos', portrait: 'joy', text: 'またよろしくね！準備できたら教えてね！' },
       'チュートリアルをもう1回やる？それとも本編に挑戦してみる？',
     ],
     choices: [
       {
-        label: '基本論理の学習',
-        subLabel: 'チュートリアルをもう一度',
+        label: 'チュートリアルをもう一度',
+        subLabel: '基本操作をおさらいする',
         actionId: 'start_tutorial',
       },
       {
-        label: '数式領域への直接介入',
+        label: '本編にチャレンジ',
         subLabel: '本編ステージ1へ',
         actionId: 'start_main_stage_1',
       },
     ],
   },
 
-  // チュートリアル開始前: 説明動画モーダルの代わり
+  // チュートリアル開始前: フリエが説明。選択肢はなく、最後の行タップで自動的にパル登場へ
   tutorial_intro: {
     character: 'furie',
     portrait: 'joyPlain',
     lines: [
       'まず、ブロックを組み合わせて式を作るんだ。',
       '左辺と右辺が等しくなるように証明していくよ！',
-      '詰まったら、いつでもヒントボタンを押してね！',
     ],
-    choices: [
-      {
-        label: 'よし、始めよう！',
-        subLabel: 'チュートリアル 1 へ',
-        actionId: 'confirm_tutorial_start',
-      },
-    ],
+    // 選択肢を出さず、最終行タップで confirm_tutorial_start を発火する
+    choices: [],
+    nextActionId: 'confirm_tutorial_start',
   },
 
   // 公式アンロック時: アンロックモーダルの代わり
@@ -133,29 +130,31 @@ window.CHARACTER_SCENES = {
   },
 
   // パルの自己紹介: チュートリアル or 本編開始直前に登場
+  // パルの登場 (tutorial_intro 完了後): 詳しい解説
+  // 「はじめまして」は既にモード選択の途中で言っているため、ここでは省略
   intro_pal: {
     character: 'hippalcos',
     portrait: 'explain',
     lines: [
-      'はじめまして！ぼくはヒッパルコス、パルって呼んでね！',
+      '詰まったら、いつでもヒントボタンを押してね！',
       '三角関数のことなら何でも聞いてね！',
       'ヒントとかガイドもぼくが担当するよ、右下にいるからいつでも呼んでね！',
     ],
     choices: [
       {
-        label: 'よろしくね！',
+        label: 'よし、始めよう！',
         subLabel: '',
         actionId: 'confirm_pal_intro',
       },
     ],
   },
 
-  // パルの登場 (2回目以降): 短めに
+  // パルの登場 (2回目以降): もう解説不要なので「よし、始めよう！」1 行のみ
   intro_pal_repeat: {
     character: 'hippalcos',
     portrait: 'joy',
     lines: [
-      'またよろしくね！準備できたら教えてね！',
+      'よし、始めよう！',
     ],
     choices: [
       {

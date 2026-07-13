@@ -1,0 +1,52 @@
+#btn-formula-reference {
+          display: none !important;
+        }
+
+        .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #030814; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: none; }
+        .curtain.hidden { opacity: 0; }
+        #stage-nav-buttons { display: flex; gap: 6px; }
+        .stage-nav-btn {
+          font-weight: 700; font-size: 1.1rem;
+          background: rgba(255,255,255,0.08); padding: 6px 14px;
+          border-radius: 999px; border: 1px solid var(--glass-border);
+          color: inherit; cursor: pointer;
+          transition: background 0.15s, opacity 0.15s;
+        }
+        .stage-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
+        .stage-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* ヘッダー3列レイアウト */
+        .header-left  { display: flex; align-items: center; gap: 14px; justify-self: start; }
+        .header-center{ display: flex; align-items: center; gap: 14px; justify-self: center; }
+        .header-right { display: flex; align-items: center; gap: 14px; justify-self: end; }
+
+        .overwrite-toggle-btn { font-size: 0.82rem; padding: 6px 12px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
+        .overwrite-toggle-btn.on  { background: rgba(34, 197, 94, 0.2); border-color: var(--cyber-green); color: #22c55e; }
+        .overwrite-toggle-btn.off { background: rgba(255, 255, 255, 0.08); border-color: var(--glass-border); color: var(--cyber-text); }
+
+        /* 📘 公式解説ボタン：ガイド機能ボタンとトーンを揃える */
+        .header-tool-btn {
+          font-size: 0.82rem; padding: 6px 12px; border-radius: 8px;
+          border: 1px solid var(--glass-border);
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--cyber-text);
+          font-weight: 700; cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .header-tool-btn:hover {
+          background: rgba(56, 189, 248, 0.18);
+          border-color: rgba(56, 189, 248, 0.5);
+        }
+
+        /* 🚀 Blockly ツールボックスの完全ダークサイバー化 */
+        #l .blocklyToolboxDiv {
+          background-color: rgba(4, 14, 32, 0.95) !important;
+          border-right: 2px solid rgba(56, 189, 248, 0.4) !important;
+          backdrop-filter: blur(10px);
+        }
+        #l .blocklyTreeRow { background-color: transparent !important; height: 44px !important; margin: 4px 6px !important; border-radius: 10px !important; }
+        #l .blocklyTreeRow:hover { background-color: rgba(56, 189, 248, 0.15) !important; }
+        #l .blocklyTreeRow.blocklyTreeSelected { background-color: rgba(56, 189, 248, 0.35) !important; }
+        #l .blocklyTreeLabel { color: #ffffff !important; font-weight: 900 !important; font-size: 15px !important; }
+        .blocklyFlyoutBackground { fill: rgba(5, 16, 36, 0.94) !important; stroke: rgba(56, 189, 248, 0.3) !important; stroke-width: 2px !important; rx: 16px; ry: 16px; }
+        .blocklyScrollbarHandle { fill: rgba(56, 189, 248, 0.5) !important; }

@@ -1,0 +1,104 @@
+#i { 
+          background: var(--glass-bg);
+          padding: 20px; 
+          margin: 12px; 
+          text-align: center; 
+          border-radius: 16px; 
+          border: 1px solid var(--glass-border); 
+          box-shadow: var(--cyber-shadow); 
+          font-weight: 700; 
+          color: var(--cyber-text); 
+          backdrop-filter: blur(14px);
+        }
+
+        /* 🚀 サイバーブルーのヒントエリア */
+        #tutorial-next-under-problem {
+          margin: 0 12px 12px;
+          padding: 16px;
+          border-radius: 16px;
+          background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(6, 26, 58, 0.4));
+          border: 1px solid var(--glass-border);
+          border-left: 5px solid var(--cyber-blue); 
+          font-weight: 900;
+          color: #f0f7ff;
+          text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+          box-shadow: var(--cyber-shadow);
+          backdrop-filter: blur(10px);
+          text-align: left;
+          display: none;
+        }
+        #tutorial-next-under-problem.visible { display: block; }
+        #tutorial-next-under-problem.pulse {
+          animation: underProblemPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes underProblemPulse {
+          0%, 100% { transform: translateY(0); box-shadow: var(--cyber-shadow); }
+          50% { transform: translateY(-3px); border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 16px 36px rgba(56, 189, 248, 0.15); }
+        }
+
+        /* 🚀 チュートリアル用上の帯ガラス */
+        #tutorial-banner {
+          display: none;
+          margin: 12px 12px 0;
+          padding: 16px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, rgba(6, 26, 58, 0.9), rgba(4, 12, 32, 0.75));
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+          font-weight: 900;
+          color: var(--cyber-text);
+          text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+          text-align: left;
+        }
+        #tutorial-banner.visible { display: block; }
+
+        /* チュートリアル光枠(オレンジ丸) */
+        .tutorial-pulse-source,
+        .tutorial-pulse-target {
+          position: absolute;
+          z-index: 9998;
+          pointer-events: none;
+          border-radius: 12px;
+          box-sizing: border-box;
+        }
+        .tutorial-pulse-source {
+          border: 3px solid #f59e0b;
+          box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
+          animation: pulse-orange 1.5s ease-in-out infinite;
+        }
+        .tutorial-pulse-target {
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          border-radius: 50%;
+          background-color: rgba(251, 191, 36, 0.25);
+          box-shadow: 0 0 22px 12px rgba(251, 191, 36, 0.7), inset 0 0 15px 5px rgba(251, 191, 36, 0.4);
+          transition: all 0.1s ease-out;
+        }
+        .tutorial-pulse-source.hidden,
+        .tutorial-pulse-target.hidden { display: none; }
+        @keyframes pulse-orange {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+          50% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.12); }
+        }
+
+        /* チュートリアルプログレスバー */
+        #tutorial-progress-shell { 
+          display: none; 
+          margin: 0 12px 12px; 
+          background: rgba(255,255,255,0.06); 
+          border: 1px solid var(--glass-border); 
+          border-radius: 16px; 
+          box-shadow: var(--cyber-shadow); 
+          padding: 12px; 
+          backdrop-filter: blur(10px);
+        }
+        #tutorial-progress-shell.visible { display: block; }
+        #tutorial-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 900; color: rgba(187, 247, 208, 0.95); }
+        #tutorial-progress-track { width: 100%; height: 14px; border-radius: 999px; background: rgba(34, 197, 94, 0.15); overflow: hidden; }
+        #tutorial-progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); border-radius: 999px; transition: width 0.35s ease; }
+
+        /* ワークスペース本体 */
+        #l { flex-grow: 1; width: 100%; position: relative; }
+        #l .blocklyDiv, #l .blocklySvg, #l .blocklyWorkspace, #l .blocklyHtmlCanvas { width: 100% !important; height: 100% !important; }
+        #l .blocklySvg { background: transparent !important; }

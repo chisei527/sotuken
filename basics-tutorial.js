@@ -196,6 +196,8 @@
       workspaceListener = null;
     }
     hideWaitingHint();
+    // フリエ基礎チュートリアルは完了 → パル常駐を再表示させる
+    document.body.classList.remove('furie-tutorial-active');
     const onComplete = currentState ? currentState.onComplete : null;
     currentState = null;
     if (typeof onComplete === 'function') onComplete();
@@ -260,6 +262,9 @@
       onComplete: onComplete || function () {},
     };
 
+    // フリエ基礎チュートリアル中はパル常駐を隠す (CSS で対応)
+    document.body.classList.add('furie-tutorial-active');
+
     // Blockly イベント監視
     if (window.workspace && typeof window.workspace.addChangeListener === 'function') {
       workspaceListener = handleWorkspaceEvent;
@@ -276,6 +281,8 @@
     }
     window.closeCharacterDialog();
     hideWaitingHint();
+    // パル常駐を再表示
+    document.body.classList.remove('furie-tutorial-active');
     currentState = null;
   };
 

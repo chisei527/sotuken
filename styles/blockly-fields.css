@@ -1,0 +1,21 @@
+.blocklyText[data-argument-name="FORMULA_NUMBER"],
+        text[data-id$="FORMULA_NUMBER"] {
+          font-weight: 700 !important;
+          font-size: 1.1em;
+        }
+        /* 数式フィールドはやや薄めにして番号との階層を作る */
+        .blocklyText[data-argument-name="FORMULA_TEXT"] {
+          opacity: 0.92;
+        }
+        /* math_negate ブロックのマイナス記号(NEG_SIGN)を強調表示 */
+        .blocklyText[data-argument-name="NEG_SIGN"],
+        text[data-id$="NEG_SIGN"] {
+          font-size: 22px !important;
+          font-weight: 900 !important;
+        }
+        /* シャッター演出(cyber-transition, z-index:10000)より手前に出すモーダル */
+        #formula-unlock-modal,
+        #tutorial-intro-modal { z-index: 10001; }
+        .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        /* モーダル共通クールデザイン */
