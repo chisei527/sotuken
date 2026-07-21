@@ -1,35 +1,34 @@
-
 ```mermaid
 graph TD
     subgraph Infrastructure [インフラストラクチャ]
-        Pages[GitHub Pages / Cloudflare Pages<br>静的ファイルのホスティング]
+        Pages["GitHub Pages / Cloudflare Pages<br>静的ファイルのホスティング"]
     end
 
     subgraph DataLayer [データ層]
-        StageJSON[(ステージデータ .json)<br>問題文・初期ブロック・正解構造]
-        TutorialData[(台本データ .js)<br>チュートリアルの進行スクリプト]
-        CharData[(キャラデータ .js)<br>立ち絵・セリフ・表情定義]
+        StageJSON[("ステージデータ (.json)<br>問題文・初期ブロック・正解構造")]
+        TutorialData[("台本データ (.js)<br>チュートリアルの進行スクリプト")]
+        CharData[("キャラデータ (.js)<br>立ち絵・セリフ・表情定義")]
     end
 
     subgraph CoreEngine [コアエンジン層（数式・論理判定）]
-        MathLogic[math-logic.js<br>証明の検証・AST解析・通分エンジン]
-        MathJS((math.js))
+        MathLogic["math-logic.js<br>証明の検証・AST解析・通分エンジン"]
+        MathJS(("math.js"))
         MathLogic -->|数式の同値判定・代入計算| MathJS
     end
 
     subgraph AppLayer [アプリケーション層（ゲームロジック）]
-        Main[main.js<br>メインルーティング・マップ生成]
-        State[app-state.js<br>状態管理・LocalStorage同期]
-        Unlock[app-unlock.js<br>公式アンロック管理]
-        Tut[tutorial.js系<br>チュートリアル進行・ブロック制限]
-        Blocks[blocks.js<br>数式専用カスタムブロック定義]
+        Main["main.js<br>メインルーティング・マップ生成"]
+        State["app-state.js<br>状態管理・LocalStorage同期"]
+        Unlock["app-unlock.js<br>公式アンロック管理"]
+        Tut["tutorial.js系<br>チュートリアル進行・ブロック制限"]
+        Blocks["blocks.js<br>数式専用カスタムブロック定義"]
     end
 
     subgraph UILayer [ユーザーインターフェース層]
-        Index[index.html & CSS<br>DOM構成・スタイリング]
-        AppUI[app-ui.js<br>画面遷移・アニメーション・トースト通知]
-        CharUI[character-dialog.js系<br>キャラクター吹き出し・UIメニュー]
-        Blockly((Google Blockly))
+        Index["index.html & CSS<br>DOM構成・スタイリング"]
+        AppUI["app-ui.js<br>画面遷移・アニメーション・トースト通知"]
+        CharUI["character-dialog.js系<br>キャラクター吹き出し・UIメニュー"]
+        Blockly(("Google Blockly"))
     end
 
     %% データフローと依存関係
