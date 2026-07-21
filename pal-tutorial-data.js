@@ -19,10 +19,10 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       introLines: [
         'それじゃあ、この式を一緒に証明していこう！',
         '目標は「sin²θ + cos²θ が 1 と等しい」ことを示すことだよ！',
-        'まずは「操作」カテゴリから、「置き換え」のブロックを引き出して、「よって〜となる」の中に入れてみて！',
+        `まずは「操作」カテゴリから、「置き換え」のブロック ${window.BlockSvg.replaceOperation()} を引き出して、「よって〜となる」 ${window.BlockSvg.proofStep()} の上に入れてみて！`,
       ],
       completeLines: [
-        'ばっちり！「置き換え」ブロックは、ある値を別の値に書き換える魔法だよ！',
+        `ばっちり！「置き換え」ブロック ${window.BlockSvg.replaceOperation()} は、ある値を別の値に書き換える魔法だよ！`,
       ],
       hintHtml: () => `「操作」から ${window.BlockSvg.replaceOperation()} を ${window.BlockSvg.proofStep()} の中に入れよう！`,
       check: (event, workspace) => {
@@ -39,13 +39,13 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
     {
       id: 'step_connect_value',
       introLines: [
-        '次は、「置き換え」の一番上の穴に「もとの式」を入れよう！',
-        '既に置いてある「sin²θ + cos²θ」の式を、穴にドラッグしてね！',
+        `次は、「置き換え」 ${window.BlockSvg.replaceOperation()} の一番左の穴に「もとの式」を入れよう！`,
+        `既に置いてある「sin²θ + cos²θ」の式 ${window.BlockSvg.add()} を、穴にドラッグしてね！`,
       ],
       completeLines: [
         'いいね！ここが「これから書き換える式」の場所だよ！',
       ],
-      hintHtml: () => `「sin²θ + cos²θ」の式 (${window.BlockSvg.add()}) を ${window.BlockSvg.replaceOperation()} の一番上の穴に入れよう！`,
+      hintHtml: () => `「sin²θ + cos²θ」の式 (${window.BlockSvg.add()}) を ${window.BlockSvg.replaceOperation()} の一番左の穴に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;
@@ -60,7 +60,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
     {
       id: 'step_connect_formula',
       introLines: [
-        '次は、「公式」カテゴリから「公式①」を引き出して、真ん中の穴に入れて！',
+        `次は、「公式」カテゴリから「公式①」 ${window.BlockSvg.formula(1)} を引き出して、真ん中の穴に入れて！`,
         '公式①は「sin²θ + cos²θ = 1」だよ！これを使って書き換えるんだ！',
       ],
       completeLines: [
@@ -82,12 +82,12 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       id: 'step_connect_replacement',
       introLines: [
         '最後の穴には、「書き換え後の値」を入れるよ！',
-        '公式①によると sin²θ + cos²θ は「1」に等しいから、既にある「1」のブロックを一番下の穴に入れよう！',
+        `公式①によると sin²θ + cos²θ は「1」に等しいから、既にある「1」のブロック ${window.BlockSvg.number('1')} を一番右の穴に入れよう！`,
       ],
       completeLines: [
         '完璧！これで置き換えの準備が整ったよ！',
       ],
-      hintHtml: () => `${window.BlockSvg.number('1')} のブロックを ${window.BlockSvg.replaceOperation()} の一番下の穴に入れよう！`,
+      hintHtml: () => `${window.BlockSvg.number('1')} のブロックを ${window.BlockSvg.replaceOperation()} の一番右の穴に入れよう！`,
       check: (event, workspace) => {
         if (event.type !== Blockly.Events.BLOCK_MOVE) return false;
         if (!event.newParentId) return false;
@@ -104,7 +104,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       introLines: [
         'あとちょっと！ボタンの使い方も覚えておこう！',
         '間違えたときや最初からやり直したいときは、下の「リセット」ボタンを押せば元に戻せるよ！',
-        '「答え」ボタンは正解のブロック配置を見せてくれる、詰まったときの切り札だよ！',
+        '「あきらめる」ボタンは正解のブロック配置を見せてくれる、詰まったときにぼくが解説するよ！',
       ],
       completeLines: [],
       autoAdvance: true,
@@ -224,7 +224,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-6'] = {
     {
       id: 'step_introduce_simplify',
       introLines: [
-        '今回、新しいブロックを紹介するよ！「計算式」ブロックだよ！',
+        `今回、新しいブロックを紹介するよ！「計算式」ブロック ${window.BlockSvg.simplifyOperation()} だよ！`,
         'これは、公式を使わずに単に約分や整理をしたいときに使うんだ！',
         '「操作」カテゴリの中に緑色のブロックとして入ってるよ！',
       ],
@@ -235,7 +235,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-6'] = {
       id: 'step_explain_example',
       introLines: [
         '例えば「(1/sinθ) × (sinθ/cosθ)」は、sinθ が約分できて「1/cosθ」になるよね？',
-        'そういうときに「計算式」ブロックを使うんだ！',
+        `そういうときに「計算式」ブロック ${window.BlockSvg.simplifyOperation()} を使うんだ！`,
         '公式では書き換えられない、シンプルな計算のためのブロックだよ！',
       ],
       completeLines: [],
@@ -245,7 +245,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-6'] = {
       id: 'step_outro',
       introLines: [
         'それじゃあ、この問題を解いてみよう！',
-        'まず公式②で tanθ を書き換えて、そのあと「計算式」ブロックで約分するよ！',
+        `まず公式② ${window.BlockSvg.formula(2)} で tanθ を書き換えて、そのあと「計算式」 ${window.BlockSvg.simplifyOperation()} で約分するよ！`,
         '詰まったらヒントやガイド、三角関数の解説を使ってね！',
       ],
       completeLines: [],
@@ -274,7 +274,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-7'] = {
     {
       id: 'step_introduce_common_denominator',
       introLines: [
-        'そこで新しいブロック、「通分」ブロックの登場だよ！',
+        `そこで新しいブロック、「通分」ブロック ${window.BlockSvg.commonDenominatorOperation()} の登場だよ！`,
         '「操作」カテゴリの中に、青色のブロックとして入ってるよ！',
         '式を入れて「通分する」ボタンを押すと、自動で通分した結果が右側に出てくるんだ！',
       ],
@@ -284,9 +284,9 @@ window.PAL_TUTORIAL_SCRIPTS['0-7'] = {
     {
       id: 'step_explain_example',
       introLines: [
-        '例えば「sin²θ/cosθ + cosθ」を通分すると「(sin²θ + cos²θ)/cosθ」になるよ！',
+        `例えば「sin²θ/cosθ + cosθ」を「通分」 ${window.BlockSvg.commonDenominatorOperation()} すると「(sin²θ + cos²θ)/cosθ」になるよ！`,
         '分母を cosθ に揃えて、分子を足し合わせる感じだね！',
-        '通分ができれば、あとは公式①で分子を 1 に書き換えられるから、正解に近づくよ！',
+        `通分ができれば、あとは公式① ${window.BlockSvg.formula(1)} で分子を 1 に書き換えられるから、正解に近づくよ！`,
       ],
       completeLines: [],
       autoAdvance: true,
@@ -295,8 +295,8 @@ window.PAL_TUTORIAL_SCRIPTS['0-7'] = {
       id: 'step_outro',
       introLines: [
         'それじゃあやってみよう！',
-        'まず「通分」ブロックを引き出して左辺を入れて、「通分する」ボタンをポチッ！',
-        'そのあと公式①で書き換えたら完成だよ！',
+        `まず「通分」ブロック ${window.BlockSvg.commonDenominatorOperation()} を引き出して左辺を入れて、「通分する」ボタンをポチッ！`,
+        `そのあと公式① ${window.BlockSvg.formula(1)} で書き換えたら完成だよ！`,
       ],
       completeLines: [],
       autoAdvance: true,

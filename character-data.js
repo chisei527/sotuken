@@ -54,7 +54,7 @@ window.CHARACTER_SCENES = {
       'はじめまして！わたし、有葉フリエ。',
       { character: 'hippalcos', portrait: 'joy', text: 'はじめまして！ぼくはヒッパルコス、パルって呼んでね！' },
       'これから一緒に、三角関数の証明パズルを解いていくよ！',
-      'まずどうする？基本操作をゆっくり覚えていくか、いきなり本編に飛び込むか、選んでね！',
+      'まずどうする？基本操作をゆっくり覚えていくか、いきなり本編に挑戦するか、選んでね！',
     ],
     choices: [
       {
@@ -63,7 +63,7 @@ window.CHARACTER_SCENES = {
         actionId: 'start_tutorial',
       },
       {
-        label: '本編に飛び込む',
+        label: '本編に挑戦！',
         subLabel: 'いきなり本編ステージ1から始めるよ',
         actionId: 'start_main_stage_1',
       },
@@ -76,7 +76,7 @@ window.CHARACTER_SCENES = {
     portrait: 'joyPlain',
     lines: [
       'おかえり！次はどうする？',
-      { character: 'hippalcos', portrait: 'joy', text: 'またよろしくね！準備できたら教えてね！' },
+      { character: 'hippalcos', portrait: 'joy', text: 'またあったね！準備できたら教えてね！' },
       'チュートリアルをもう1回やる？それとも本編に挑戦してみる？',
     ],
     choices: [
@@ -99,7 +99,7 @@ window.CHARACTER_SCENES = {
     portrait: 'joyPlain',
     lines: [
       'まず、ブロックを組み合わせて式を作るんだ。',
-      '左辺と右辺が等しくなるように証明していくよ！',
+      '左辺と右辺が等しくなるようにブロックを使って証明していくよ！',
     ],
     // 選択肢を出さず、最終行タップで confirm_tutorial_start を発火する
     choices: [],
@@ -116,7 +116,7 @@ window.CHARACTER_SCENES = {
       const name = (context && context.formulaLabel) ? context.formulaLabel : '新しい公式';
       return [
         'わあ！新しい公式を覚えたね！',
-        `${name} だよ、これで色々な変形ができるようになる！`,
+        `${name} だよ、これで色々な変形ができるようになるよ！`,
         'これからも一緒にがんばろうね！',
       ];
     },
@@ -136,9 +136,9 @@ window.CHARACTER_SCENES = {
     character: 'hippalcos',
     portrait: 'explain',
     lines: [
-      '詰まったら、いつでもヒントボタンを押してね！',
+      '詰まったら、いつでも右下の僕を押してね！',
       '三角関数のことなら何でも聞いてね！',
-      'ヒントとかガイドもぼくが担当するよ、右下にいるからいつでも呼んでね！',
+      'ヒントとかガイドもぼくが担当するよ、右下にいるからいつでも押してね！',
     ],
     choices: [
       {
@@ -165,17 +165,53 @@ window.CHARACTER_SCENES = {
     ],
   },
 
+  // 「本編に飛び込む」を選んだ時 (チュートリアル未受講) の簡単ブリーフィング (初回のみ)
+  // まずフリエが「使い方紹介する?」の選択肢
+  intro_main_briefing_ask: {
+    character: 'furie',
+    portrait: 'welcome',
+    lines: [
+      'じゃあ本編を始めるけど、簡単に使い方だけ紹介するね！',
+    ],
+    choices: [
+      {
+        label: '紹介を聞く',
+        subLabel: 'フリエが使い方を教えてくれるよ',
+        actionId: 'briefing_show_furie',
+      },
+      {
+        label: 'もう分かってる',
+        subLabel: 'スキップして始める',
+        actionId: 'briefing_skip',
+      },
+    ],
+  },
+
+  // フリエによる引き出し操作の説明
+  intro_main_briefing_furie: {
+    character: 'furie',
+    portrait: 'default',
+    lines: [
+      '左のメニューから、証明に使うブロックを引き出してね！',
+      '「基本」「公式」「操作」の3つのカテゴリがあるよ！',
+      '引き出したブロックは、証明ブロックの中に組み立てて使うんだ！',
+      'じゃあ、あとはパルに任せるね！',
+    ],
+    choices: [],
+    nextActionId: 'briefing_show_pal',
+  },
+
   // 「正解をチェック」で不正解だったときにフリエが登場して選択肢を出す
   incorrect_confirm: {
     character: 'furie',
     portrait: 'think',
     lines: [
       'あっ、この解答だと少し違うみたいだよ！',
-      'どうする？もう一度自分でやってみる？それとも、答えを見て解説を聞いてみる？',
+      'どうする？もう一度自分でやってみる？それとも、パルに答えを聞いて解説してもらう？',
     ],
     choices: [
       { label: 'もう一度やってみる 💪', subLabel: '', actionId: 'incorrect_retry' },
-      { label: '解説を見る 💡', subLabel: 'ギブアップして答えを見ます', actionId: 'incorrect_giveup' },
+      { label: '解説を聞く 💡', subLabel: 'ギブアップして答えを見る', actionId: 'incorrect_giveup' },
     ],
   },
 
@@ -185,7 +221,7 @@ window.CHARACTER_SCENES = {
     portrait: 'think',
     lines: [
       '本当にあきらめる？',
-      'あきらめると、この問題は「ヒント使用」の記録になっちゃうよ？',
+      'あきらめると、この問題はクリア判定にならないよ？',
     ],
     choices: [
       { label: 'もう少し頑張る 💪', subLabel: '', actionId: 'giveup_cancel' },
@@ -208,19 +244,25 @@ window.CHARACTER_SCENES = {
 
   // 答え表示後にパルが登場して、そのステージで使う公式について解説する
   // context.requiredFormulas: string[] (使う公式ID配列) が buildLines に渡される
+  // 「次のステージへ」は独立ボタン (app.js showNextStageButton) で発火するため、
+  // ここでは choices を空にして keepOpenAtEnd で最終行でも閉じない状態を保持する。
   answer_reveal_pal_explain: {
     character: 'hippalcos',
     portrait: 'explain',
+    keepOpenAtEnd: true,
+    // 最終行到達時に「次のステージへ」ボタンが吹き出し内に表示される。
+    // クリックすると nextActionId が発火される (character-dialog.js が処理)。
+    nextActionId: 'answer_reveal_next_stage',
     buildLines: (ctx) => {
       const req = Array.isArray(ctx && ctx.requiredFormulas) ? ctx.requiredFormulas : [];
       const lines = [];
       lines.push('じゃあ、この問題のポイントを説明するね！');
 
-      // 各公式の解説を組み立て
+      // 各公式の解説を組み立て (ブロック絵を含めて視覚的に)
       const explains = {
-        formula_1: '「公式① sin²θ + cos²θ = 1」を使って、sin²+cos² が出てくる部分を「1」に書き換えたよ！',
-        formula_2: '「公式② tanθ = sinθ/cosθ」を使って、tan を sin と cos の分数に開くと、他の関数と組み合わせて計算しやすくなるんだ！',
-        formula_3: '「公式③ 1 + tan²θ = 1/cos²θ」を使って、1+tan² を 1/cos² に書き換えたよ！',
+        formula_1: `「公式① sin²θ + cos²θ = 1」 ${window.BlockSvg.formula(1)} を使って、sin²+cos² が出てくる部分を「1」に書き換えたよ！`,
+        formula_2: `「公式② tanθ = sinθ/cosθ」 ${window.BlockSvg.formula(2)} を使って、tan を sin と cos の分数に開くと、他の関数と組み合わせて計算しやすくなるんだ！`,
+        formula_3: `「公式③ 1 + tan²θ = 1/cos²θ」 ${window.BlockSvg.formula(3)} を使って、1+tan² を 1/cos² に書き換えたよ！`,
       };
 
       if (req.length === 0) {
@@ -245,8 +287,6 @@ window.CHARACTER_SCENES = {
       lines.push('この解き方を覚えて、次の問題にチャレンジしてみよう！');
       return lines;
     },
-    choices: [
-      { label: '次のステージへ ▶', subLabel: '', actionId: 'answer_reveal_next_stage' },
-    ],
+    choices: [],
   },
 };

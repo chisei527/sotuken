@@ -145,23 +145,49 @@
           transform: scale(1);
           pointer-events: auto;
         }
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up {
-          right: calc(var(--pal-size) * 0.25);
-          bottom: calc(var(--pal-size) * 0.70);
+        /* 展開時の各アイテムの位置 (パル本体の中心から扇形に配置)
+           4項目を 左〜真上〜右上 の扇形に均等配置する */
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-left {
+          right: calc(var(--pal-size) * 0.72);
+          bottom: calc(var(--pal-size) * 0.28);
         }
         .character-mascot-host.menu-open .character-mascot-menu-item.pos-up-left {
-          right: calc(var(--pal-size) * 0.59);
-          bottom: calc(var(--pal-size) * 0.59);
+          right: calc(var(--pal-size) * 0.62);
+          bottom: calc(var(--pal-size) * 0.62);
         }
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-left {
-          right: calc(var(--pal-size) * 0.70);
-          bottom: calc(var(--pal-size) * 0.25);
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up {
+          right: calc(var(--pal-size) * 0.36);
+          bottom: calc(var(--pal-size) * 0.78);
+        }
+        /* 「隠す」ボタンを右上寄りに配置 (ゴミ箱と被らないよう真右ではなく上寄り) */
+        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up-right {
+          right: calc(var(--pal-size) * 0.08);
+          bottom: calc(var(--pal-size) * 0.72);
         }
 
         /* 展開前の初期位置 (割合ベース) */
         .character-mascot-menu-item {
           right: calc(var(--pal-size) * 0.31);
           bottom: calc(var(--pal-size) * 0.31);
+        }
+
+        /* ==== 縮小モード (mini): パルを画面右下の小さなアイコンに変える ==== */
+        .character-mascot-host.mini {
+          --pal-size: 100px !important;
+          right: 14px;
+          bottom: 14px;
+          transition: right 0.35s ease, bottom 0.35s ease;
+        }
+        .character-mascot-host.mini .character-mascot-pal {
+          filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.6));
+        }
+        .character-mascot-host.mini .character-mascot-pal:hover {
+          transform: translateY(-4px) scale(1.05);
+        }
+        /* 縮小時は radial menu を強制的に非表示にする (クリック時に展開される想定) */
+        .character-mascot-host.mini .character-mascot-menu,
+        .character-mascot-host.mini .character-mascot-menu-item {
+          display: none !important;
         }
 
         /* ==== 三角関数の解説サブメニュー ==== */

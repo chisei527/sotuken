@@ -16,7 +16,7 @@ window.BASICS_TUTORIAL_STEPS = [
     id: 'step_pull_number_1',
     introLines: [
       'まずはブロックの引き出し方だよ！',
-      '左側の「基本」カテゴリから、白い「1」のブロックを掴んで真ん中の作業エリアにドラッグしてみて！',
+      `左側の「基本」カテゴリから、白い「1」のブロック ${window.BlockSvg.number('1')} を掴んで真ん中の作業エリアにドラッグしてみて！`,
     ],
     completeLines: [
       'ばっちり！ブロックが作業エリアに置けたね！',
@@ -30,7 +30,7 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_pull_number_2',
     introLines: [
-      'よくできたね！もう一回、同じ「1」のブロックを引き出してみよう。',
+      `よくできたね！もう一回、同じ「1」のブロック ${window.BlockSvg.number('1')} を引き出してみよう。`,
       '同じ操作を繰り返せば、ブロックはいくつでも作業エリアに置けるよ！',
     ],
     completeLines: [
@@ -47,7 +47,7 @@ window.BASICS_TUTORIAL_STEPS = [
     id: 'step_pull_add',
     introLines: [
       '次は、ブロック同士をつなぐ練習をするよ。',
-      '左側の「基本」から、今度は「+」の書かれた足し算ブロックを引き出してみて！',
+      `左側の「基本」から、今度は「+」の書かれた足し算ブロック ${window.BlockSvg.add()} を引き出してみて！`,
     ],
     completeLines: [
       'いい調子！足し算のブロックが出せたね！',
@@ -60,7 +60,7 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_connect_blocks',
     introLines: [
-      'それじゃあ、さっきの「1」のブロックを足し算ブロックの穴にはめてみよう！',
+      `それじゃあ、さっきの「1」のブロック ${window.BlockSvg.number('1')} を足し算ブロック ${window.BlockSvg.add()} の穴にはめてみよう！`,
       'ブロックを掴んで、足し算ブロックの丸い穴に近づけると自動でハマるよ。',
     ],
     completeLines: [

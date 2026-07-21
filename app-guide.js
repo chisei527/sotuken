@@ -150,8 +150,13 @@ window.findTutorialReplaceOperation = function() {
   return window.workspace?.getTopBlocks(false)?.find((block) => block.type === 'proof_step')?.getInputTargetBlock('OPERATIONS');
 };
 window.getTutorialToolboxCategoryLabel = function(labelText) {
+  // カテゴリラベル要素 (テキスト) より、親の TreeRow を返す方が rect が大きく光らせやすい
   const labels = Array.from(document.querySelectorAll('.blocklyTreeLabel'));
-  return labels.find((node) => node.textContent?.includes(labelText)) || null;
+  const label = labels.find((node) => node.textContent?.includes(labelText));
+  if (!label) return null;
+  // 親をたどって TreeRow が見つかればそれを返す、無ければ label 自身
+  const row = label.closest('.blocklyTreeRow');
+  return row || label;
 };
 window.getTutorialToolboxElement = function() {
   return document.querySelector('.blocklyToolboxDiv');
@@ -161,15 +166,32 @@ window.getInputConnectionRect = function(block, inputName) {
   if (!block || typeof block.getInput !== 'function') return null;
   const input = block.getInput(inputName);
   const connection = input?.connection;
-  if (!connection || typeof connection.getOffsetInPixels !== 'function') return null;
-  const offset = connection.getOffsetInPixels();
-  const metrics = window.workspace?.getMetrics?.();
-  const absoluteLeft = Math.max(0, metrics?.absoluteMetrics?.left || 0);
-  const absoluteTop = Math.max(0, metrics?.absoluteMetrics?.top || 0);
+  if (!connection) return null;
+
+  // 接続点のワークスペース座標を取得
+  let wsCoords = null;
+  if (typeof connection.getOffsetInPixels === 'function') {
+    // 古いAPI (Blockly < 10): getOffsetInPixels() はワークスペース原点からのピクセル座標
+    wsCoords = connection.getOffsetInPixels();
+  } else if (connection.x_ !== undefined && connection.y_ !== undefined) {
+    // 新APIの互換: 直接プロパティを見る (scale 掛ける前の値)
+    const scale = window.workspace?.scale || 1;
+    wsCoords = { x: connection.x_ * scale, y: connection.y_ * scale };
+  }
+  if (!wsCoords) return null;
+
+  // Blocklyワークスペースをホストする div の画面上の位置を取得
+  const wsDiv = document.querySelector('.blocklyWorkspace') || document.getElementById('l');
+  const wsRect = wsDiv ? wsDiv.getBoundingClientRect() : { left: 0, top: 0 };
+
+  // scroll を加味 (workspace.scrollX/Y はブロックがドラッグでスクロールされた時の値)
+  const scrollX = window.workspace?.scrollX || 0;
+  const scrollY = window.workspace?.scrollY || 0;
+
   const size = { width: 42, height: 28 };
   return {
-    left: absoluteLeft + offset.x - size.width / 2,
-    top: absoluteTop + offset.y - size.height / 2,
+    left: wsRect.left + wsCoords.x + scrollX - size.width / 2,
+    top: wsRect.top + wsCoords.y + scrollY - size.height / 2,
     width: size.width,
     height: size.height,
   };
@@ -247,9 +269,22 @@ window.updateTutorialHighlightUI = function(stageNumber) {
 
   if (highlightTargets?.target) {
     window.currentHighlightTargetNode = highlightTargets.target;
-    // ガイド（ヒント状態）がアクティブな時だけ枠を光らせる
-    if (window.goalHintActive) {
-      if (targetPulse) targetPulse.classList.remove('hidden');
+    // ヒントONの間だけ枠を光らせる
+    if (window.goalHintActive && targetPulse) {
+      // 最初のフレームで rect を確定させて hidden を外す
+      const rect = typeof highlightTargets.target.getBoundingClientRect === 'function'
+        ? highlightTargets.target.getBoundingClientRect()
+        : highlightTargets.target;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        targetPulse.style.left = rect.left + 'px';
+        targetPulse.style.top = rect.top + 'px';
+        targetPulse.style.width = rect.width + 'px';
+        targetPulse.style.height = rect.height + 'px';
+        targetPulse.classList.remove('hidden');
+        console.log('[Guide] ハイライト表示:', rect);
+      } else {
+        console.log('[Guide] ハイライト対象の rect が 0:', highlightTargets.target);
+      }
     }
   }
 
@@ -260,12 +295,12 @@ window.updateTutorialHighlightUI = function(stageNumber) {
     if (banner) {
       if (window.goalHintActive) {
         banner.innerHTML = goalText;
-        banner.classList.add('visible'); // 表示クラスを付与
-        banner.style.display = 'block';   // 強制表示
+        banner.classList.add('visible');
+        banner.style.display = 'block';
       } else {
         banner.innerHTML = '';
         banner.classList.remove('visible');
-        banner.style.display = 'none';    // 非表示
+        banner.style.display = 'none';
       }
     }
     return;

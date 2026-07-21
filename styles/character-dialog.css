@@ -9,6 +9,90 @@
         }
         .character-dialog-host.show { opacity: 1; }
         .character-dialog-host.hidden { display: none !important; }
+
+        /* 答え表示中のパル解説モード:
+           盤面を見ながら解説を聞けるよう、暗い背景・blur を消して下部に寄せる。
+           盤面のブロックは上から下に組まれるため、下部寄せにすると重なりにくい。 */
+        .character-dialog-host.answer-reveal-mode {
+          background: transparent;
+          backdrop-filter: none;
+          align-items: flex-end;
+          padding-bottom: 90px; /* 下部アクションバー分の余白 */
+          pointer-events: none; /* 盤面の操作が透過するように */
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-scene {
+          /* 立ち絵カラムを非表示にして、吹き出しだけをワイドに配置 */
+          grid-template-columns: 1fr;
+          height: auto;
+          max-height: var(--answer-reveal-max-height, 30vh);
+          width: min(var(--answer-reveal-width, 720px), 92vw);
+          pointer-events: auto; /* シーン本体はクリックできる */
+        }
+        /* 吹き出し自体も内容に合わせて縮める (下に空きスペースを作らない) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble-column {
+          justify-content: flex-end; /* 吹き出しを下側に寄せる */
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
+          height: auto;
+          min-height: 0;
+          padding: 14px 20px 8px; /* 上14, 左右20, 下8 (矢印を吹き出し際に置くため) */
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-text {
+          font-size: var(--answer-reveal-font-size, 1.05rem);
+          line-height: 1.7;
+        }
+        /* 「次へ」矢印は吹き出しの右下角ギリギリに置く (下方向の空きを最小に) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-next {
+          margin: 4px 0 0 auto;
+          height: 20px;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-next::before {
+          font-size: 1.1rem;
+        }
+        /* 戻るボタンも矢印と同じライン上に (下方向の余白を減らす) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-back {
+          margin-top: 4px;
+          padding: 2px 8px;
+          font-size: 0.78rem;
+        }
+        /* タップして進むヒントも詰める (万一表示された時) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-tap-hint {
+          margin-top: 2px;
+        }
+        /* 解説モードでは立ち絵ホストを非表示 (右下常駐パルに任せる) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-portrait-column {
+          display: none;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
+          background: linear-gradient(135deg, rgba(8, 22, 44, 0.92), rgba(15, 30, 60, 0.88));
+          border: 1px solid rgba(56, 189, 248, 0.5);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(56, 189, 248, 0.2);
+        }
+        /* 解説モード中は右下常駐パルを表示したままにする (吹き出しの発信源として活用) */
+        /* 通常モード用に character-mascot-host を隠す CSS があれば無効化する意味で :not() を使わないため
+           何も追加せず、character-mascot-host は showCharacterMascot / hideCharacterMascot に従うのみとする */
+
+        /* 「戻る」ボタン (吹き出しの左下、次へボタンの左に配置) */
+        .character-dialog-back {
+          display: inline-block;
+          margin: 12px 8px 0 0;
+          padding: 4px 10px;
+          background: rgba(56, 189, 248, 0.15);
+          border: 1px solid rgba(125, 211, 252, 0.4);
+          border-radius: 999px;
+          color: rgba(125, 211, 252, 0.85);
+          font-family: inherit;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .character-dialog-back.hidden { display: none !important; }
+        .character-dialog-back:hover {
+          background: rgba(56, 189, 248, 0.3);
+          color: #ffffff;
+          border-color: rgba(125, 211, 252, 0.8);
+        }
         /* キャラダイアログ表示中は、下にある旧選択カードや「TAP TO START」を描画しない
            (半透明の背景越しに透けて見えるのを完全に防ぐ) */
         body:has(.character-dialog-host:not(.hidden)) .entrance-card,
@@ -115,6 +199,18 @@
           font-weight: 500;
           min-height: 4em;
           color: #f1f5f9;
+        }
+        /* キャラダイアログの吹き出し内に埋め込むブロック SVG のサイズ調整。
+           吹き出しの文字が大きめ (1.4rem) なので、SVG も少し大きめに揃える。
+           基本は待機ヒント用の --hint-block-height を使うが、ここでは 1.8em に上書き。 */
+        .character-dialog-text .basics-tutorial-hint-block {
+          height: 1.8em;
+          vertical-align: middle;
+          margin: 0 2px;
+        }
+        /* 答え解説モード (小さめ吹き出し) では少し縮める */
+        .character-dialog-host.answer-reveal-mode .character-dialog-text .basics-tutorial-hint-block {
+          height: 1.5em;
         }
         /* 「次へ」の視覚要素:
            ボタンぽさは撤去し、右下角に控えめに点滅する矢印だけを表示する。

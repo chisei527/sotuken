@@ -60,6 +60,13 @@ window.setupEventListeners = function() {
   // 答え表示 + ギブアップ済みフラグを立てる (character-scenes から呼ばれる)
   window.revealAnswerAndMarkGiveUp = function () {
     if (!window.currentProblemData || !window.currentProblemData.answerState || !window.workspace) return;
+    // 「もう一度」ボタンで復元できるよう、あきらめる直前の workspace 状態を保存する。
+    try {
+      window._preGiveUpWorkspaceState = Blockly.serialization.workspaces.save(window.workspace);
+    } catch (err) {
+      console.warn('[app] あきらめる前の workspace 保存に失敗:', err);
+      window._preGiveUpWorkspaceState = null;
+    }
     // ワークスペースを一旦クリアして answer をロード
     try {
       if (typeof window.workspace.setScale === 'function') window.workspace.setScale(1);
@@ -131,6 +138,13 @@ window.setupEventListeners = function() {
             if (typeof action === 'function') action();
           },
         });
+        // 解説モード用のクラスを付与 (盤面が見える控えめ配置に切替)
+        requestAnimationFrame(() => {
+          const host = document.getElementById('character-dialog-host');
+          if (host) host.classList.add('answer-reveal-mode');
+        });
+        // 「次のステージへ」独立ボタンも同時に表示
+        window.showNextStageButton();
       });
     }
     // フェードイン
@@ -146,10 +160,121 @@ window.setupEventListeners = function() {
     setTimeout(() => btn.classList.add('hidden'), 220);
   };
 
+  // パル解説モード中の独立ボタン群 (「もう一度」「次の問題へ」) を表示
+  // 「もう一度」: あきらめる前の workspace 状態を復元してプレイ再開
+  // 「次の問題へ」: 通常の遷移 (最終ステージなら「マップへ」、全クリなら「本編クリア！🎉」)
+  window.showNextStageButton = async function () {
+    // グループコンテナを生成 (2ボタンを画面下中央に横並び)
+    let container = document.getElementById('post-explain-button-group');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'post-explain-button-group';
+      container.className = 'post-explain-button-group';
+
+      // 「もう一度」ボタン (左)
+      const btnRetry = document.createElement('button');
+      btnRetry.id = 'btn-retry-stage';
+      btnRetry.type = 'button';
+      btnRetry.className = 'post-explain-btn retry-btn';
+      btnRetry.innerHTML = '<span class="post-explain-arrow">↻</span> もう一度';
+      btnRetry.addEventListener('click', () => {
+        window.hideNextStageButton();
+        window.closeCharacterDialog();
+        // あきらめる前の workspace 状態を復元
+        if (window._preGiveUpWorkspaceState && window.workspace) {
+          try {
+            window.workspace.clear();
+            Blockly.serialization.workspaces.load(window._preGiveUpWorkspaceState, window.workspace);
+            if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
+          } catch (err) {
+            console.warn('[app] workspace 復元に失敗、通常の loadStage にフォールバック:', err);
+            if (typeof window.loadStage === 'function') window.loadStage(window.currentStageNumber);
+          }
+        } else if (typeof window.loadStage === 'function') {
+          // 保存がなかった場合は通常のリロード
+          window.loadStage(window.currentStageNumber);
+        }
+        // ロック状態を解除してプレイ可能状態に戻す
+        document.body.classList.remove('answer-reveal-locked');
+        ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
+          const b = document.getElementById(id);
+          if (b) {
+            b.disabled = false;
+            b.classList.remove('pal-tutorial-disabled');
+            b.style.display = ''; // btn-submit の非表示解除
+          }
+        });
+      });
+
+      // 「次の問題へ」ボタン (右)
+      const btnNext = document.createElement('button');
+      btnNext.id = 'btn-next-stage';
+      btnNext.type = 'button';
+      btnNext.className = 'post-explain-btn next-stage-btn';
+      btnNext.innerHTML = '次の問題へ <span class="post-explain-arrow">▶</span>';
+      btnNext.addEventListener('click', () => {
+        window.hideNextStageButton();
+        window.closeCharacterDialog();
+        if (typeof window.advanceToNextStage === 'function') window.advanceToNextStage();
+      });
+
+      container.appendChild(btnRetry);
+      container.appendChild(btnNext);
+      document.body.appendChild(container);
+    }
+
+    // 「次の問題へ」ボタンのラベル切替: 最終ステージ判定を再実行
+    const btnNext = document.getElementById('btn-next-stage');
+    if (btnNext) {
+      const currentId = window.currentStageNumber;
+      const isTutorialStage = typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(currentId);
+      // 初期化: 通常状態にリセット
+      btnNext.classList.remove('final-stage', 'all-cleared');
+      btnNext.innerHTML = '次の問題へ <span class="post-explain-arrow">▶</span>';
+      if (!isTutorialStage) {
+        const num = Number(currentId);
+        if (Number.isFinite(num) && num >= 1) {
+          try {
+            const res = await fetch(`problems/${num + 1}.json`, { method: 'HEAD' });
+            if (!res.ok) {
+              // 最終ステージ
+              const total = window.MAIN_STAGE_TOTAL || num;
+              const cleared = window.clearedStages || [];
+              const allCleared = cleared.length >= total
+                && Array.from({ length: total }, (_, i) => i + 1).every((s) => cleared.includes(s));
+              if (allCleared) {
+                btnNext.innerHTML = '本編クリア！🎉';
+                btnNext.classList.add('all-cleared');
+              } else {
+                btnNext.innerHTML = 'マップへ <span class="post-explain-arrow">▶</span>';
+                btnNext.classList.add('final-stage');
+              }
+            }
+          } catch (err) {
+            console.warn('[app] 最終ステージ判定でエラー:', err);
+          }
+        }
+      }
+    }
+
+    container.classList.remove('hidden');
+    requestAnimationFrame(() => container.classList.add('show'));
+  };
+
+  window.hideNextStageButton = function () {
+    const container = document.getElementById('post-explain-button-group');
+    if (!container) return;
+    container.classList.remove('show');
+    setTimeout(() => container.classList.add('hidden'), 220);
+  };
+
   // パルの解説後に「次のステージへ」を押したときの実処理
   window.advanceToNextStage = function () {
     // 答え表示中のロックを解除
     document.body.classList.remove('answer-reveal-locked');
+    // 解説モード用のクラスも解除 (キャラダイアログを閉じるので host は残ってないはずだが念のため)
+    const host = document.getElementById('character-dialog-host');
+    if (host) host.classList.remove('answer-reveal-mode');
     ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
       const b = document.getElementById(id);
       if (b) {

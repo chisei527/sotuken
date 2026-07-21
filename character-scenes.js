@@ -46,11 +46,52 @@ window.CHARACTER_SCENE_ACTIONS = {
       },
     });
   },
-  // モード選択: 本編1に直接飛ぶ → こちらもパルの自己紹介を挟む
+  // モード選択: 本編1に直接飛ぶ
+  // 初回: フリエのブリーフィング (使い方紹介) を挟む
+  // 2回目以降: 既にパル intro を見ているので短縮版パル (よし始めよう) だけ
   start_main_stage_1: function() {
     window._pendingStartAction = 'exec_main_stage_1';
-    const palSceneId = window._palIntroSeen ? 'intro_pal_repeat' : 'intro_pal';
-    window.startCharacterDialog(palSceneId, {
+    if (window._palIntroSeen) {
+      // 2 回目以降は intro_pal_repeat (よし始めよう 1 行)
+      window.startCharacterDialog('intro_pal_repeat', {
+        onChoiceSelected: (actionId) => {
+          const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+          if (typeof action === 'function') action();
+        },
+      });
+    } else {
+      // 初回: 「紹介聞く/スキップ」の選択肢
+      window.startCharacterDialog('intro_main_briefing_ask', {
+        onChoiceSelected: (actionId) => {
+          const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+          if (typeof action === 'function') action();
+        },
+      });
+    }
+  },
+
+  // ブリーフィング: 「紹介聞く」を選んだ → フリエ引き出し説明シーン
+  briefing_show_furie: function() {
+    window.startCharacterDialog('intro_main_briefing_furie', {
+      onChoiceSelected: (actionId) => {
+        const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+        if (typeof action === 'function') action();
+      },
+    });
+  },
+  // ブリーフィング: フリエ引き出し説明終了 → パル (intro_pal) の機能紹介へ
+  briefing_show_pal: function() {
+    window.startCharacterDialog('intro_pal', {
+      onChoiceSelected: (actionId) => {
+        const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+        if (typeof action === 'function') action();
+      },
+    });
+  },
+  // ブリーフィング: 「スキップ」を選んだ → 直接パル intro (機能紹介はやる) へ
+  // ※パルの機能紹介は「知らないと使えない」ものなので、スキップしても表示する。
+  briefing_skip: function() {
+    window.startCharacterDialog('intro_pal', {
       onChoiceSelected: (actionId) => {
         const action = window.CHARACTER_SCENE_ACTIONS[actionId];
         if (typeof action === 'function') action();
@@ -116,6 +157,7 @@ window.CHARACTER_SCENE_ACTIONS = {
   },
   // パルの解説後、次のステージへ進む
   answer_reveal_next_stage: function() {
+    console.log('[character-scenes] answer_reveal_next_stage 発火, currentStageNumber=', window.currentStageNumber);
     window.closeCharacterDialog();
     // 通常の「次ステージへ自動遷移」処理を発火
     if (typeof window.advanceToNextStage === 'function') {

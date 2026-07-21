@@ -84,12 +84,31 @@ window.getNextStageId = function(currentId) {
   return num + 1;
 };
 
+// ステージがアンロックされているかを判定するヘルパー。
+// - unlockAll (全解放モード) なら常に true
+// - チュートリアルステージは順序に依らず自由 (true)
+// - 本編ステージは: 番号 1, 既にクリア済み, 前のステージがクリア済み のいずれかで true
+window.isStageUnlocked = function(stageId) {
+  if (window.unlockAll) return true;
+  if (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(stageId)) return true;
+  const num = Number(stageId);
+  if (!Number.isFinite(num)) return false;
+  if (num === 1) return true;
+  const cleared = window.clearedStages || [];
+  if (cleared.includes(num)) return true;
+  if (cleared.includes(num - 1)) return true;
+  return false;
+};
+
 // 前へ/次へボタンの活性状態を現在ステージに合わせて更新する
 window.updateStageNavButtons = function() {
   const prevBtn = document.getElementById('btn-prev-stage');
   const nextBtn = document.getElementById('btn-next-stage');
-  if (prevBtn) prevBtn.disabled = (window.getPrevStageId(window.currentStageNumber) === null);
-  if (nextBtn) nextBtn.disabled = (window.getNextStageId(window.currentStageNumber) === null);
+  const prev = window.getPrevStageId(window.currentStageNumber);
+  const next = window.getNextStageId(window.currentStageNumber);
+  if (prevBtn) prevBtn.disabled = (prev === null);
+  // 次ステージが未解放なら無効化 (ロックされた場所には進めない)
+  if (nextBtn) nextBtn.disabled = (next === null) || !window.isStageUnlocked(next);
 };
 
 

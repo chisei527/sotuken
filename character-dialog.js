@@ -36,6 +36,7 @@
           <div class="character-dialog-bubble" id="character-dialog-bubble">
             <div class="character-dialog-name" id="character-dialog-name"></div>
             <div class="character-dialog-text" id="character-dialog-text"></div>
+            <button class="character-dialog-back hidden" id="character-dialog-back" type="button" aria-label="戻る">◀ 戻る</button>
             <button class="character-dialog-next" id="character-dialog-next" type="button" aria-label="次へ">次へ ▶</button>
           </div>
           <div class="character-dialog-tap-hint" id="character-dialog-tap-hint">タップして進む</div>
@@ -49,19 +50,53 @@
     document.body.appendChild(host);
 
     // 「次へ」ボタン
-    host.querySelector('#character-dialog-next').addEventListener('click', advanceLine);
+    host.querySelector('#character-dialog-next').addEventListener('click', (e) => {
+      e.stopPropagation();
+      advanceLine();
+    });
+    // 「戻る」ボタン
+    host.querySelector('#character-dialog-back').addEventListener('click', (e) => {
+      e.stopPropagation();
+      advanceLineBack();
+    });
     // ホスト全体 (立ち絵・背景含む) をタップしても進める。
     // 制限:
     //   - 選択肢表示中 (bubble に dimmed クラス) は無効
     //   - 選択肢ボタン (choices エリア内) のクリックは除外 (選択が発火するように)
-    //   - 「次へ」ボタン自体のクリックは除外 (二重発火防止)
+    //   - 「次へ」「戻る」ボタン自体のクリックは除外 (二重発火防止)
     host.addEventListener('click', (e) => {
       if (e.target.closest('#character-dialog-next')) return;
+      if (e.target.closest('#character-dialog-back')) return;
       if (e.target.closest('#character-dialog-choices')) return;
       const bubble = document.getElementById('character-dialog-bubble');
       if (bubble && bubble.classList.contains('dimmed')) return;
       advanceLine();
     });
+
+    // キーボード操作: ← で戻る、→ で進む
+    // ダイアログが表示中のみ効かせる
+    document.addEventListener('keydown', (e) => {
+      const hostEl = document.getElementById(DIALOG_HOST_ID);
+      if (!hostEl || hostEl.classList.contains('hidden')) return;
+      if (!currentDialogState) return;
+      // 入力中 (input, textarea) では無効
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        // 選択肢表示中 (dimmed) は進めない
+        const bubble = document.getElementById('character-dialog-bubble');
+        if (bubble && bubble.classList.contains('dimmed')) return;
+        advanceLine();
+      } else if (e.key === 'ArrowLeft') {
+        // 戻るはキャラダイアログの「解説モード」でのみ有効
+        if (currentDialogState && currentDialogState.keepOpenAtEnd) {
+          e.preventDefault();
+          advanceLineBack();
+        }
+      }
+    });
+
     return host;
   }
 
@@ -114,6 +149,8 @@
       // 選択肢がなく nextActionId が指定されているシーンでは、最後の行タップで
       // その actionId を発火してシーンチェーンする
       nextActionId: scene.nextActionId || null,
+      // 最終行に到達しても閉じずに留まる (解説モードなど、ユーザー主導で終わらせたいシーン)
+      keepOpenAtEnd: !!scene.keepOpenAtEnd,
       onChoiceSelected: options.onChoiceSelected || function () {},
     };
 
@@ -191,24 +228,53 @@
     const nextBtn = document.getElementById('character-dialog-next');
     if (!textEl || !nextBtn) return;
 
-    // タイプライター風にテキストを1文字ずつ表示
-    textEl.textContent = '';
-    let charIndex = 0;
-    if (state._typingTimer) clearInterval(state._typingTimer);
-    state._typingTimer = setInterval(() => {
-      textEl.textContent += text.charAt(charIndex);
-      charIndex += 1;
-      if (charIndex >= text.length) {
+    // SVG マークアップを含む行かどうかを判定。
+    // 含む場合は typewriter で 1 文字ずつ表示するとタグが壊れるので、innerHTML で即座に表示。
+    const containsSvg = /<svg[\s>]/i.test(text);
+    if (containsSvg) {
+      textEl.innerHTML = text;
+      if (state._typingTimer) {
         clearInterval(state._typingTimer);
         state._typingTimer = null;
       }
-    }, 30);
+    } else {
+      // タイプライター風にテキストを1文字ずつ表示
+      textEl.textContent = '';
+      let charIndex = 0;
+      if (state._typingTimer) clearInterval(state._typingTimer);
+      state._typingTimer = setInterval(() => {
+        textEl.textContent += text.charAt(charIndex);
+        charIndex += 1;
+        if (charIndex >= text.length) {
+          clearInterval(state._typingTimer);
+          state._typingTimer = null;
+        }
+      }, 30);
+    }
 
     // 「次へ」ボタンのラベルを最後の行では変える
     const isLastLine = state.lineIndex >= state.lines.length - 1;
     nextBtn.textContent = isLastLine
-      ? (state.choices.length > 0 ? 'OK ▶' : '閉じる ▶')
+      ? (state.choices.length > 0 ? 'OK ▶' : (state.keepOpenAtEnd ? '' : '閉じる ▶'))
       : '次へ ▶';
+
+    // keepOpenAtEnd で最後の行の場合、次へボタンを非表示に (「タップして進む」も無効化される)
+    if (isLastLine && state.keepOpenAtEnd) {
+      nextBtn.style.visibility = 'hidden';
+    } else {
+      nextBtn.style.visibility = '';
+    }
+
+    // 「戻る」ボタン: keepOpenAtEnd のシーン (解説モードなど) で 2 行目以降で表示
+    // 通常シーンでは戻れないようにする (フリエの自己紹介などで戻ると違和感)
+    const backBtn = document.getElementById('character-dialog-back');
+    if (backBtn) {
+      if (state.keepOpenAtEnd && state.lineIndex > 0) {
+        backBtn.classList.remove('hidden');
+      } else {
+        backBtn.classList.add('hidden');
+      }
+    }
   }
 
   /**
@@ -235,7 +301,12 @@
       // rawLine が文字列でもオブジェクトでも text だけを取り出す
       const raw = state.lines[state.lineIndex];
       const fullText = (raw && typeof raw === 'object') ? String(raw.text || '') : String(raw || '');
-      textEl.textContent = fullText;
+      // SVG マークアップを含む場合は innerHTML で挿入 (textContent だとタグがエスケープされてしまう)
+      if (/<svg[\s>]/i.test(fullText)) {
+        textEl.innerHTML = fullText;
+      } else {
+        textEl.textContent = fullText;
+      }
       return;
     }
 
@@ -245,11 +316,16 @@
       return;
     }
 
-    // 最終行を過ぎた: 選択肢がある → 出す
-    // 選択肢が無く nextActionId がある → その actionId を発火 (シーンチェーン)
-    // どちらもなければダイアログを閉じる
+    // 最終行を過ぎた:
+    // - 選択肢がある → 出す
+    // - keepOpenAtEnd → 何もしない (最終行に留まる、外部から close する想定)
+    // - nextActionId → その actionId を発火 (シーンチェーン)
+    // - どれもなければ閉じる
     if (state.choices.length > 0) {
       renderChoices();
+    } else if (state.keepOpenAtEnd) {
+      // 何もしない - ユーザー主導で終わらせる (「次のステージへ」ボタンなど)
+      return;
     } else if (state.nextActionId) {
       try {
         state.onChoiceSelected(state.nextActionId);
@@ -259,6 +335,22 @@
     } else {
       window.closeCharacterDialog();
     }
+  }
+
+  /**
+   * 1つ前の行に戻る。最初の行のときは何もしない。
+   * タイプライター途中でも一旦キャンセルして戻る。
+   */
+  function advanceLineBack() {
+    if (!currentDialogState) return;
+    const state = currentDialogState;
+    if (state.lineIndex <= 0) return; // 最初の行では戻れない
+    if (state._typingTimer) {
+      clearInterval(state._typingTimer);
+      state._typingTimer = null;
+    }
+    state.lineIndex -= 1;
+    renderCurrentLine();
   }
 
   /**

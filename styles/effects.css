@@ -84,57 +84,137 @@
         .overlay-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 8, 20, 0.8); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
         
         /* 公式ブロック内の番号フィールドを太字＆少し大きく強調 */
-        /* 正解時の青い波紋エフェクト */
-        .success-ripple {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: 4px solid rgba(56, 189, 248, 0.9);
-          transform: translate(-50%, -50%);
-          z-index: 9998;
-          pointer-events: none;
-          animation: successRipple 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          box-shadow: 0 0 60px rgba(56, 189, 248, 0.7);
+        /* 「次のステージへ」独立ボタン (パル解説モード中に表示)
+           listen-explain-btn と同じ丸型スタイルだが、位置を右下寄せに変えて
+           下部アクションバー (リセット/あきらめる) と競合しないようにする */
+        .listen-explain-btn.next-stage-btn {
+          bottom: 40px;
+          left: auto;
+          right: 40px;
+          transform: translate(20px, 0);
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
+          border-color: rgba(196, 181, 253, 0.7);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
+          animation: nextStagePulse 1.8s ease-in-out infinite;
         }
-        @keyframes successRipple {
-          0% {
-            opacity: 1;
-            width: 40px;
-            height: 40px;
-            border-width: 6px;
-          }
-          70% {
-            opacity: 0.7;
-          }
-          100% {
-            opacity: 0;
-            width: 1400px;
-            height: 1400px;
-            border-width: 1px;
-          }
+        .listen-explain-btn.next-stage-btn.show {
+          transform: translate(0, 0);
+        }
+        .listen-explain-btn.next-stage-btn:hover {
+          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+        @keyframes nextStagePulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
+        }
+        /* ==== パル解説モード後の独立ボタングループ (もう一度 / 次の問題へ) ==== */
+        .post-explain-button-group {
+          position: fixed;
+          bottom: 40px;
+          left: 50%;
+          transform: translate(-50%, 20px);
+          display: flex;
+          gap: 20px;
+          z-index: 3200;
+          opacity: 0;
+          transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+        }
+        .post-explain-button-group.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .post-explain-button-group.hidden { display: none !important; }
+
+        .post-explain-btn {
+          padding: 14px 32px;
+          font-family: inherit;
+          font-size: 1.05rem;
+          font-weight: 900;
+          letter-spacing: 0.05em;
+          color: #ffffff;
+          border-radius: 999px;
+          cursor: pointer;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+        .post-explain-btn:hover {
+          transform: translateY(-3px);
+        }
+        .post-explain-arrow {
+          display: inline-block;
+          font-weight: 900;
+          transition: transform 0.2s ease;
         }
 
-        /* 正解時の CLEAR! スタンプ */
-        .clear-stamp-effect {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 9999;
-          pointer-events: none;
-          color: #66f7d6;
-          font-family: 'Arial Black', sans-serif;
-          font-size: clamp(64px, 10vw, 132px);
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          text-shadow: 0 0 12px rgba(102, 247, 214, 0.95), 0 0 32px rgba(56, 189, 248, 0.8);
-          animation: clearStampPop 1.2s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
+        /* もう一度 (左): 落ち着いた青系グラデーション、控えめ */
+        .post-explain-btn.retry-btn {
+          background: linear-gradient(135deg, rgba(51, 65, 85, 0.95), rgba(30, 41, 59, 0.9));
+          border: 2px solid rgba(148, 163, 184, 0.55);
         }
-        @keyframes clearStampPop {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(3) rotate(-12deg); }
-          20% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-          100% { opacity: 0; transform: translate(-50%, calc(-50% - 20px)) scale(0.9); }
+        .post-explain-btn.retry-btn:hover {
+          background: linear-gradient(135deg, rgba(71, 85, 105, 1), rgba(51, 65, 85, 1));
+          border-color: rgba(203, 213, 225, 0.85);
+        }
+        .post-explain-btn.retry-btn .post-explain-arrow {
+          margin-right: 6px;
+        }
+        .post-explain-btn.retry-btn:hover .post-explain-arrow {
+          transform: rotate(-45deg);
+        }
+
+        /* 次の問題へ (右、デフォルト): 紫グラデーション、パルス発光で目立たせる */
+        .post-explain-btn.next-stage-btn {
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
+          border: 2px solid rgba(196, 181, 253, 0.7);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
+          animation: postExplainNextPulse 1.8s ease-in-out infinite;
+        }
+        .post-explain-btn.next-stage-btn:hover {
+          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+        .post-explain-btn.next-stage-btn:hover .post-explain-arrow {
+          transform: translateX(4px);
+        }
+        @keyframes postExplainNextPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
+        }
+
+        /* 最終ステージ (「マップへ」): 水色系 */
+        .post-explain-btn.next-stage-btn.final-stage {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(14, 116, 175, 0.9));
+          border-color: rgba(125, 211, 252, 0.75);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5);
+          animation: postExplainFinalPulse 1.8s ease-in-out infinite;
+        }
+        .post-explain-btn.next-stage-btn.final-stage:hover {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 1), rgba(14, 116, 175, 1));
+        }
+        @keyframes postExplainFinalPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5); }
+          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(56, 189, 248, 0.85); }
+        }
+
+        /* 全問題クリア (「本編クリア！🎉」): 金色 */
+        .post-explain-btn.next-stage-btn.all-cleared {
+          background: linear-gradient(135deg, rgba(251, 191, 36, 0.98), rgba(217, 119, 6, 0.95));
+          border-color: rgba(254, 240, 138, 0.9);
+          color: #1f2937;
+          font-size: 1.15rem;
+          padding: 16px 36px;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 48px rgba(251, 191, 36, 0.75);
+          animation: postExplainAllClearedPulse 1.3s ease-in-out infinite;
+        }
+        .post-explain-btn.next-stage-btn.all-cleared:hover {
+          background: linear-gradient(135deg, rgba(254, 215, 79, 1), rgba(245, 158, 11, 1));
+          border-color: #ffffff;
+          transform: translateY(-3px) scale(1.05);
+        }
+        @keyframes postExplainAllClearedPulse {
+          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 48px rgba(251, 191, 36, 0.75); }
+          50% { box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 80px rgba(254, 215, 79, 1); }
         }

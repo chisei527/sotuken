@@ -62,24 +62,34 @@
           box-sizing: border-box;
         }
         .tutorial-pulse-source {
-          border: 3px solid #f59e0b;
-          box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
-          animation: pulse-orange 1.5s ease-in-out infinite;
+          border: 3px solid #38bdf8;
+          box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+          animation: pulse-cyan 1.5s ease-in-out infinite;
         }
         .tutorial-pulse-target {
           position: fixed;
           pointer-events: none;
           z-index: 9999;
-          border-radius: 50%;
-          background-color: rgba(251, 191, 36, 0.25);
-          box-shadow: 0 0 22px 12px rgba(251, 191, 36, 0.7), inset 0 0 15px 5px rgba(251, 191, 36, 0.4);
-          transition: all 0.1s ease-out;
+          border-radius: 12px;
+          background-color: rgba(56, 189, 248, 0.15);
+          border: 2px solid rgba(125, 211, 252, 0.85);
+          box-shadow: 0 0 22px 6px rgba(56, 189, 248, 0.55), inset 0 0 12px 4px rgba(56, 189, 248, 0.3);
+          transition: all 0.15s ease-out;
+          animation: pulse-cyan-target 1.6s ease-in-out infinite;
         }
         .tutorial-pulse-source.hidden,
         .tutorial-pulse-target.hidden { display: none; }
-        @keyframes pulse-orange {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
-          50% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.12); }
+        @keyframes pulse-cyan {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55); }
+          50% { box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.12); }
+        }
+        @keyframes pulse-cyan-target {
+          0%, 100% {
+            box-shadow: 0 0 22px 6px rgba(56, 189, 248, 0.55), inset 0 0 12px 4px rgba(56, 189, 248, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 34px 10px rgba(56, 189, 248, 0.8), inset 0 0 16px 6px rgba(56, 189, 248, 0.45);
+          }
         }
 
         /* チュートリアルプログレスバー */

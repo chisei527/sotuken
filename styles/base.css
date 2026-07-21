@@ -17,21 +17,45 @@
           --cyber-glow: 0 0 12px rgba(56, 189, 248, 0.4);
           --cyber-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 
-          /* チュートリアル待機ヒント内のブロック SVG の高さ。
-             メディアクエリで段階的に切り替え、小画面で文字と重ならないようにする。
-             文字とのバランスを取るため 1.5em を基準に、小画面ほど小さく。 */
+          /* チュートリアル待機ヒント内のブロック SVG の高さ (画面幅で段階可変) */
           --hint-block-height: 1.5em;
+
+          /* パル解説モード (answer-reveal-mode) の吹き出しサイズ (画面幅で段階可変) */
+          --answer-reveal-width: 720px;
+          --answer-reveal-max-height: 30vh;
+          --answer-reveal-font-size: 1.05rem;
         }
 
-        /* 待機ヒント内 SVG の高さを画面幅で段階可変 */
+        /* 5 段階のブレークポイントで各種サイズを切り替える */
+        @media (max-width: 1919px) {
+          :root {
+            --answer-reveal-width: 640px;
+            --answer-reveal-font-size: 1rem;
+          }
+        }
         @media (max-width: 1599px) {
-          :root { --hint-block-height: 1.35em; }
+          :root {
+            --hint-block-height: 1.35em;
+            --answer-reveal-width: 560px;
+            --answer-reveal-max-height: 28vh;
+            --answer-reveal-font-size: 0.95rem;
+          }
         }
         @media (max-width: 1279px) {
-          :root { --hint-block-height: 1.2em; }
+          :root {
+            --hint-block-height: 1.2em;
+            --answer-reveal-width: 480px;
+            --answer-reveal-max-height: 26vh;
+            --answer-reveal-font-size: 0.9rem;
+          }
         }
         @media (max-width: 1023px) {
-          :root { --hint-block-height: 1.1em; }
+          :root {
+            --hint-block-height: 1.1em;
+            --answer-reveal-width: 420px;
+            --answer-reveal-max-height: 24vh;
+            --answer-reveal-font-size: 0.85rem;
+          }
         }
 
         html, body {

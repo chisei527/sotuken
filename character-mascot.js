@@ -14,7 +14,7 @@
 
   // radial menu の項目定義
   // key: 内部識別子、label: 表示名、onSelect: クリック時の関数、position: menu 上の配置
-  //   position は 'up' (真上) / 'up-left' (左上) / 'left' (真左)
+  //   position は 'up' (真上) / 'up-left' (左上) / 'left' (真左) / 'right' (右上)
   const MENU_ITEMS = [
     {
       key: 'guide',
@@ -22,8 +22,6 @@
       subLabel: 'ON/OFF',
       position: 'up-left',
       onSelect: () => {
-        // 既存のヘッダー「ガイド機能」ボタンを内部的にクリックしてトグルする。
-        // click ハンドラ内でトースト・ワークスペース再構築が走るので副作用がそのまま生きる。
         const btn = document.getElementById('btn-overwrite-permission');
         if (btn) btn.click();
         refreshMenuState();
@@ -35,8 +33,6 @@
       subLabel: '表示切替',
       position: 'left',
       onSelect: () => {
-        // 既存のヒントボタン (btn-hint) をクリックしてトグルする。
-        // showGoalHintForStage / hideGoalHintForStage が発火してバナー表示が切り替わる。
         const btn = document.getElementById('btn-hint');
         if (btn) btn.click();
         refreshMenuState();
@@ -48,9 +44,20 @@
       subLabel: '基礎と公式',
       position: 'up',
       onSelect: () => {
-        // Step 4: サブメニューを開いて解説項目を選ばせる
         if (typeof window.openMascotExplanationSubmenu === 'function') {
           window.openMascotExplanationSubmenu();
+        }
+      },
+    },
+    {
+      key: 'minimize',
+      label: '隠す',
+      subLabel: '小さくする',
+      position: 'up-right',
+      onSelect: () => {
+        // パルを縮小アイコン化する。localStorage に選択を保存 (次回起動時に反映)
+        if (typeof window.minimizeCharacterMascot === 'function') {
+          window.minimizeCharacterMascot(true);
         }
       },
     },
@@ -106,7 +113,18 @@
     palImg.src = 'asset/ヒッパルコス 通常.png';
     palImg.draggable = false;
     palButton.appendChild(palImg);
-    palButton.addEventListener('click', () => window.toggleCharacterMascotMenu());
+    palButton.addEventListener('click', () => {
+      // 縮小アイコン状態のときは、まず元サイズに戻してから radial menu を展開
+      if (host.classList.contains('mini')) {
+        if (typeof window.expandCharacterMascot === 'function') {
+          window.expandCharacterMascot(true);
+          // 展開後に radial menu を開く (少し遅延させて拡大アニメと重ならないように)
+          setTimeout(() => window.toggleCharacterMascotMenu(true), 250);
+        }
+        return;
+      }
+      window.toggleCharacterMascotMenu();
+    });
     host.appendChild(palButton);
 
     // radial menu (パルの周囲に扇状に配置)
@@ -149,9 +167,60 @@
     return host;
   }
 
+  // パル縮小状態の localStorage キー
+  const PAL_MINI_KEY = 'pal_mini';
+
+  /**
+   * 画面幅が狭い時 (< 1024px) 、または前回選択で縮小指定されていた時に true を返す。
+   * localStorage の 'pal_mini' が優先される。
+   *   'true'  → 常に縮小 (ユーザー明示選択)
+   *   'false' → 常に通常 (ユーザー明示選択)
+   *   null    → 画面幅で自動判定
+   */
+  function shouldStartInMini() {
+    try {
+      const stored = localStorage.getItem(PAL_MINI_KEY);
+      if (stored === 'true') return true;
+      if (stored === 'false') return false;
+    } catch (_) { /* localStorage 使えない環境 */ }
+    // ユーザー選択未設定 → 画面幅で自動判定
+    return window.innerWidth < 1024;
+  }
+
+  /**
+   * パルを縮小アイコン化する。radial menu が開いていたら閉じる。
+   * @param {boolean} persist  ユーザー明示選択なら true (localStorage に保存)
+   */
+  window.minimizeCharacterMascot = function(persist) {
+    const host = ensureMascotHost();
+    host.classList.remove('menu-open');
+    host.classList.add('mini');
+    if (persist) {
+      try { localStorage.setItem(PAL_MINI_KEY, 'true'); } catch (_) { /* ignore */ }
+    }
+  };
+
+  /**
+   * パルを通常サイズに戻す。
+   * @param {boolean} persist  ユーザー明示選択なら true (localStorage に保存)
+   */
+  window.expandCharacterMascot = function(persist) {
+    const host = ensureMascotHost();
+    host.classList.remove('mini');
+    if (persist) {
+      try { localStorage.setItem(PAL_MINI_KEY, 'false'); } catch (_) { /* ignore */ }
+    }
+  };
+
   window.showCharacterMascot = function() {
     const host = ensureMascotHost();
     host.classList.remove('hidden');
+    // 初回表示時: localStorage or 画面幅で初期状態を決定
+    if (shouldStartInMini()) {
+      host.classList.add('mini');
+    } else {
+      host.classList.remove('mini');
+    }
     // 表示のタイミングでガイド/ヒントの現状を menu に反映
     refreshMenuState();
   };
