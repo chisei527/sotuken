@@ -37,7 +37,8 @@
           gap: 14px;
           border-bottom: 1px solid rgba(56, 189, 248, 0.35);
           box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
-          backdrop-filter: blur(12px);
+          /* ヘッダーも常時表示。blur をやめて不透明度で代替する */
+          background: rgba(4, 16, 38, 0.92);
           z-index: 10;
         }
         #h button { 

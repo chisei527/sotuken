@@ -5,80 +5,30 @@
 // ルール:
 //   - 状態と関数は全て window.xxx として定義する
 //   - 他ファイルからも必ず window.xxx として参照する（裸の参照は禁止）
+//   - このファイルは「状態の単一の真実」。同名の関数を他ファイルで再定義しないこと。
 
 // ------------------------------------------------------------
 // 定数（変化しない値）
 // ------------------------------------------------------------
 window.UNLOCKED_FORMULAS_STORAGE_KEY = 'unlocked_formulas';
-window.MAX_STAGE_NUMBER = 100;
+
+// チュートリアルのステージID。
+// ※ここが唯一の定義。main.js など他ファイルで再定義しないこと。
+//   （以前 main.js が 0-7 までの7件で上書きしており、0-8 が到達不能になっていた）
 window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7', '0-8'];
+
 window.APP_STORAGE_KEYS = ['s', 'gu', 'unlock_all', 'tutorial_seen', 'proof_scaffold_mode', 'tutorial_progress', window.UNLOCKED_FORMULAS_STORAGE_KEY];
 
 // ------------------------------------------------------------
 // 【開発用】起動時に localStorage を自動リセットするフラグ。
 // テスト中は毎回まっさらな状態から始めたいので true にする。
-// 本番リリース時は false にする。
+// 本番リリース時は false にする。 ← 提出・デモ時は必ず false のままにすること
 // ------------------------------------------------------------
-window.AUTO_RESET_ON_LOAD = true;
+window.AUTO_RESET_ON_LOAD = false;
 if (window.AUTO_RESET_ON_LOAD) {
   window.APP_STORAGE_KEYS.forEach((key) => { if (key) localStorage.removeItem(key); });
   console.log('[app-state] AUTO_RESET_ON_LOAD が有効なため localStorage をリセットしました');
 }
-
-window.MAP_WORLD_MIN_WIDTH = 3600;
-window.MAP_WORLD_MIN_HEIGHT = 2400;
-window.MAP_NODE_SIZE = 94;
-
-window.BLOCK_HOLE_OFFSETS = {
-  'replace_operation': {
-    'EXPRESSION': { rightOffset: -10, topOffset: 20 },
-    'FORMULA': { rightOffset: -10, topOffset: 64 },
-    'RESULT': { rightOffset: -10, topOffset: 108 },
-    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 },
-  },
-  'proof_step': {
-    'STATEMENT': { leftOffset: 16, topOffset: 36 },
-  },
-  'default': {
-    'VALUE': { rightOffset: -10, topOffset: 'center' },
-    'NEXT_STATEMENT': { leftOffset: 16, bottomOffset: -20 },
-  },
-};
-
-window.TUTORIAL_STEPS = [
-  {
-    key: '1️⃣',
-    text: '📚 ようこそ。\n数式パズルの流れを一緒に確認しましょう。',
-    help: '左のパレットからブロックを取り出して、式をつないでいきましょう。',
-    targetId: 'l',
-  },
-  {
-    key: '2️⃣',
-    text: '🧮 公式を使ってみましょう。\n紫の「公式ブロック」をはめ込んでみてください。',
-    help: '公式を使って、式を別の形へ置き換えるのが基本です。',
-    targetId: 'l',
-  },
-  {
-    key: '3️⃣',
-    text: '✨ 公式を組み合わせましょう。\n複数の公式をつないで、式を洗練させていきます。',
-    help: '目標の形に近づくまで、ブロックをつないでいきましょう。',
-    targetId: 'l',
-  },
-  {
-    key: '🎯',
-    text: '🎯 チュートリアルは完了です。\n準備が整いました。',
-    help: 'マップ画面から好きなステージを選んで挑戦してみましょう。',
-    targetId: 'l',
-  },
-];
-
-window.WORLD_SEGMENTS = [
-  { start: 1, end: 25, title: 'World 1: Foundational Route', subtitle: '公式の基本連結' },
-  { start: 26, end: 50, title: 'World 2: Conversion Ridge', subtitle: '変換の往復を習得' },
-  { start: 51, end: 75, title: 'World 3: Identity Frontier', subtitle: '恒等式の複合運用' },
-  { start: 76, end: 85, title: 'World 4: Master Ascent', subtitle: '最終証明ゾーン' },
-  { start: 86, end: 100, title: 'World 5: Apex Legend', subtitle: '最高難度の集大成' },
-];
 
 // ------------------------------------------------------------
 // アンロック公式の永続化（localStorage）
@@ -104,7 +54,7 @@ window.saveUnlockedFormulasToStorage = function(formulaIds) {
 // ------------------------------------------------------------
 window.clearedStages = JSON.parse(localStorage.getItem('s')) || [];
 // ギブアップ済み(=あきらめて解説を見た)ステージ。「クリア」とは別カテゴリで管理する。
-// 後で本人がクリアしたら、こっちのリストから削除して clearedStages に格上げ。
+// 後で本人が自力クリアしたら、こっちのリストから削除して clearedStages に格上げする。
 window.giveUppedStages = JSON.parse(localStorage.getItem('gu')) || [];
 window.unlockAll = localStorage.getItem('unlock_all') === '1';
 window.unlockedFormulas = window.loadUnlockedFormulasFromStorage();
@@ -112,31 +62,23 @@ window.currentStageNumber = 0;
 window.currentProblemData = null;
 window.currentStreak = 0;
 window.currentStageSolved = false;
-window.currentSkipOffer = null;
-window.pendingSkipChallenge = null;
 window.hasBoundEventListeners = false;
-window.autoAdvanceTimerId = 0;
-window.problemsDataCache = null;
 window.workspace = null;
 
 // チュートリアル関連
-window.tutorialStepIndex = 0;
 window.tutorialModeActive = false;
-window.tutorialAutoAdvanceFrameId = 0;
 window.tutorialWorkspaceListenerBound = false;
-window.tutorialFlowProblems = [];
-window.tutorialFlowIndex = 0;
-window.tutorialIntroIndex = 0;
 window.tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
 
 // ガイド/ヒント関連
 window.goalHintActive = false;
 window.currentHighlightTargetNode = null;
-window.currentHighlightInputObj = null;
 window.highlightTrackingFrameId = 0;
+window.guideWorkspaceListenerBound = false;
 
 // ------------------------------------------------------------
 // チュートリアル判定ヘルパー
+// ※これも唯一の定義。main.js 側の重複定義は削除済み。
 // ------------------------------------------------------------
 window.isTutorialStageId = function(stageId) {
   return window.TUTORIAL_STAGE_IDS.includes(String(stageId));
@@ -156,95 +98,48 @@ window.getNextTutorialStageId = function(stageId) {
   return window.getTutorialStageId(currentIndex + 1);
 };
 
-// (旧 getTutorialBannerText 定義は app-guide.js に一本化されました)
+// ------------------------------------------------------------
+// チュートリアル進行状態の判定について
+//   getTutorialOperationMissingHole / getTutorialTargetOperationState /
+//   getTutorialGoalState / getTutorialBannerText は app-guide.js が唯一の実装。
+//   以前このファイルにも同名の実装があったが、読み込み順で app-guide.js に
+//   完全に上書きされる死にコードだったため削除した。
+// ------------------------------------------------------------
 
 // ------------------------------------------------------------
-// チュートリアル進行状態の判定
+// 画像アセットのURL解決
+//
+// asset/ の画像は元は PNG 合計 53MB あり、読み込みの重さのほぼ全てを
+// 占めていた。WebP に変換して合計 1.8MB になっている。
+//
+// 各ファイルのパスは '.webp' を直接書く方針（どのファイルを読むか
+// コードを見てすぐ分かるようにするため）。
+// この assetUrl() は、'.png' 表記が残っている箇所を '.webp' に
+// 読み替えるための保険として置いてある。
 // ------------------------------------------------------------
-window.getTutorialOperationMissingHole = function(targetType, targetBlock) {
-  if (!targetType) return null;
-
-  if (targetType === 'replace_operation') {
-    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
-      return { key: 'fill-replace-value', inputName: 'VALUE' };
-    }
-    if (!targetBlock.getInputTargetBlock?.('FORMULA')) {
-      return { key: 'fill-replace-formula', inputName: 'FORMULA' };
-    }
-    if (!targetBlock.getInputTargetBlock?.('REPLACEMENT')) {
-      return { key: 'fill-replace-result', inputName: 'REPLACEMENT' };
-    }
-    return null;
+window.SUPPORTS_WEBP = (function() {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  } catch (_) {
+    return false;
   }
+})();
 
-  if (targetType === 'conclusion_operation') {
-    if (!targetBlock || !targetBlock.getInputTargetBlock?.('VALUE')) {
-      return { key: 'fill-conclusion-value', inputName: 'VALUE' };
-    }
-    return null;
-  }
+if (!window.SUPPORTS_WEBP) {
+  console.warn('[app-state] このブラウザは WebP に非対応です。画像が表示されない場合は asset/ に元の PNG を戻してください。');
+}
 
-  return null;
-};
-
-window.getTutorialTargetOperationState = function(stageId) {
-  if (!window.isTutorialStageId(stageId) || !window.workspace) {
-    return { type: null, block: null, isMissing: false, isComplete: true };
-  }
-
-  const targetType = 'replace_operation';
-  const primaryBlock = typeof window.findTutorialReplaceOperation === 'function' ? window.findTutorialReplaceOperation() : null;
-  const conclusionBlock = typeof window.findTutorialConclusionOperation === 'function' ? window.findTutorialConclusionOperation() : null;
-
-  if (!primaryBlock) {
-    return { type: targetType, block: null, isMissing: true, isComplete: false };
-  }
-
-  const missingHole = window.getTutorialOperationMissingHole(targetType, primaryBlock);
-  const conclusionMissing = window.getTutorialOperationMissingHole('conclusion_operation', conclusionBlock);
-  const isComplete = !missingHole && !conclusionMissing && (!!conclusionBlock || String(stageId) !== '0-1');
-  return { type: targetType, block: primaryBlock, isMissing: false, isComplete };
-};
-
-window.getTutorialGoalState = function(stageId) {
-  if (!window.isTutorialStageId(stageId)) return null;
-
-  const targetState = window.getTutorialTargetOperationState(stageId);
-  if (!targetState) return null;
-
-  if (targetState.isComplete) {
-    return {
-      key: 'ready-check',
-      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
-    };
-  }
-
-  if (!targetState.block) {
-    return {
-      key: `pull-${targetState.type || 'operation'}`,
-      text: targetState.type === 'common_denominator_operation'
-        ? '【目標】左の「証明」から通分ブロックを取り出そう。'
-        : '【目標】左の「証明」から置き換えブロックを取り出そう。',
-    };
-  }
-
-  const missingHole = window.getTutorialOperationMissingHole(targetState.type, targetState.block);
-  if (!missingHole) {
-    return {
-      key: 'ready-check',
-      text: '【目標】ブロックがそろったら、「正解をチェック」を押そう。',
-    };
-  }
-
-  const textByKey = {
-    'fill-replace-value': '【目標】式の値を入れよう。',
-    'fill-replace-formula': '【目標】使う公式を入れよう。',
-    'fill-replace-result': '【目標】置き換え後の式を入れよう。',
-    'fill-conclusion-value': '【目標】最後の答えを入れよう。',
-  };
-
-  return {
-    key: missingHole.key || 'ready-check',
-    text: textByKey[missingHole.key] || '【目標】進められるところから埋めていこう。',
-  };
+/**
+ * '.png' 表記のパスを、実際に置いてあるファイル（.webp）に読み替える。
+ * すでに '.webp' なら何もしない。
+ * @param {string} path アセットのパス
+ * @returns {string} 実際に読み込むべきパス
+ */
+window.assetUrl = function(path) {
+  const raw = String(path || '');
+  if (!window.SUPPORTS_WEBP) return raw;
+  return raw.replace(/\.(png|jpg|jpeg)$/i, '.webp');
 };

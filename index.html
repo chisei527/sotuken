@@ -4,9 +4,23 @@
     <meta charset="UTF-8">
     <title>MathBlock - 数式パズル</title>
     
-    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- CDN への接続を先に張っておく（DNS + TLS のぶん初回が速くなる） -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+    <!-- Blockly: バージョンを固定する。
+         以前は https://unpkg.com/blockly/blockly.min.js とバージョン無指定で、
+         毎回 unpkg 側でのリダイレクトが1往復挟まる上、いつ最新版に上がって
+         壊れてもおかしくない状態だった。
+         defer にしてパーサーを止めないようにする（実行順は記述順のまま保たれる）。 -->
+    <script defer src="https://unpkg.com/blockly@10.4.3/blockly.min.js"></script>
+
+    <!-- mathjs: .min.js を使う。判定ロジックの心臓部なので遅延はさせない -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+
+    <!-- MathJax は「解説の数式組版」でしか使わない。約 1MB あるので
+         起動時には読まず、初めて必要になったとき app-ui.js の
+         ensureMathJaxLoaded() が動的に読み込む。 -->
 
     <script defer src="app-state.js"></script>
     <script defer src="math-logic.js"></script>
@@ -34,7 +48,9 @@
     <!-- CSS 分割ファイル -->
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/header.css">
-    <link rel="stylesheet" href="styles/tutorial-banner.css">
+    <!-- styles/tutorial-banner.css は actions.css と内容が丸かぶり（16セレクタ重複）で、
+         後から読まれる actions.css に完全に上書きされる死にファイルだったため読み込みを外した。
+         ハイライトの配色などは styles/actions.css 側が現行版。 -->
     <link rel="stylesheet" href="styles/actions.css">
     <link rel="stylesheet" href="styles/effects.css">
     <link rel="stylesheet" href="styles/blockly-fields.css">
@@ -70,6 +86,9 @@
       </div>
     </div>
 
+    <!-- ⚠️ 未接続の機能: btn-skip-challenge-accept / -cancel にイベントリスナーが無く、
+         このモーダルを開く経路も存在しない（closeSkipChallengeModal からしか触られない）。
+         実装するか、しないなら丸ごと削除してよいブロック。 -->
     <div id="skip-challenge-modal" class="overlay-screen hidden">
       <div class="skip-challenge-card">
         <h2>ボーナスチャレンジ！</h2>
@@ -82,21 +101,14 @@
       </div>
     </div>
 
-    <div id="tutorial-intro-modal" class="overlay-screen hidden">
-      <div class="tutorial-intro-card" style="max-width: 720px;">
-        <h2>ようこそ！目標を確認しよう</h2>
-        <p>ブロックを組み立てて、左辺の式を右辺の形へ変形する証明の流れを体験します。</p>
-        <video id="tutorial-intro-video" src="asset/tutorial_intro.mp4" autoplay loop muted playsinline style="width: 100%; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 16px; background: #000;"></video>
-        <h3 id="tutorial-intro-step-title" style="margin: 12px 0 6px; font-size: 1.1rem; color: var(--cyber-blue);">チュートリアルの流れ</h3>
-        <p id="tutorial-intro-step-body" style="margin: 0 0 12px; color: var(--cyber-muted); font-weight: 700;"></p>
-        <p id="tutorial-intro-step-help" style="margin: 0 0 14px; color: #ffffff; font-weight: 800; background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 10px; border: 1px solid rgba(34,197,94,0.3);"></p>
-        <div style="display:flex; gap:12px; justify-content:center;">
-          <button id="btn-tutorial-intro-next" class="action-btn btn-secondary">次へ進む</button>
-          <button id="btn-tutorial-intro-ok" class="action-btn btn-primary">了解！</button>
-        </div>
-      </div>
-    </div>
+<!-- 動画チュートリアルは廃止済み（character-scenes.js の exec_tutorial_start に
+         「動画モーダルは廃止済み」とある通り、キャラ会話方式に置き換わっている）。
+         ただしエントランスの「チュートリアル」ボタンからは今も呼ばれる経路が残っており、
+         その場合 asset/tutorial_intro.mp4 (12MB) が実際に再生されていた。
+         モーダルごと削除して経路を断ち、12MB のファイルも不要にする。 -->
 
+    <!-- ⚠️ 未使用: 公式アンロック演出は character-dialog 方式（openFormulaUnlockedScene）に
+         置き換わっており、このモーダルを開くコードは残っていない。削除候補。 -->
     <div id="formula-unlock-modal" class="overlay-screen hidden">
       <div class="formula-unlock-card">
         <h2 id="formula-unlock-title">新しい公式をマスター！</h2>
@@ -129,7 +141,7 @@
           <p class="map-subtitle">ステージ選択: チャレンジするノードを選択してください</p>
         </div>
         <div class="map-controls">
-          <span id="map-progress">0 / 141 CLEAR</span>
+          <span id="map-progress">読み込み中…</span><!-- renderStageMap() が実問題数で上書きする -->
           <button id="btn-unlock-all" class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
           <button class="map-control-btn" onclick="resetSaveData()">データリセット</button>
         </div>
@@ -141,10 +153,12 @@
       </div>
     </div>
 
+    <!-- ⚠️ 旧ステージ選択画面。stage-map-screen に置き換わっており、
+         switchScreen('c') を呼ぶ箇所が無いため #n は常に空のまま。削除候補。 -->
     <div id="c" class="a">
         <h1>ステージ選択</h1>
         <div style="width: 100%; max-width: 600px; margin-bottom: 25px;">
-          <div id="progress-text">0 / 141 クリア</div>
+          <div id="progress-text">読み込み中…</div><!-- renderStageMap() が実問題数で上書きする -->
           <div id="overall-progress" style="width: 0%; display:none;"></div>
         </div>
         <div class="stage-list-shell"><div id="n" class="stage-list-grid"></div></div>
@@ -161,6 +175,9 @@
           </div>
           <div class="header-center">
             <div id="r">STAGE</div>
+            <!-- 連続正解カウンター。app-ui.js の updateStreakCounter() が更新する。
+                 以前は要素自体が存在せず、関数が毎回空振りしていた。 -->
+            <div id="streak-counter">🔥 0</div>
           </div>
           <div class="header-right">
             <button id="btn-overwrite-permission" class="overwrite-toggle-btn off">ガイド機能: OFF</button>

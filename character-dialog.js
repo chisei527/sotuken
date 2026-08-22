@@ -34,6 +34,22 @@
       <div class="character-dialog-scene">
         <div class="character-dialog-bubble-column">
           <div class="character-dialog-bubble" id="character-dialog-bubble">
+            <!-- 解説モード(answer-reveal-mode)でだけ表示するヘッダー。
+                 通常モードでは CSS で display:none にしてあるので、
+                 既存のダイアログ表示には一切影響しない。
+                 誰が喋っているか(顔)と、あと何ステップか(進捗)を明示するのが目的。 -->
+            <div class="character-dialog-reveal-head" id="character-dialog-reveal-head">
+              <img class="character-dialog-avatar" id="character-dialog-avatar" alt="" />
+              <div class="character-dialog-reveal-meta">
+                <span class="character-dialog-reveal-name" id="character-dialog-reveal-name"></span>
+                <span class="character-dialog-step" id="character-dialog-step"></span>
+              </div>
+              <button class="character-dialog-collapse" id="character-dialog-collapse" type="button"
+                      aria-label="解説パネルをたたむ" title="たたむ／ひろげる"></button>
+            </div>
+            <div class="character-dialog-progress" id="character-dialog-progress">
+              <div class="character-dialog-progress-fill" id="character-dialog-progress-fill"></div>
+            </div>
             <div class="character-dialog-name" id="character-dialog-name"></div>
             <div class="character-dialog-text" id="character-dialog-text"></div>
             <button class="character-dialog-back hidden" id="character-dialog-back" type="button" aria-label="戻る">◀ 戻る</button>
@@ -58,6 +74,13 @@
     host.querySelector('#character-dialog-back').addEventListener('click', (e) => {
       e.stopPropagation();
       advanceLineBack();
+    });
+    // 解説パネルの「たたむ／ひろげる」トグル。
+    // ドックの下に隠れたブロックを一時的に覗きたいときのための逃げ道。
+    host.querySelector('#character-dialog-collapse').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const collapsed = host.classList.toggle('reveal-collapsed');
+      e.currentTarget.setAttribute('aria-label', collapsed ? '解説パネルをひろげる' : '解説パネルをたたむ');
     });
     // ホスト全体 (立ち絵・背景含む) をタップしても進める。
     // 制限:
@@ -120,7 +143,9 @@
     }
 
     const host = ensureDialogHost();
-    const portraitPath = character.portraits[scene.portrait] || character.portraits.default;
+    // assetUrl() で .webp があればそちらを使う（立ち絵は1枚2〜4MBあったため効果が大きい）
+    const rawPortrait = character.portraits[scene.portrait] || character.portraits.default;
+    const portraitPath = (typeof window.assetUrl === 'function') ? window.assetUrl(rawPortrait) : rawPortrait;
 
     // close時にセットされたフェードアウト後のhidden付与タイマーがまだ残っていたらキャンセル。
     // (これをやらないと、close→即start の連続呼び出しで、開いた直後にhiddenが後付けされる)
@@ -194,6 +219,22 @@
   };
 
   /**
+   * 解説モードのヘッダー進捗（ステップ数とバー）を更新する。
+   * 通常モードではヘッダー自体が CSS で非表示なので、更新しても実害はない。
+   * @param {object} state currentDialogState
+   */
+  function updateRevealProgress(state) {
+    const stepEl = document.getElementById('character-dialog-step');
+    const fillEl = document.getElementById('character-dialog-progress-fill');
+    if (!stepEl && !fillEl) return;
+
+    const total = Array.isArray(state.lines) ? state.lines.length : 0;
+    const current = Math.min((state.lineIndex || 0) + 1, Math.max(total, 1));
+    if (stepEl) stepEl.textContent = total > 1 ? `ステップ ${current} / ${total}` : '';
+    if (fillEl) fillEl.style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
+  }
+
+  /**
    * 現在の行を吹き出しに描画する。
    */
   function renderCurrentLine() {
@@ -217,12 +258,23 @@
     // 話者情報を適用 (立ち絵・名前を切り替え)
     const character = window.CHARACTER_PROFILES && window.CHARACTER_PROFILES[characterKey];
     if (character) {
-      const portraitPath = character.portraits[portraitKey] || character.portraits.default;
+      const rawPortrait = character.portraits[portraitKey] || character.portraits.default;
+      const portraitPath = (typeof window.assetUrl === 'function') ? window.assetUrl(rawPortrait) : rawPortrait;
       const portraitEl = document.getElementById('character-dialog-portrait');
       const nameEl = document.getElementById('character-dialog-name');
       if (portraitEl && portraitEl.src.indexOf(portraitPath) === -1) portraitEl.src = portraitPath;
       if (nameEl) nameEl.textContent = character.name;
+
+      // 解説モードのヘッダー（顔アイコン + 名前）も同じ話者に追従させる
+      const avatarEl = document.getElementById('character-dialog-avatar');
+      const revealNameEl = document.getElementById('character-dialog-reveal-name');
+      if (avatarEl && avatarEl.src.indexOf(portraitPath) === -1) avatarEl.src = portraitPath;
+      if (revealNameEl) revealNameEl.textContent = character.name;
     }
+
+    // 解説モードの進捗表示（「3 / 6」とバー）を更新する。
+    // 「あと何回押せば終わるのか」が見えないと読み進める気力が続かないため。
+    updateRevealProgress(state);
 
     const textEl = document.getElementById('character-dialog-text');
     const nextBtn = document.getElementById('character-dialog-next');

@@ -134,11 +134,17 @@
 
         /* ✨ 背景の動的パーティクル */
         .cyber-bg-particle {
-          position: absolute; width: 4px; height: 4px;
-          background: #38bdf8; border-radius: 50%; opacity: 0;
-          box-shadow: 0 0 10px #38bdf8, 0 0 20px #a78bfa;
+          position: absolute; width: 10px; height: 10px;
+          border-radius: 50%; opacity: 0;
+          /* 以前は 4px の点に box-shadow で二重のグローを付けていたが、
+             box-shadow はアニメーション中に毎フレーム再描画されるため
+             60個ぶんの負荷が大きかった。
+             radial-gradient なら要素のテクスチャとして一度描かれるだけで済む。 */
+          background: radial-gradient(circle, #38bdf8 0%, rgba(56,189,248,0.45) 35%, rgba(167,139,250,0) 70%);
           animation: floatCyberParticle linear infinite;
           pointer-events: none; z-index: 0;
+          /* transform と opacity だけを動かすので GPU に載せてしまう */
+          will-change: transform, opacity;
         }
         @keyframes floatCyberParticle {
           0% { transform: translateY(100px) scale(0.5); opacity: 0; }

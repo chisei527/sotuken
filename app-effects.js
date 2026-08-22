@@ -33,3 +33,5 @@ function playClearEffects(text) {
 window.showSuccessRipple = showSuccessRipple;
 window.showClearStamp = showClearStamp;
 window.playClearEffects = playClearEffects;
+// 単数形で呼ばれていた時期があるので別名も残しておく（呼び出し側のtypoで無音になるのを防ぐ）
+window.playClearEffect = playClearEffects;

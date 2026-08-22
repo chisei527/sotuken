@@ -20,41 +20,31 @@
           /* チュートリアル待機ヒント内のブロック SVG の高さ (画面幅で段階可変) */
           --hint-block-height: 1.5em;
 
-          /* パル解説モード (answer-reveal-mode) の吹き出しサイズ (画面幅で段階可変) */
-          --answer-reveal-width: 720px;
-          --answer-reveal-max-height: 30vh;
-          --answer-reveal-font-size: 1.05rem;
+          /* パル解説パネル (answer-reveal-mode) の配置。
+             サイズは character-dialog.css 側で clamp() の流体指定にしたため、
+             ここでは「ヘッダーとアクションバーを避けるための余白」だけを持つ。 */
+          --reveal-dock-top: 92px;      /* ヘッダーの高さぶん */
+          /* 「もう一度／次の問題へ」ボタン群の画面下端からの距離。
+             パネルの下端はこの値から計算するので、両者がズレることがない。 */
+          --reveal-btn-gap: clamp(14px, 2vh, 30px);
+          --reveal-btn-height: 56px;
         }
 
-        /* 5 段階のブレークポイントで各種サイズを切り替える */
-        @media (max-width: 1919px) {
-          :root {
-            --answer-reveal-width: 640px;
-            --answer-reveal-font-size: 1rem;
-          }
-        }
+        /* 画面幅に応じて --hint-block-height を段階的に下げる。
+           （1919px のブロックは解説パネルの変数を消した結果、中身が空になったので削除した） */
         @media (max-width: 1599px) {
           :root {
             --hint-block-height: 1.35em;
-            --answer-reveal-width: 560px;
-            --answer-reveal-max-height: 28vh;
-            --answer-reveal-font-size: 0.95rem;
           }
         }
         @media (max-width: 1279px) {
           :root {
             --hint-block-height: 1.2em;
-            --answer-reveal-width: 480px;
-            --answer-reveal-max-height: 26vh;
-            --answer-reveal-font-size: 0.9rem;
           }
         }
         @media (max-width: 1023px) {
           :root {
             --hint-block-height: 1.1em;
-            --answer-reveal-width: 420px;
-            --answer-reveal-max-height: 24vh;
-            --answer-reveal-font-size: 0.85rem;
           }
         }
 

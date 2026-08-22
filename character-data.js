@@ -15,23 +15,23 @@ window.CHARACTER_PROFILES = {
     id: 'furie',
     name: '有葉フリエ',
     portraits: {
-      default: 'asset/メインビジュアル.png',
-      joy: 'asset/喜び.png',
-      joyPlain: 'asset/喜び周りなし.png',
-      think: 'asset/悩み差分.png',
-      thinkPlain: 'asset/悩み周りなし.png',
-      welcome: 'asset/メインビジュアル.png',
-      welcomePlain: 'asset/周りなし差分.png',
+      default: 'asset/メインビジュアル.webp',
+      joy: 'asset/喜び.webp',
+      joyPlain: 'asset/喜び周りなし.webp',
+      think: 'asset/悩み差分.webp',
+      thinkPlain: 'asset/悩み周りなし.webp',
+      welcome: 'asset/メインビジュアル.webp',
+      welcomePlain: 'asset/周りなし差分.webp',
     },
   },
   hippalcos: {
     id: 'hippalcos',
     name: 'ヒッパルコス（パル）',
     portraits: {
-      default: 'asset/ヒッパルコス 通常.png',
-      normal: 'asset/ヒッパルコス 通常.png',
-      explain: 'asset/ヒッパルコス 解説.png',
-      joy: 'asset/ヒッパルコス 喜び.png',
+      default: 'asset/ヒッパルコス 通常.webp',
+      normal: 'asset/ヒッパルコス 通常.webp',
+      explain: 'asset/ヒッパルコス 解説.webp',
+      joy: 'asset/ヒッパルコス 喜び.webp',
     },
   },
 };
@@ -255,36 +255,118 @@ window.CHARACTER_SCENES = {
     nextActionId: 'answer_reveal_next_stage',
     buildLines: (ctx) => {
       const req = Array.isArray(ctx && ctx.requiredFormulas) ? ctx.requiredFormulas : [];
+      const steps = Array.isArray(ctx && ctx.proofSteps) ? ctx.proofSteps : [];
       const lines = [];
-      lines.push('じゃあ、この問題のポイントを説明するね！');
 
-      // 各公式の解説を組み立て (ブロック絵を含めて視覚的に)
-      const explains = {
-        formula_1: `「公式① sin²θ + cos²θ = 1」 ${window.BlockSvg.formula(1)} を使って、sin²+cos² が出てくる部分を「1」に書き換えたよ！`,
-        formula_2: `「公式② tanθ = sinθ/cosθ」 ${window.BlockSvg.formula(2)} を使って、tan を sin と cos の分数に開くと、他の関数と組み合わせて計算しやすくなるんだ！`,
-        formula_3: `「公式③ 1 + tan²θ = 1/cos²θ」 ${window.BlockSvg.formula(3)} を使って、1+tan² を 1/cos² に書き換えたよ！`,
+      const fmt = (e) => (typeof window.prettyFormatExpression === 'function')
+        ? window.prettyFormatExpression(e) : String(e || '');
+      const svg = (n) => (window.BlockSvg && typeof window.BlockSvg.formula === 'function')
+        ? ' ' + window.BlockSvg.formula(n) : '';
+      const numOf = (id) => ({ formula_1: 1, formula_2: 2, formula_3: 3 }[id] || null);
+      const MARU = ['', '①', '②', '③'];
+
+      // 公式ごとの「どこに目をつければ気づけるか」。
+      // 解き方の丸暗記ではなく、次の問題で自分で気づけるようにするのが狙い。
+      const noticeHint = {
+        formula_1: 'sin と cos の 2 乗が足し算で並んでいたら、公式①で「1」にまとめられる合図だよ。',
+        formula_2: 'tan が混ざっていたら、公式②で sinθ/cosθ に開くと他の項とそろえやすくなるよ。',
+        formula_3: '「1 + tan²θ」の形を見つけたら、公式③で 1/cos²θ に変えられる合図だよ。',
+      };
+      const formulaName = {
+        formula_1: '公式① sin²θ + cos²θ = 1',
+        formula_2: '公式② tanθ = sinθ/cosθ',
+        formula_3: '公式③ 1 + tan²θ = 1/cos²θ',
       };
 
-      if (req.length === 0) {
-        lines.push('今回はブロックを整理するだけで解けたね！');
-      } else if (req.length === 1) {
-        const key = req[0];
-        if (explains[key]) lines.push(explains[key]);
-      } else {
-        // 複数公式を使う問題
-        const names = req.map((k) => {
-          if (k === 'formula_1') return '公式①';
-          if (k === 'formula_2') return '公式②';
-          if (k === 'formula_3') return '公式③';
-          return k;
-        });
-        lines.push(`今回は ${names.join(' と ')} を組み合わせるのがポイントだよ！`);
-        req.forEach((k) => {
-          if (explains[k]) lines.push(explains[k]);
-        });
+      // 変形ステップ（結論ブロックを除く）
+      const ops = steps.filter((s) => s && s.type && s.type !== 'conclusion_operation');
+      const conclusion = steps.find((s) => s && s.type === 'conclusion_operation');
+
+      // ── 手順が取れなかった場合のフォールバック ──
+      // 盤面を読めなかったときでも、公式の一般論だけは伝える。
+      if (ops.length === 0) {
+        lines.push('じゃあ、この問題のポイントを説明するね！');
+        if (req.length === 0) {
+          lines.push('今回はブロックを整理するだけで解けたね！');
+        } else {
+          req.forEach((k) => { if (noticeHint[k]) lines.push(`${formulaName[k]}${svg(numOf(k))} がポイントだよ。${noticeHint[k]}`); });
+        }
+        lines.push('この解き方を覚えて、次の問題にチャレンジしてみよう！');
+        return lines;
       }
 
-      lines.push('この解き方を覚えて、次の問題にチャレンジしてみよう！');
+      // ── 1. 出発点と着眼点 ──
+      const startExpr = fmt(ops[0].before);
+      // 着眼点は「1 手目がいきなり公式のとき」だけ言う。
+      // 1 手目が通分や計算の問題（例: 問題20）で「sin²+cos² を探そう」と言うと、
+      // 実際にやることと食い違って混乱させてしまう。
+      const firstOp = ops[0];
+      const firstFormula = (firstOp && firstOp.formula) ? firstOp.formula : null;
+      const firstIsPrep = firstOp && !firstOp.formula;
+      if (startExpr) {
+        lines.push(`まずは左辺の ${startExpr} からスタート。ここを右辺の形に近づけていくよ。`);
+      } else {
+        lines.push('じゃあ、この問題を最初から一緒に追いかけてみよう！');
+      }
+      if (firstFormula && noticeHint[firstFormula]) {
+        lines.push(`最初の手がかりはここ。${noticeHint[firstFormula]}`);
+      } else if (firstIsPrep) {
+        // 下ごしらえから入る問題は「なぜ先に整理するのか」だけを言う。
+        // 具体的に何をするかは次の行で式つきで説明するので、ここでは重ねない。
+        lines.push('この形のままだと公式が当てはまらないよね。まずは式を整えるところから始めるよ。');
+      }
+
+      // ── 2. 実際にやった変形を 1 手ずつ ──
+      // 「何を」「なぜ」「どうなった」を毎回そろえて書く。
+      // 変形が 1 手しかない問題で「1つ目。」と付けると回りくどいので、
+      // 2 手以上のときだけ番号を振る。
+      const numbered = ops.length >= 2;
+      ops.forEach((op, i) => {
+        const no = numbered ? `${i + 1}つ目。` : '';
+        const before = fmt(op.before);
+        const after = fmt(op.after);
+        const arrow = (before && after) ? `${before} → ${after}` : (after || before);
+
+        if (op.type === 'replace_operation' && op.formula) {
+          const n = numOf(op.formula);
+          const label = formulaName[op.formula] || '公式';
+          lines.push(`${no}「${label}」${svg(n)} を当てはめて、${arrow} にしたよ。`);
+        } else if (op.type === 'replace_operation') {
+          lines.push(`${no}${arrow} と書き換えたよ。`);
+        } else if (op.type === 'common_denominator_operation') {
+          lines.push(`${no}分母がバラバラだと足せないから、通分して分母をそろえるよ。${arrow} だね。`);
+        } else if (op.type === 'simplify_operation') {
+          lines.push(`${no}ここは計算で整理するだけ。${arrow} になるよ。`);
+        } else {
+          lines.push(`${no}${arrow}`);
+        }
+      });
+
+      // ── 3. 到達点 ──
+      const goal = conclusion ? fmt(conclusion.before) : fmt(ops[ops.length - 1].after);
+      if (goal) {
+        lines.push(`これで左辺が ${goal} になって、右辺とぴったり同じ形になったね。証明できた！`);
+      }
+
+      // ── 4. 次に活かすまとめ ──
+      // 2 つ以上の公式を組み合わせた問題は、その「順番」が肝になる。
+      const usedFormulas = ops.map((o) => o.formula).filter(Boolean);
+      const uniqueUsed = usedFormulas.filter((v, i) => usedFormulas.indexOf(v) === i);
+      if (uniqueUsed.length >= 2) {
+        const order = uniqueUsed.map((k) => MARU[numOf(k)] || k).join(' → ');
+        lines.push(`今回のコツは、公式を使う順番。${order} の順に使うのがポイントだったよ。`);
+      } else if (uniqueUsed.length === 1) {
+        // 着眼点は冒頭で既に言っているので、締めでは同じ文を繰り返さない。
+        // 「探すべき形」だけを短く復習させる。
+        const target = {
+          formula_1: 'sin²θ + cos²θ',
+          formula_2: 'tanθ',
+          formula_3: '1 + tan²θ',
+        }[uniqueUsed[0]];
+        const n = numOf(uniqueUsed[0]);
+        if (target) lines.push(`次からは式の中に「${target}」が隠れていないか探してみて。見つけたら公式${MARU[n]}の出番だよ。`);
+      }
+
       return lines;
     },
     choices: [],

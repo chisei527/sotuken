@@ -1,15 +1,10 @@
 // ===== main.js =====
 // ステージの遷移、問題JSONファイルの読み込み、ガイド機能の初期配置、マップの生成を担当します
 
-window.TUTORIAL_STAGE_IDS = ['0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '0-7'];
-
-// ====== チュートリアル判定補助 ======
-window.isTutorialStageId = function(stageId) { 
-  return window.TUTORIAL_STAGE_IDS.includes(String(stageId)); 
-};
-window.getTutorialStageIndex = function(stageId) { 
-  return window.TUTORIAL_STAGE_IDS.indexOf(String(stageId)); 
-};
+// ⚠️ TUTORIAL_STAGE_IDS / isTutorialStageId / getTutorialStageIndex は
+//    app-state.js が唯一の定義。以前ここで 0-7 までの7件に上書きしていたため
+//    ステージ 0-8 が「チュートリアルではない」と判定され、problems/0-8.json を
+//    取りに行って読み込み失敗していた。重複定義を削除済み。
 
 // ====== 画面遷移とルーティング ======
 window.routeToTarget = function() {
@@ -36,21 +31,96 @@ window.MAIN_STAGE_TOTAL = 1; // 検出前のフォールバック値。実際に
  * problems/N.json を1から順に HEAD で叩き、最初に存在しない番号の前までを総問題数とする。
  * キャップは MAX_DETECT_LIMIT。
  */
+window.stageFileExists = async function(stageNumber) {
+  const url = `problems/${stageNumber}.json`;
+  // HEAD を受け付けない静的サーバーがあるため、失敗したら GET で確かめる
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    if (res.ok) return true;
+    if (res.status === 405 || res.status === 501) {
+      const getRes = await fetch(url);
+      return getRes.ok;
+    }
+    return false;
+  } catch (_) {
+    try {
+      const getRes = await fetch(url);
+      return getRes.ok;
+    } catch (__) {
+      return false;
+    }
+  }
+};
+
 window.detectMainStageTotal = async function() {
+  // ① まずマニフェスト(problems/index.json)を読む。1リクエストで済む。
+  //    tools/generate-manifest.py で生成する。問題を足したら再生成すること。
+  try {
+    const res = await fetch('problems/index.json');
+    if (res.ok) {
+      const manifest = await res.json();
+      const total = Number(manifest && manifest.mainStageTotal);
+      if (Number.isFinite(total) && total >= 1) {
+        window.MAIN_STAGE_TOTAL = total;
+        if (Array.isArray(manifest.tutorialStageIds) && manifest.tutorialStageIds.length > 0) {
+          window.TUTORIAL_STAGE_IDS = manifest.tutorialStageIds.map(String);
+        }
+        console.log('[detectMainStageTotal] マニフェストから取得:', total, '問');
+        return window.MAIN_STAGE_TOTAL;
+      }
+    }
+  } catch (_) {
+    // マニフェストが無い/壊れている場合は②へ
+  }
+
+  // ② フォールバック: 1問ずつ存在を確かめる。
+  //    マニフェストの再生成を忘れても動くようにするための保険だが、
+  //    問題数ぶんの往復が発生するので通常は①で終わらせたい。
+  console.warn('[detectMainStageTotal] problems/index.json が読めないため逐次探索にフォールバックします。'
+    + ' tools/generate-manifest.py を実行してください。');
   const MAX_DETECT_LIMIT = 500; // 安全策。これ以上は試さない
   let lastFound = 0;
   for (let n = 1; n <= MAX_DETECT_LIMIT; n++) {
-    try {
-      const res = await fetch(`problems/${n}.json`, { method: 'HEAD' });
-      if (!res.ok) break;
-      lastFound = n;
-    } catch (_) {
-      break;
-    }
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await window.stageFileExists(n);
+    if (!exists) break;
+    lastFound = n;
   }
   window.MAIN_STAGE_TOTAL = Math.max(1, lastFound);
-  console.log('[detectMainStageTotal] 本編問題数:', window.MAIN_STAGE_TOTAL);
+  console.log('[detectMainStageTotal] 逐次探索の結果:', window.MAIN_STAGE_TOTAL, '問');
   return window.MAIN_STAGE_TOTAL;
+};
+
+/**
+ * MAIN_STAGE_TOTAL の検出を「1回だけ」保証する。
+ *
+ * ⚠️ ここが重要:
+ *   以前は detectMainStageTotal() を renderStageMap() からしか呼んでいなかったため、
+ *   「数式領域への直接介入」やチュートリアル経由で始めるとマップを一度も描画せず、
+ *   MAIN_STAGE_TOTAL がフォールバック値 1 のままだった。
+ *   その結果 getNextStageId(1) が「もう最後」と判断して null を返し、
+ *   正解しても次のステージへ自動遷移しなくなっていた。
+ *
+ *   同時実行されても検出が二重に走らないよう、Promise 自体をキャッシュする。
+ */
+window._mainStageTotalPromise = null;
+window.ensureMainStageTotal = function() {
+  if (window._mainStageTotalDetected) return Promise.resolve(window.MAIN_STAGE_TOTAL);
+  if (!window._mainStageTotalPromise) {
+    window._mainStageTotalPromise = window.detectMainStageTotal()
+      .then((total) => {
+        window._mainStageTotalDetected = true;
+        // 検出が終わったのでナビボタンの活性状態を正しい値で引き直す
+        if (typeof window.updateStageNavButtons === 'function') window.updateStageNavButtons();
+        return total;
+      })
+      .catch((err) => {
+        console.warn('[ensureMainStageTotal] 検出に失敗:', err);
+        window._mainStageTotalPromise = null; // 次回リトライできるようにする
+        return window.MAIN_STAGE_TOTAL;
+      });
+  }
+  return window._mainStageTotalPromise;
 };
 
 // 現在のステージから「前」のステージIDを返す（存在しない場合は null）
@@ -68,7 +138,7 @@ window.getPrevStageId = function(currentId) {
 };
 
 // 現在のステージから「次」のステージIDを返す（存在しない場合は null）
-// チュートリアル中の最後(0-7) は 本編1 へ進む。本編最後は null。
+// チュートリアル中の最後(0-8) は 本編1 へ進む。本編最後は null。
 window.getNextStageId = function(currentId) {
   if (window.isTutorialStageId(currentId)) {
     const idx = window.getTutorialStageIndex(currentId);
@@ -80,8 +150,21 @@ window.getNextStageId = function(currentId) {
   }
   const num = Number(currentId);
   if (!Number.isFinite(num)) return null;
+  // 総問題数がまだ検出できていない間は「最後かどうか」を判断できない。
+  // ここで null を返すと自動遷移が止まってしまうので、楽観的に次を返す
+  // （存在しなければ loadStage 側がエラーを出して止まる）。
+  if (!window._mainStageTotalDetected) return num + 1;
   if (num >= window.MAIN_STAGE_TOTAL) return null;
   return num + 1;
+};
+
+// ステージが「進行済み」か（自力クリア または ギブアップ済み）を判定する。
+// 進行の解放判定にはこちらを使う。マップの ✓ 表示など「クリアの誇り」に関わる
+// 見た目には clearedStages（自力クリアのみ）を使い分ける。
+window.isStageCompleted = function(stageId) {
+  const num = Number(stageId);
+  if (!Number.isFinite(num)) return false;
+  return (window.clearedStages || []).includes(num) || (window.giveUppedStages || []).includes(num);
 };
 
 // ステージがアンロックされているかを判定するヘルパー。
@@ -94,9 +177,8 @@ window.isStageUnlocked = function(stageId) {
   const num = Number(stageId);
   if (!Number.isFinite(num)) return false;
   if (num === 1) return true;
-  const cleared = window.clearedStages || [];
-  if (cleared.includes(num)) return true;
-  if (cleared.includes(num - 1)) return true;
+  if (window.isStageCompleted(num)) return true;
+  if (window.isStageCompleted(num - 1)) return true;
   return false;
 };
 
@@ -115,8 +197,9 @@ window.updateStageNavButtons = function() {
 // ====== マップ関連（本編問題数は window.MAIN_STAGE_TOTAL に従う） ======
 window.getCurrentMapFocusStage = function() {
   const maxStage = window.MAIN_STAGE_TOTAL || 1;
-  const unlockedLimit = (window.clearedStages && window.clearedStages.length > 0) 
-      ? Math.max(1, ...window.clearedStages) + 1 : 1;
+  const progressed = [...(window.clearedStages || []), ...(window.giveUppedStages || [])]
+      .filter((n) => Number.isFinite(Number(n)));
+  const unlockedLimit = progressed.length > 0 ? Math.max(1, ...progressed) + 1 : 1;
   return Math.max(1, Math.min(maxStage, unlockedLimit));
 };
 
@@ -135,12 +218,9 @@ window.renderStageMap = async function() {
   const progressText = document.getElementById('progress-text');
   if (!nodeRoot) return;
 
-  // 本編問題数を未検出なら検出してから描画する（1回だけ）
-  if (!window._mainStageTotalDetected) {
-    if (typeof window.detectMainStageTotal === 'function') {
-      await window.detectMainStageTotal();
-    }
-    window._mainStageTotalDetected = true;
+  // 本編問題数を未検出なら検出してから描画する（ensureMainStageTotal が1回だけを保証）
+  if (typeof window.ensureMainStageTotal === 'function') {
+    await window.ensureMainStageTotal();
   }
 
   nodeRoot.innerHTML = '';
@@ -158,7 +238,14 @@ window.renderStageMap = async function() {
     pContainer.style.overflow = 'hidden';
     pContainer.style.pointerEvents = 'none';
     pContainer.style.zIndex = '0';
-    for (let i = 0; i < 60; i++) {
+    // パーティクル数。以前は固定60個だったが、端末性能と画面幅に応じて減らす。
+    // 「動きを減らす」OS設定を有効にしている人には出さない（アクセシビリティ配慮）。
+    const prefersReducedMotion = window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isLowPowerDevice = (navigator.hardwareConcurrency || 4) <= 4 || window.innerWidth < 900;
+    const particleCount = prefersReducedMotion ? 0 : (isLowPowerDevice ? 14 : 28);
+
+    for (let i = 0; i < particleCount; i++) {
       const p = document.createElement('div');
       p.className = 'cyber-bg-particle';
       p.style.left = `${Math.random() * 100}%`;
@@ -166,8 +253,8 @@ window.renderStageMap = async function() {
       p.style.animationDuration = `${8 + Math.random() * 15}s`;
       p.style.animationDelay = `-${Math.random() * 15}s`;
       if (Math.random() > 0.7) {
-        p.style.background = '#4ade80';
-        p.style.boxShadow = '0 0 10px #4ade80, 0 0 20px #86efac';
+        // 緑の粒。box-shadow ではなく背景グラデーションで表現する
+        p.style.background = 'radial-gradient(circle, #4ade80 0%, rgba(74,222,128,0.45) 35%, rgba(134,239,172,0) 70%)';
       }
       pContainer.appendChild(p);
     }
@@ -186,14 +273,15 @@ window.renderStageMap = async function() {
 
   // 通常ステージのノードを描画
   stageIds.forEach((stage, index) => {
-      const isCleared = window.clearedStages && window.clearedStages.includes(stage);
+      const isCleared = (window.clearedStages || []).includes(stage);         // 自力クリア
+      const isGaveUp  = (window.giveUppedStages || []).includes(stage);        // あきらめて解説を見た
       const isFirst = index === 0;
-      const isPrevCleared = !isFirst && window.clearedStages && window.clearedStages.includes(stageIds[index - 1]);
-      const isUnlocked = window.unlockAll || isFirst || isCleared || isPrevCleared;
+      const isPrevDone = !isFirst && window.isStageCompleted(stageIds[index - 1]);
+      const isUnlocked = window.unlockAll || isFirst || isCleared || isGaveUp || isPrevDone;
       const isFocus = stage === focusStage;
 
       const node = document.createElement('button');
-      node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isFocus ? ' current' : ''}`;
+      node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isGaveUp && !isCleared ? ' gave-up' : ''}${isFocus ? ' current' : ''}`;
       node.dataset.stage = String(stage);
       const world = Math.floor((stage - 1) / 10) + 1;
       const subStage = ((stage - 1) % 10) + 1;
@@ -201,6 +289,7 @@ window.renderStageMap = async function() {
       let statusText = 'LOCKED';
       if (isFocus) statusText = 'ACTIVE';
       else if (isCleared) statusText = 'SYNCED';
+      else if (isGaveUp) statusText = 'REVIEWED';   // 解説だけ見た状態。再挑戦で SYNCED に昇格する
       else if (isUnlocked) statusText = 'READY';
 
       node.innerHTML = `
@@ -241,8 +330,8 @@ window.renderStageMap = async function() {
         roadClass = 'locked';
       } else {
         const nextStage = stageIds[index + 1];
-        const isNextCleared = window.clearedStages && window.clearedStages.includes(nextStage);
-        roadClass = (isCleared && isNextCleared) ? 'cleared' : (isUnlocked ? 'unlocked' : 'locked');
+        const isNextDone = window.isStageCompleted(nextStage);
+        roadClass = (window.isStageCompleted(stage) && isNextDone) ? 'cleared' : (isUnlocked ? 'unlocked' : 'locked');
       }
 
       const road = document.createElement('div');
@@ -333,7 +422,16 @@ window.loadStage = async function(stageNumber) {
         }
       }
 
-      if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); }
+      // 引数なしの typesetPromise() はページ全体を走査するので使わない。
+      // 問題文の要素だけを対象にする（ステージ移動のたびに全DOM走査していた）。
+      // 問題文に数式記法($...$)が含まれるときだけ MathJax を動かす。
+      // 大半の問題は素のテキストなので、これで組版処理そのものが不要になる。
+      if (problemText && /[$\\]/.test(problemText.innerText) && typeof window.typesetMath === 'function') {
+        if (window.MathJax && typeof window.MathJax.typesetClear === 'function') {
+          try { window.MathJax.typesetClear([problemText]); } catch (_) { /* 未組版なら無視 */ }
+        }
+        window.typesetMath(problemText);
+      }
 
       if (window.workspace) {
           if (typeof buildToolboxConfig === 'function') window.workspace.updateToolbox(buildToolboxConfig(window.currentProblemData));
@@ -355,10 +453,23 @@ window.loadStage = async function(stageNumber) {
           if (typeof arrangeBlocks === 'function') arrangeBlocks();
       }
 
+      // チュートリアル中のブロック制限をワークスペース変更のたびに再適用する。
+      // bindTutorialWorkspaceAutoAdvance() は定義だけあって呼ばれておらず、
+      // 制限がロード時1回しか効いていなかった（内部で二重バインドは防いでいる）。
+      if (typeof window.bindTutorialWorkspaceAutoAdvance === 'function') {
+        window.bindTutorialWorkspaceAutoAdvance();
+      }
+
+      // チュートリアル進捗バーの更新（本編なら自動で非表示になる）
+      if (typeof window.updateTutorialProgressBar === 'function') {
+        window.updateTutorialProgressBar(stageNumber);
+      }
+
       if (isTutorialStage) {
           requestAnimationFrame(() => { if (typeof applyTutorialBlockRestrictions === 'function') applyTutorialBlockRestrictions(); });
           window.tutorialModeActive = true;
-          if (typeof updateTutorialBanner === 'function') updateTutorialBanner(stageNumber);
+          // 旧: updateTutorialBanner()（未定義の関数だったため無言で何も起きていなかった）
+          if (typeof window.updateTutorialHighlightUI === 'function') window.updateTutorialHighlightUI(stageNumber);
       } else {
           if (window.workspace) {
               const toolboxElement = window.workspace.getToolbox();

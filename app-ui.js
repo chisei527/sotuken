@@ -11,8 +11,9 @@ window.switchScreen = function(screenId) {
   if (target) target.classList.add('b');
   
   // 画面ごとの個別連動処理
-  if (screenId !== 'p' && typeof window.hideTutorialOverlay === 'function') {
-    window.hideTutorialOverlay();
+  // 旧 hideTutorialOverlay() は未定義のまま呼ばれていた残骸。実体は hideTutorialHighlights。
+  if (screenId !== 'p' && typeof window.hideTutorialHighlights === 'function') {
+    window.hideTutorialHighlights();
   }
   if (screenId === 'p' && typeof window.forceWorkspaceLayoutSync === 'function') {
     requestAnimationFrame(() => window.forceWorkspaceLayoutSync());
@@ -36,9 +37,10 @@ window.switchScreen = function(screenId) {
 window.setAppBackgroundByKey = function(key) {
   // ※アセットフォルダ内の画像ファイル名（bg_stage.png等）が異なる場合は、実際のファイル名に合わせて変更してください
   let url = '';
-  if (key === 'stage') url = 'url("asset/bg_stage.png")'; 
-  else if (key === 'select') url = 'url("asset/bg_select.png")';
-  else url = 'url("asset/bg_title.png")';
+  // ※アセットフォルダ内の画像ファイル名（bg_stage.webp等）が異なる場合は、実際のファイル名に合わせて変更してください
+  if (key === 'stage') url = 'url("asset/bg_stage.webp")'; 
+  else if (key === 'select') url = 'url("asset/bg_select.webp")';
+  else url = 'url("asset/bg_title.webp")';
   document.body.style.backgroundImage = url;
 };
 
@@ -52,7 +54,7 @@ window.closeGameEntrance = function() {
 window.openGameEntrance = function() {
   const entrance = document.getElementById('game-entrance');
   if (entrance) entrance.classList.remove('hidden', 'show-choices');
-  if (typeof window.hideTutorialOverlay === 'function') window.hideTutorialOverlay();
+  if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
   window.setAppBackgroundByKey('title');
   // キャラダイアログ版のモード選択も同時に開く
   // (タイトルタップで show-choices を付けるハンドラは通らないため、明示的に呼ぶ)
@@ -87,4 +89,59 @@ window.updateStreakCounter = function(shouldAnimate = false) {
 window.closeSkipChallengeModal = function() {
   const skipModal = document.getElementById('skip-challenge-modal');
   if (skipModal) skipModal.classList.add('hidden');
+};
+
+// ============================================================
+// MathJax の遅延読み込み
+//
+// MathJax(tex-mml-chtml) は約 1MB あるが、使うのは「解説テキストの
+// 数式組版」だけ。以前は index.html で常に読み込んでいたため、
+// 解説を一度も開かないプレイヤーも 1MB 払わされていた。
+// 初めて必要になった時点で読み込み、2回目以降は同じ Promise を返す。
+// ============================================================
+window._mathJaxPromise = null;
+
+window.ensureMathJaxLoaded = function() {
+  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+    return Promise.resolve(window.MathJax);
+  }
+  if (window._mathJaxPromise) return window._mathJaxPromise;
+
+  window._mathJaxPromise = new Promise((resolve, reject) => {
+    // MathJax は読み込み前に設定オブジェクトを置いておく必要がある
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' },
+      startup: {
+        typeset: false, // 読み込み直後に全ページを組版しない（重いので手動で呼ぶ）
+        ready() {
+          window.MathJax.startup.defaultReady();
+          resolve(window.MathJax);
+        },
+      },
+    };
+    const script = document.createElement('script');
+    script.id = 'MathJax-script';
+    script.async = true;
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+    script.onerror = () => {
+      window._mathJaxPromise = null; // 次回リトライできるように
+      reject(new Error('MathJax の読み込みに失敗しました'));
+    };
+    document.head.appendChild(script);
+  });
+
+  return window._mathJaxPromise;
+};
+
+/**
+ * 指定要素の中だけ数式を組版する。
+ * 引数なしの MathJax.typesetPromise() はページ全体を走査するので使わないこと。
+ * @param {HTMLElement} element 組版したい要素
+ */
+window.typesetMath = function(element) {
+  if (!element) return Promise.resolve();
+  return window.ensureMathJaxLoaded()
+    .then((mj) => mj.typesetPromise([element]))
+    .catch((err) => { console.warn('[typesetMath] 組版をスキップ:', err.message); });
 };

@@ -224,7 +224,27 @@
   };
 
   const VALIDATION_EPSILON = 0.0001;
-  const VALIDATION_SAMPLING_POINTS = [0.5, 1.2, 2.3];
+
+  // 数値サンプリングで同値判定するときのテスト点。
+  // 各行が「1回のテスト」に対応し、行の中の値を変数へ順に割り当てる。
+  // 変数が行の長さより多い場合はループして使い回す。
+  //
+  // ⚠️ 重要: 変数ごとに“違う値”を入れること。
+  //   以前は全変数に同じ値を入れていたため、
+  //     sin(a)+sin(b) と 2*sin(a) / a-b と 0 / sin(x)cos(y) と sin(y)cos(x)
+  //   がすべて「同値」と誤判定されていた。θ 単独の問題では表面化しないが、
+  //   公式⑭⑮や加法定理（2変数）を使う問題で破綻する。
+  //
+  // 点は「きれいな値」を避ける（π の倍数や 0 は偶然一致しやすいため）。
+  const VALIDATION_SAMPLING_POINTS = [
+    [0.5,  1.2,  2.3],
+    [1.2,  0.37, 0.83],
+    [2.3,  1.71, 0.29],
+    [0.37, 2.11, 1.43],
+    [0.83, 0.61, 1.97],
+    [1.71, 2.53, 0.47],
+    [-0.9, 0.73, 1.31],
+  ];
   const RESERVED_MATH_SYMBOLS = new Set(['pi', 'e', 'i', 'Infinity', 'NaN']);
 
   function normalizeFormulaText(text) {
@@ -358,24 +378,15 @@
     return used;
   }
 
-  function safeValueToCode(block, inputName, fallbackValue, generator) {
-    if (!block || !generator) return fallbackValue;
-    try {
-      const generated = generator.valueToCode(block, inputName, 0);
-      if (typeof generated !== 'string') return fallbackValue;
-      return generated;
-    } catch (error) {
-      return fallbackValue;
-    }
-  }
+  // (旧 safeValueToCode は削除。parseBlocksToAST が Blockly の
+  //  シリアライズ結果を直接読む方式に変わり、generator を使わなくなったため)
 
   /**
    * Blockly ワークスペースを AST 配列へ変換する。
    * @param {object} targetWorkspace Blockly workspace
-   * @param {object} generator Blockly generator
    * @returns {Array<{step:number,type:string,before:string,formula:string|null,after:string|null}>}
    */
-  function parseBlocksToAST(targetWorkspace, generator = globalScope.mathGenerator) {
+  function parseBlocksToAST(targetWorkspace) {
     const ast = [];
     if (!targetWorkspace) return ast;
 
@@ -705,7 +716,49 @@
     return leftCanon === rightCanon;
   }
 
+  // ---- 式のコンパイル結果キャッシュ ----------------------------------
+  // math.evaluate(expr, scope) は呼ぶたびにパース＋コンパイルを行う。
+  // 同じ式をサンプル点7つぶん評価し、それを公式19個ぶん繰り返すため、
+  // 同一文字列のコンパイルが何百回も走っていた。
+  // math.compile() の結果を使い回してパースを1回に減らす。
+  const compiledCache = new Map();
+  const COMPILED_CACHE_LIMIT = 400; // 際限なく増えないよう上限を設ける
+
+  function getCompiled(expr) {
+    const key = String(expr);
+    if (compiledCache.has(key)) return compiledCache.get(key);
+
+    let compiled = null;
+    try {
+      compiled = math.compile(key);
+    } catch (_) {
+      compiled = null; // パース不能。null もキャッシュして再試行を防ぐ
+    }
+    if (compiledCache.size >= COMPILED_CACHE_LIMIT) compiledCache.clear();
+    compiledCache.set(key, compiled);
+    return compiled;
+  }
+
+  // ---- 同値判定の結果キャッシュ --------------------------------------
+  // detectMatchingFormulaIds は同じ (左辺, 右辺) の組を何度も問い合わせる。
+  const equivalenceCache = new Map();
+  const EQUIVALENCE_CACHE_LIMIT = 600;
+
   function evaluateEquivalence(leftExpr, rightExpr) {
+    // 完全一致なら計算するまでもない
+    if (String(leftExpr) === String(rightExpr)) return { ok: true };
+
+    const cacheKey = leftExpr + '\u0000' + rightExpr;
+    const cached = equivalenceCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const result = evaluateEquivalenceUncached(leftExpr, rightExpr);
+    if (equivalenceCache.size >= EQUIVALENCE_CACHE_LIMIT) equivalenceCache.clear();
+    equivalenceCache.set(cacheKey, result);
+    return result;
+  }
+
+  function evaluateEquivalenceUncached(leftExpr, rightExpr) {
     const variables = Array.from(new Set([
       ...extractVariables(leftExpr),
       ...extractVariables(rightExpr),
@@ -713,8 +766,11 @@
 
     if (variables.length === 0) {
       try {
-        const leftValue = math.evaluate(leftExpr);
-        const rightValue = math.evaluate(rightExpr);
+        const lc = getCompiled(leftExpr);
+        const rc = getCompiled(rightExpr);
+        if (!lc || !rc) return { ok: false, reason: 'eval-error' };
+        const leftValue = lc.evaluate({});
+        const rightValue = rc.evaluate({});
 
         if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
           return { ok: false, reason: 'non-finite' };
@@ -732,28 +788,44 @@
       }
     }
 
-    for (const xValue of VALIDATION_SAMPLING_POINTS) {
+    // 変数名を固定順にソートしておく（毎回同じ値が入るように＝判定を再現可能にする）
+    const sortedVariables = variables.slice().sort();
+
+    let evaluatedCount = 0; // 実際に比較できた点の数
+
+    for (const samplePoint of VALIDATION_SAMPLING_POINTS) {
       try {
         const scope = {};
-        variables.forEach((varName) => {
-          scope[varName] = xValue;
+        sortedVariables.forEach((varName, varIndex) => {
+          // 変数ごとに違う値を割り当てる。変数が多い場合は点をループして使う。
+          scope[varName] = samplePoint[varIndex % samplePoint.length];
         });
 
         const leftValue = math.evaluate(leftExpr, scope);
         const rightValue = math.evaluate(rightExpr, scope);
 
         if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
-          return { ok: false, reason: 'non-finite' };
+          // tan(θ) が発散する点など、その1点だけ評価できないケースは
+          // 「不一致」ではなく「この点はスキップ」として扱う。
+          // ただし全点がスキップになった場合は下で non-finite を返す。
+          continue;
         }
 
         if (Math.abs(leftValue - rightValue) > VALIDATION_EPSILON) {
           return { ok: false, reason: 'mismatch' };
         }
+
+        evaluatedCount += 1;
       } catch (error) {
         const rawMessage = error && error.message ? String(error.message) : '';
         const isDivisionByZero = /division\s+by\s+zero|divide\s+by\s+zero|Infinity/i.test(rawMessage);
         return { ok: false, reason: isDivisionByZero ? 'division-by-zero' : 'eval-error' };
       }
+    }
+
+    // 全ての点で発散していた（例: 分母が恒等的に0）場合は同値と認めない
+    if (evaluatedCount === 0) {
+      return { ok: false, reason: 'non-finite' };
     }
 
     return { ok: true };
@@ -1365,24 +1437,46 @@
    * 内部表記の式を、人間が読みやすい形にフォーマットする。
    * 例: sin(theta)^2 → sin²θ,  tan(theta) → tanθ,  * → ·
    */
+  /**
+   * 内部表現の式を、人が読める形に整える。
+   *
+   * 以前は生の文字列に正規表現をかけるだけだったので、実データにある
+   * `(sin(theta))^2` のように括弧でくるまれた形にマッチせず、
+   * `((sinθ)^2 + (cosθ)^2)` のような読みにくい文字列がそのまま出ていた。
+   * 一度 mathjs にパースさせて括弧を最小化してから置換する。
+   *
+   * 例: (((sin(theta))^2+(cos(theta))^2))/((sin(theta)*cos(theta)))
+   *     → (sin²θ + cos²θ)/(sinθ·cosθ)
+   *
+   * @param {string} expr 内部表現の式
+   * @returns {string} 表示用の文字列
+   */
   function prettyFormatExpression(expr) {
     if (!expr) return '';
     let s = String(expr);
-    // 三角関数の二乗を ² 記号で
-    s = s.replace(/sin\(theta\)\s*\^\s*2/g, 'sin²θ');
-    s = s.replace(/cos\(theta\)\s*\^\s*2/g, 'cos²θ');
-    s = s.replace(/tan\(theta\)\s*\^\s*2/g, 'tan²θ');
-    // 三角関数の単体
-    s = s.replace(/sin\(theta\)/g, 'sinθ');
-    s = s.replace(/cos\(theta\)/g, 'cosθ');
-    s = s.replace(/tan\(theta\)/g, 'tanθ');
-    // theta 単体
+
+    // ① mathjs に整形させて冗長な括弧を落とす（失敗したら元の文字列で続行）
+    try {
+      s = math.parse(s).toString({ parenthesis: 'auto', implicit: 'hide' });
+    } catch (_) { /* パースできない式はそのまま扱う */ }
+
+    // ② 累乗を上付き文字に
+    s = s.replace(/\s*\^\s*2\b/g, '²').replace(/\s*\^\s*3\b/g, '³');
+
+    // ③ 三角関数を日本語表記に。いったん空白付きにしてから
+    //    「sin θ²」→「sin²θ」の順に組み替える
+    s = s.replace(/sin\(theta\)/g, 'sin θ')
+         .replace(/cos\(theta\)/g, 'cos θ')
+         .replace(/tan\(theta\)/g, 'tan θ');
+    s = s.replace(/(sin|cos|tan) θ([²³])/g, '$1$2θ');
+    s = s.replace(/(sin|cos|tan) θ/g, '$1θ');
     s = s.replace(/\btheta\b/g, 'θ');
-    // 掛け算記号を中点に
+
+    // ④ 記号の見た目を整える
     s = s.replace(/\s*\*\s*/g, '·');
-    // 余分な空白を整理
-    s = s.replace(/\s+/g, ' ').trim();
-    return s;
+    s = s.replace(/\s*\/\s*/g, '/');
+
+    return s.replace(/\s+/g, ' ').trim();
   }
 
   // ============================================

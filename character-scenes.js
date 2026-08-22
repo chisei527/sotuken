@@ -172,14 +172,8 @@ window.CHARACTER_SCENE_ACTIONS = {
   exec_tutorial_start: function() {
     window.closeCharacterDialog();
 
-    // 動画モーダルは廃止済み
-    const originalShow = window.showTutorialIntroModal;
-    window.showTutorialIntroModal = function() { return false; };
-    try {
-      document.getElementById('btn-entry-tutorial')?.click();
-    } finally {
-      window.showTutorialIntroModal = originalShow;
-    }
+    // 動画モーダルは削除済みなので、ハンドラを差し替える小細工は不要になった
+    document.getElementById('btn-entry-tutorial')?.click();
 
     // 2回目以降は基礎チュートリアルを行わない
     if (window._basicsTutorialSeen) return;

@@ -1,8 +1,7 @@
 // ===== app.js =====
 // 司令塔（ボタンのクリック監視と、他のファイルへの指示出しを担当します）
 
-window.hasBoundEventListeners = false;
-
+// hasBoundEventListeners の初期化は app-state.js。ここでの再代入は削除。
 window.setupEventListeners = function() {
   if (window.hasBoundEventListeners) return;
   window.hasBoundEventListeners = true;
@@ -87,11 +86,9 @@ window.setupEventListeners = function() {
           localStorage.setItem('gu', JSON.stringify(window.giveUppedStages));
           console.log('[app] ギブアップ記録:', numStage, window.giveUppedStages);
         }
-        if (!window.clearedStages.includes(numStage)) {
-          window.clearedStages.push(numStage);
-          localStorage.setItem('s', JSON.stringify(window.clearedStages));
-          console.log('[app] ギブアップ扱いでクリア判定:', numStage);
-        }
+        // ギブアップは clearedStages には入れない。
+        // clearedStages は「自力クリア」だけの記録として扱う（app-state.js のコメント通り）。
+        // マップ側の解放判定は isStageUnlocked() が giveUppedStages も見るようになっている。
       }
     }
 
@@ -131,8 +128,19 @@ window.setupEventListeners = function() {
         window.hideListenExplainButton();
         // パルによる公式解説シーンを開く
         const requiredFormulas = (window.currentProblemData && window.currentProblemData.requiredFormulas) || [];
+        // 盤面には今まさに模範解答が並んでいるので、そこから実際の変形手順を読み取る。
+        // これを渡すことで、パルが「この問題で実際に何をしたか」を
+        // 具体的な式つきで説明できるようになる（以前は公式の一般論だけだった）。
+        let proofSteps = [];
+        try {
+          if (typeof window.parseBlocksToAST === 'function' && window.workspace) {
+            proofSteps = window.parseBlocksToAST(window.workspace) || [];
+          }
+        } catch (err) {
+          console.warn('[app] 解説用の手順抽出に失敗、公式の一般説明にフォールバック:', err);
+        }
         window.startCharacterDialog('answer_reveal_pal_explain', {
-          context: { requiredFormulas },
+          context: { requiredFormulas, proofSteps },
           onChoiceSelected: (actionId) => {
             const action = window.CHARACTER_SCENE_ACTIONS[actionId];
             if (typeof action === 'function') action();
@@ -142,6 +150,7 @@ window.setupEventListeners = function() {
         requestAnimationFrame(() => {
           const host = document.getElementById('character-dialog-host');
           if (host) host.classList.add('answer-reveal-mode');
+          window.syncRevealDockTop();
         });
         // 「次のステージへ」独立ボタンも同時に表示
         window.showNextStageButton();
@@ -151,6 +160,29 @@ window.setupEventListeners = function() {
     btn.classList.remove('hidden');
     requestAnimationFrame(() => btn.classList.add('show'));
   };
+
+  /**
+   * 解説パネルの上端を、実際のヘッダーと問題文の下端に合わせる。
+   *
+   * 固定値(92px)で決め打ちすると、問題文が2行になったり画面サイズが変わったときに
+   * パネルが問題文に重なったり、逆に不自然に離れたりする。
+   * 実測してCSS変数に流し込むことで、盤面と説明が同じ高さから始まる
+   * きれいな2カラムになる。
+   */
+  window.syncRevealDockTop = function () {
+    const problemPanel = document.getElementById('i');
+    const header = document.getElementById('h');
+    const anchor = problemPanel || header;
+    if (!anchor) return;
+    const bottom = Math.round(anchor.getBoundingClientRect().bottom);
+    document.documentElement.style.setProperty('--reveal-dock-top', `${bottom + 12}px`);
+  };
+
+  // 画面サイズが変わったら測り直す
+  window.addEventListener('resize', () => {
+    const host = document.getElementById('character-dialog-host');
+    if (host && host.classList.contains('answer-reveal-mode')) window.syncRevealDockTop();
+  });
 
   // 「解説を聞く」ボタンを非表示にする
   window.hideListenExplainButton = function () {
@@ -208,7 +240,7 @@ window.setupEventListeners = function() {
 
       // 「次の問題へ」ボタン (右)
       const btnNext = document.createElement('button');
-      btnNext.id = 'btn-next-stage';
+      btnNext.id = 'btn-next-stage-explain'; // ヘッダーのナビ「→」(btn-next-stage) とのID衝突を回避
       btnNext.type = 'button';
       btnNext.className = 'post-explain-btn next-stage-btn';
       btnNext.innerHTML = '次の問題へ <span class="post-explain-arrow">▶</span>';
@@ -220,11 +252,20 @@ window.setupEventListeners = function() {
 
       container.appendChild(btnRetry);
       container.appendChild(btnNext);
-      document.body.appendChild(container);
+
+      // 解説パネルが出ているときは、ボタン群をパネルの中に入れて1つのまとまりにする。
+      // 以前は画面下に固定された別の島になっていて、パネルと離れて見えた。
+      const revealBubble = document.querySelector('.character-dialog-host.answer-reveal-mode .character-dialog-bubble');
+      if (revealBubble) {
+        container.classList.add('in-reveal-panel');
+        revealBubble.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+      }
     }
 
     // 「次の問題へ」ボタンのラベル切替: 最終ステージ判定を再実行
-    const btnNext = document.getElementById('btn-next-stage');
+    const btnNext = document.getElementById('btn-next-stage-explain');
     if (btnNext) {
       const currentId = window.currentStageNumber;
       const isTutorialStage = typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(currentId);
@@ -235,8 +276,11 @@ window.setupEventListeners = function() {
         const num = Number(currentId);
         if (Number.isFinite(num) && num >= 1) {
           try {
-            const res = await fetch(`problems/${num + 1}.json`, { method: 'HEAD' });
-            if (!res.ok) {
+            // HEAD 非対応サーバーでも動くよう stageFileExists を使う
+            const hasNext = (typeof window.stageFileExists === 'function')
+              ? await window.stageFileExists(num + 1)
+              : (await fetch(`problems/${num + 1}.json`, { method: 'HEAD' })).ok;
+            if (!hasNext) {
               // 最終ステージ
               const total = window.MAIN_STAGE_TOTAL || num;
               const cleared = window.clearedStages || [];
@@ -257,6 +301,13 @@ window.setupEventListeners = function() {
       }
     }
 
+    // 生成済みだった場合も、解説パネルが出ていれば必ずパネル内へ入れ直す
+    const bubbleNow = document.querySelector('.character-dialog-host.answer-reveal-mode .character-dialog-bubble');
+    if (bubbleNow && container.parentElement !== bubbleNow) {
+      container.classList.add('in-reveal-panel');
+      bubbleNow.appendChild(container);
+    }
+
     container.classList.remove('hidden');
     requestAnimationFrame(() => container.classList.add('show'));
   };
@@ -265,7 +316,15 @@ window.setupEventListeners = function() {
     const container = document.getElementById('post-explain-button-group');
     if (!container) return;
     container.classList.remove('show');
-    setTimeout(() => container.classList.add('hidden'), 220);
+    setTimeout(() => {
+      container.classList.add('hidden');
+      // パネルは閉じると消えるので、ボタン群は body に退避させておく。
+      // 次に解説を開いたときに改めてパネル内へ入れ直される。
+      if (container.parentElement !== document.body) {
+        container.classList.remove('in-reveal-panel');
+        document.body.appendChild(container);
+      }
+    }, 220);
   };
 
   // パルの解説後に「次のステージへ」を押したときの実処理
@@ -274,7 +333,7 @@ window.setupEventListeners = function() {
     document.body.classList.remove('answer-reveal-locked');
     // 解説モード用のクラスも解除 (キャラダイアログを閉じるので host は残ってないはずだが念のため)
     const host = document.getElementById('character-dialog-host');
-    if (host) host.classList.remove('answer-reveal-mode');
+    if (host) host.classList.remove('answer-reveal-mode', 'reveal-collapsed');
     ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
       const b = document.getElementById(id);
       if (b) {
@@ -340,7 +399,8 @@ window.setupEventListeners = function() {
         return;
       }
 
-      const ast = window.parseBlocksToAST(window.workspace, window.mathGenerator);
+      // 第2引数の mathGenerator は未定義のまま渡していた残骸なので削除
+      const ast = window.parseBlocksToAST(window.workspace);
       const validation = window.validateProof(ast, window.currentProblemData);
 
       if (validation.isValid) {
@@ -350,8 +410,10 @@ window.setupEventListeners = function() {
         if (typeof window.showToast === 'function') window.showToast("<span style='color:#58cc02; font-size:1.2em;'>🎉 正解！完璧です！</span>", false);
         
 
-        if (typeof window.playClearEffect === 'function') {
-          window.playClearEffect();
+        // app-effects.js が公開しているのは playClearEffects（複数形）。
+        // 以前は playClearEffect（単数形）を見ていて常にフォールバックへ落ちていた。
+        if (typeof window.playClearEffects === 'function') {
+          window.playClearEffects('CLEAR!');
         } else {
           // 青い波紋エフェクト
           const ripple = document.createElement('div');
@@ -394,11 +456,23 @@ window.setupEventListeners = function() {
 
         // 不正解時: フリエ登場「もう一度 / 解説を見る」の選択肢
         // ただし、そもそも「まだ穴が空いている」系のエラーの場合は従来通り toast だけ表示。
-        const isPartial = validation && (
-          validation.errorCode === 'proof_incomplete' ||
-          validation.errorCode === 'no_proof_step' ||
-          validation.errorCode === 'empty_slot'
-        );
+        // 「まだ穴が空いている／組み立て途中」系のエラーコード。
+        // ここは validateProof(math-logic.js) が実際に返す ERROR_* と一致させること。
+        // 以前は 'proof_incomplete' など存在しないコードを見ていたため、
+        // 穴が空いているだけでも「不正解！」演出が出てしまっていた。
+        const PARTIAL_ERROR_CODES = [
+          'ERROR_NO_PROOF_BLOCK',      // 証明ブロックがない
+          'ERROR_NO_CONCLUSION',       // 「よって」で終わっていない
+          'ERROR_NO_TRANSFORM',        // 変形ブロックが1つもない
+          'ERROR_EMPTY_INPUT',         // 空の穴がある
+          'ERROR_FINAL_EMPTY',         // 結論の式が空
+          'ERROR_CHAIN_EMPTY_INPUT',   // 連鎖の途中が空
+          'ERROR_FORMULA_REQUIRED',    // 公式の穴が空
+          'ERROR_EVALUATION',          // 繋がっていないブロックがある
+          'ERROR_CHAIN_EVALUATION',
+          'ERROR_PROBLEM_DATA_MISSING',// 問題データ側の不備（ユーザーのせいではない）
+        ];
+        const isPartial = !!validation && PARTIAL_ERROR_CODES.includes(validation.errorCode);
         if (!isPartial) {
           // 画面フラッシュ + 「不正解！」テキストのエフェクト
           const flash = document.createElement('div');
@@ -520,26 +594,12 @@ window.setupEventListeners = function() {
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
 
-    // まず説明動画モーダルを表示。モーダルが無ければ従来どおり直接遷移。
-    const introShown = (typeof window.showTutorialIntroModal === 'function') ? window.showTutorialIntroModal() : false;
-    if (introShown) {
-      // 選択画面（エントランス）を閉じておかないと動画の裏に残ってしまう
-      if (typeof window.closeGameEntrance === 'function') window.closeGameEntrance();
-      return; // 続きは動画モーダルの「了解！」ボタンが担当
-    }
-
+    // 説明動画モーダルは廃止し、キャラ会話方式に一本化した。
+    // 以前はここから 12MB の tutorial_intro.mp4 が再生される経路が残っていた。
     await startTutorialWithTransition();
   });
 
-  // 動画モーダルのボタン → チュートリアル開始
-  const introOkBtn = document.getElementById('btn-tutorial-intro-ok');
-  const introNextBtn = document.getElementById('btn-tutorial-intro-next');
-  const startFromIntro = async () => {
-    if (typeof window.hideTutorialIntroModal === 'function') window.hideTutorialIntroModal();
-    await startTutorialWithTransition();
-  };
-  if (introOkBtn) introOkBtn.addEventListener('click', startFromIntro);
-  if (introNextBtn) introNextBtn.addEventListener('click', startFromIntro);
+  // (動画モーダルの「了解！」ボタンの処理はモーダルごと削除した)
 
   document.getElementById('btn-entry-map')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
@@ -577,17 +637,30 @@ window.scheduleAutoAdvanceAfterClear = function() {
      setTimeout(async () => {
          if (transitionLayer) transitionLayer.classList.add('flash');
 
-         let nextStage = 1;
-         if (typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(window.currentStageNumber)) {
-            const idx = window.TUTORIAL_STAGE_IDS.indexOf(window.currentStageNumber);
-            if (idx >= 0 && idx < window.TUTORIAL_STAGE_IDS.length - 1) {
-                nextStage = window.TUTORIAL_STAGE_IDS[idx + 1];
-            }
-         } else {
-            nextStage = Number(window.currentStageNumber) + 1;
+         // 次ステージの決定は getNextStageId() に一本化する。
+         // 以前は本編最終ステージでも無条件に +1 していたため、
+         // 存在しない problems/N.json を読みに行って失敗トーストが出ていた。
+         //
+         // ただし getNextStageId() は MAIN_STAGE_TOTAL に依存するので、
+         // 検出が終わっていることをここで必ず保証してから呼ぶこと。
+         if (typeof window.ensureMainStageTotal === 'function') {
+           try { await window.ensureMainStageTotal(); } catch (_) { /* 失敗しても続行 */ }
          }
+         const nextStage = (typeof window.getNextStageId === 'function')
+           ? window.getNextStageId(window.currentStageNumber)
+           : null;
+         console.log('[AutoAdvance] 現在=', window.currentStageNumber,
+                     ' 次=', nextStage, ' 総問題数=', window.MAIN_STAGE_TOTAL);
          try {
-           await window.transitionToStage(nextStage);
+           if (nextStage === null || nextStage === undefined) {
+             // 次がない（＝本編クリア）のでマップへ戻す
+             if (typeof window.routeToTarget === 'function') window.routeToTarget();
+             if (typeof window.showToast === 'function') {
+               window.showToast("<span style='color:#58cc02; font-size:1.1em;'>🎉 ここまでの問題は全てクリアです！</span>", false);
+             }
+           } else {
+             await window.transitionToStage(nextStage);
+           }
          } catch (err) {
            console.error('[AutoAdvance] 遷移に失敗:', err);
            if (typeof window.showToast === 'function') window.showToast("<span style='color:red'>次のステージへ進めませんでした</span>", false);
@@ -608,6 +681,13 @@ window.scheduleAutoAdvanceAfterClear = function() {
 // --- アプリの起動処理 ---
 window.bootApplication = function() {
   window.setupEventListeners();
+
+  // 本編の総問題数を起動時に検出しておく。
+  // これをやらないと MAIN_STAGE_TOTAL が 1 のままになり、
+  // getNextStageId() が「もう最後」と誤判断して正解時の自動遷移が止まる。
+  if (typeof window.ensureMainStageTotal === 'function') {
+    window.ensureMainStageTotal();
+  }
   if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
   if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();
 
@@ -636,9 +716,11 @@ window.resetSaveData = function() {
   keys.forEach((key) => { if (key) localStorage.removeItem(key); });
 
   window.clearedStages = [];
+  window.giveUppedStages = [];   // ← 以前ここが抜けていて、リロードするまで古い値が残っていた
   window.unlockedFormulas = [];
   window.currentStreak = 0;
   window.unlockAll = false;
+  window.currentStageSolved = false;
 
   if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();
   if (typeof window.renderStageMap === 'function') window.renderStageMap();
@@ -735,9 +817,8 @@ window.renderFormulaReference = function(entryId) {
   }
 
   // MathJax で数式を組版し直す
-  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-    window.MathJax.typesetPromise([textArea]).catch(() => { /* MathJax 未準備時は無視 */ });
-  }
+  // 初回はここで MathJax(約1MB) を読み込む。以降はキャッシュされた Promise を使う
+  if (typeof window.typesetMath === 'function') window.typesetMath(textArea);
 };
 
 // モーダルを開く。初期表示は「三角関数とは」から。

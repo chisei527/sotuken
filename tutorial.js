@@ -102,8 +102,43 @@ window.bindTutorialWorkspaceAutoAdvance = function() {
       window.applyTutorialBlockRestrictions();
     }
     
-    if (typeof updateTutorialBanner === 'function') {
-      updateTutorialBanner(window.currentStageNumber);
+    // ヒント表示中ならバナー文言を更新する。
+    // 以前はここで updateTutorialBanner() を呼んでいたが、その関数は
+    // どこにも定義されておらず typeof ガードで無言 no-op になっていた。
+    // 実体は app-guide.js の updateTutorialHighlightUI。
+    if (typeof window.updateTutorialHighlightUI === 'function') {
+      window.updateTutorialHighlightUI(window.currentStageNumber);
     }
   });
+};
+
+// チュートリアル進捗バー(#tutorial-progress-shell)の表示を更新する。
+// 以前は HTML と CSS だけあって、更新する JS が存在しなかったため常に 0% のままだった。
+window.updateTutorialProgressBar = function(stageId) {
+  const shell = document.getElementById('tutorial-progress-shell');
+  const fill = document.getElementById('tutorial-progress-fill');
+  const rate = document.getElementById('tutorial-progress-rate');
+  const label = document.getElementById('tutorial-progress-label');
+  if (!shell) return;
+
+  const isTutorial = typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(stageId);
+  if (!isTutorial) {
+    shell.classList.remove('visible');
+    return;
+  }
+
+  const total = (window.TUTORIAL_STAGE_IDS || []).length || 1;
+  const index = window.getTutorialStageIndex(stageId); // 0始まり
+  const done = Math.max(0, Math.min(index, total));    // 現在のステージは「未完了」として数える
+  const percent = Math.round((done / total) * 100);
+
+  shell.classList.add('visible');
+  if (fill) fill.style.width = percent + '%';
+  if (rate) rate.textContent = percent + '%';
+  if (label) label.textContent = `チュートリアル ${Math.min(index + 1, total)} / ${total}`;
+
+  // 到達した最大ステップを保存しておく（次回起動時の参考値）
+  const reached = Math.max(window.tutorialProgressCount || 0, done);
+  window.tutorialProgressCount = reached;
+  try { localStorage.setItem('tutorial_progress', String(reached)); } catch (_) { /* 保存失敗は無視 */ }
 };

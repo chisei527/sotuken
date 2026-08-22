@@ -1,9 +1,8 @@
 // ===== app-guide.js =====
 // ヒント機能、チュートリアルの案内テキスト、次に埋めるべき穴のハイライト（光る枠）を担当します
 
-window.goalHintActive = false;
-window.currentHighlightTargetNode = null;
-window.highlightTrackingFrameId = 0;
+// goalHintActive / currentHighlightTargetNode / highlightTrackingFrameId の
+// 初期化は app-state.js が担当（ここで再代入すると読み込み順で値が巻き戻る）。
 
 // ====== 1. ブロックの解析・目標設定 ======
 window.parseRequiredBlockTypes = function(requiredBlocks) {
@@ -18,12 +17,22 @@ window.parseRequiredBlockTypes = function(requiredBlocks) {
 };
 
 window.isProofOrOperationBlockType = function(blockType) {
-  return ['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(blockType);
+  // ⚠️ simplify_operation を忘れないこと。11問（4,5,7,10,13,14,15,19,20,22,0-6）で使われており、
+  //    以前ここから漏れていたため extractOperationTypesFromAnswerState が
+  //    該当ステップを取りこぼし、ヒントが実際より少ない手数を案内していた。
+  return [
+    'proof_step',
+    'replace_operation',
+    'common_denominator_operation',
+    'simplify_operation',
+    'conclusion_operation',
+  ].includes(blockType);
 };
 
 window.getTutorialOperationLabel = function(type) {
   if (type === 'replace_operation') return '置き換え';
   if (type === 'common_denominator_operation') return '通分';
+  if (type === 'simplify_operation') return '計算';
   if (type === 'conclusion_operation') return 'よって';
   return type || '操作';
 };
@@ -37,6 +46,10 @@ window.getTutorialOperationMissingHole = function(type, block) {
   }
   if (type === 'common_denominator_operation') {
     if (!block.getInputTargetBlock('VALUE') || !block.getInputTargetBlock('REPLACEMENT')) return { key: 'fill-common', text: '【目標】『通分』ブロックの空いている穴を埋めましょう。' };
+  }
+  if (type === 'simplify_operation') {
+    if (!block.getInputTargetBlock('VALUE')) return { key: 'fill-simplify-value', text: '【目標】『計算』ブロックの「式」の穴を埋めましょう。' };
+    if (!block.getInputTargetBlock('REPLACEMENT')) return { key: 'fill-simplify-result', text: '【目標】『計算』ブロックの「結果」の穴を埋めましょう。' };
   }
   if (type === 'conclusion_operation') {
     if (!block.getInputTargetBlock('VALUE')) return { key: 'fill-conclusion-value', text: '【目標】『よって〜となる』ブロックの空いている穴を埋めましょう。' };
@@ -114,7 +127,10 @@ window.getTutorialGoalState = function(stageId) {
   const targetBlock = targetState.block;
 
   if (targetState.isMissing || !targetBlock) {
-    const key = targetType === 'replace_operation' ? 'pull-replace' : targetType === 'common_denominator_operation' ? 'pull-common' : 'pull-conclusion';
+    const key = targetType === 'replace_operation' ? 'pull-replace'
+      : targetType === 'common_denominator_operation' ? 'pull-common'
+      : targetType === 'simplify_operation' ? 'pull-simplify'
+      : 'pull-conclusion';
     return { key, text: `【目標】左のメニューから『${targetLabel}』ブロックを引き出しましょう。` };
   }
 
@@ -216,6 +232,8 @@ window.getTutorialHighlightTargets = function(stageId) {
       if (goalKey === 'fill-replace-result') return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
       if (goalKey === 'fill-common' && !currentOp.getInputTargetBlock('VALUE')) return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
       if (goalKey === 'fill-common' && !currentOp.getInputTargetBlock('REPLACEMENT')) return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
+      if (goalKey === 'fill-simplify-value') return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
+      if (goalKey === 'fill-simplify-result') return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
       if (goalKey === 'fill-conclusion-value') return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
     }
     currentOp = currentOp.getNextBlock();
@@ -228,9 +246,19 @@ window.getTutorialHighlightTargets = function(stageId) {
   return { target: toolboxLabel };
 };
 
-window.startHighlightTracking = function() {
+window.stopHighlightTracking = function() {
   if (window.highlightTrackingFrameId) cancelAnimationFrame(window.highlightTrackingFrameId);
+  window.highlightTrackingFrameId = 0;
+};
+
+window.startHighlightTracking = function() {
+  window.stopHighlightTracking();
+  // ヒントOFFのときは追従ループを回さない。
+  // 以前は無条件に requestAnimationFrame を回し続けていて、
+  // ヒントを消した後もずっと毎フレーム DOM を触っていた。
+  if (!window.goalHintActive) return;
   function track() {
+    if (!window.goalHintActive) { window.highlightTrackingFrameId = 0; return; }
     const pulseElement = document.getElementById('tutorial-highlight-target');
     if (pulseElement && window.currentHighlightTargetNode && !pulseElement.classList.contains('hidden')) {
       const rect = typeof window.currentHighlightTargetNode.getBoundingClientRect === 'function' ? window.currentHighlightTargetNode.getBoundingClientRect() : window.currentHighlightTargetNode;
@@ -352,17 +380,10 @@ window.bindGuideWorkspaceListener = function() {
   });
 };
 
-window.initGuideFeature = function() {
-  window.bindGuideWorkspaceListener();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(window.initGuideFeature, 0);
-  });
-} else {
-  setTimeout(window.initGuideFeature, 0);
-}
+// ⚠️ 初期化のスケジュールはファイル末尾で1回だけ行う。
+//    以前はここで setTimeout(window.initGuideFeature, 0) を呼んでおり、
+//    その時点の「setupGuideButton を含まない旧版」が予約されてしまっていた
+//    （defer スクリプトでは readyState が 'interactive' なので else 側に入る）。
 
 // ====== 5. ヒントボタンのクリック制御 ======
 window.setupGuideButton = function () {
@@ -380,9 +401,19 @@ window.setupGuideButton = function () {
   });
 };
 
-// 初期化プロトコルの結合
-const oldInit = window.initGuideFeature;
+// ====== 6. 初期化 ======
+// ワークスペース監視 + ヒントボタンのバインドをまとめて行う。
+// 定義はここ1箇所だけ（以前は同名関数を2回定義して片方を握り潰していた）。
 window.initGuideFeature = function() {
-  if (typeof oldInit === 'function') oldInit();
+  if (typeof window.bindGuideWorkspaceListener === 'function') window.bindGuideWorkspaceListener();
   if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
 };
+
+// 初期化のスケジュールはここ1箇所だけ。
+// defer スクリプトなので readyState は通常 'interactive'（= else 側）になる。
+// 関数参照ではなくアロー関数で包むことで、「呼ばれる瞬間の最新版」が実行される。
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.initGuideFeature(), 0));
+} else {
+  setTimeout(() => window.initGuideFeature(), 0);
+}

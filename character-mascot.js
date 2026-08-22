@@ -110,7 +110,7 @@
     palButton.title = 'パルを呼ぶ';
     const palImg = document.createElement('img');
     palImg.alt = 'パル';
-    palImg.src = 'asset/ヒッパルコス 通常.png';
+    palImg.src = 'asset/ヒッパルコス 通常.webp';
     palImg.draggable = false;
     palButton.appendChild(palImg);
     palButton.addEventListener('click', () => {

@@ -12,6 +12,9 @@
 (function () {
   'use strict';
 
+  // 公式アンロック演出が閉じられないまま固まるのを防ぐ保険タイムアウト（ミリ秒）
+  const FORMULA_UNLOCK_TIMEOUT_MS = 60000;
+
   // 既知の公式ID一覧（blocks.js の FORMULA_BLOCK_DEFS 由来）
   function getKnownFormulaIds() {
     if (typeof FORMULA_BLOCK_DEFS !== 'undefined' && Array.isArray(FORMULA_BLOCK_DEFS)) {
@@ -57,16 +60,8 @@
     return required.map((id) => String(id)).filter(Boolean);
   }
 
-  function getFormulaUnlockModalNodes() {
-    return {
-      modal: document.getElementById('formula-unlock-modal'),
-      title: document.getElementById('formula-unlock-title'),
-      meta: document.getElementById('formula-unlock-meta'),
-      image: document.getElementById('formula-unlock-image'),
-      fallback: document.getElementById('formula-unlock-fallback'),
-      closeButton: document.getElementById('btn-formula-unlock-close'),
-    };
-  }
+  // (旧 getFormulaUnlockModalNodes は削除。#formula-unlock-modal を使う経路が
+  //  character-dialog 方式に置き換わり、参照が一切なくなったため)
 
   // 新しい公式を1つずつキャラダイアログで紹介する
   // 旧: formula-unlock-modal による自動再生方式
@@ -92,16 +87,50 @@
       }
       const label = (displayNumber && displayFormula) ? `${displayNumber} ${displayFormula}` : fallbackLabel;
 
-      // 1公式ごとにダイアログを開いて、確認ボタン押下まで待つ
+      // 1公式ごとにダイアログを開いて、確認ボタン押下まで待つ。
+      //
+      // ⚠️ ここは CHARACTER_SCENE_ACTIONS.close_dialog を一時的に差し替えて待つ実装。
+      //    ダイアログが別経路（背景クリック / abortPalTutorial / 戻るボタン）で閉じられると
+      //    Promise が永久に解決せず、close_dialog が上書きされたまま固まっていた。
+      //    ・必ず1回だけ resolve する（多重呼び出し防止）
+      //    ・必ず元のハンドラに戻す（finally 相当）
+      //    ・保険としてタイムアウトを置き、最悪でも進行が止まらないようにする
+      if (!window.CHARACTER_SCENE_ACTIONS) {
+        console.warn('[app-unlock] CHARACTER_SCENE_ACTIONS が未初期化のためアンロック演出をスキップ');
+        return;
+      }
+
       await new Promise((resolve) => {
-        // アクションを一時的に差し替えて、閉じたときに次公式に進めるようにする
         const originalClose = window.CHARACTER_SCENE_ACTIONS.close_dialog;
-        window.CHARACTER_SCENE_ACTIONS.close_dialog = function() {
-          window.closeCharacterDialog();
+        let settled = false;
+        let timeoutId = 0;
+
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          // 差し替えたハンドラを必ず元に戻す
           window.CHARACTER_SCENE_ACTIONS.close_dialog = originalClose;
           resolve();
         };
-        window.openFormulaUnlockedScene({ formulaLabel: label });
+
+        window.CHARACTER_SCENE_ACTIONS.close_dialog = function() {
+          if (typeof window.closeCharacterDialog === 'function') window.closeCharacterDialog();
+          finish();
+        };
+
+        // 保険: 一定時間たっても閉じられなければ次へ進む（進行不能を防ぐ）
+        timeoutId = setTimeout(() => {
+          console.warn('[app-unlock] 公式アンロック演出がタイムアウトしました:', formulaId);
+          finish();
+        }, FORMULA_UNLOCK_TIMEOUT_MS);
+
+        try {
+          window.openFormulaUnlockedScene({ formulaLabel: label });
+        } catch (err) {
+          console.warn('[app-unlock] アンロック演出の起動に失敗:', err);
+          finish();
+        }
       });
     }
   }
@@ -171,31 +200,6 @@
   window.showFormulaUnlockModal = showFormulaUnlockModal;
   window.ensureFormulasUnlockedForProblem = ensureFormulasUnlockedForProblem;
 
-  // ====== チュートリアル最初の説明動画 ======
-  function showTutorialIntroModal() {
-    const modal = document.getElementById('tutorial-intro-modal');
-    if (!modal) return false;
-    modal.classList.remove('hidden');
-    const introVideo = document.getElementById('tutorial-intro-video');
-    if (introVideo) {
-      try {
-        introVideo.currentTime = 0;
-        const p = introVideo.play();
-        if (p && typeof p.catch === 'function') p.catch((e) => console.log('動画の自動再生がブロックされました', e));
-      } catch (e) {
-        console.log('動画再生エラー', e);
-      }
-    }
-    return true;
-  }
-
-  function hideTutorialIntroModal() {
-    const modal = document.getElementById('tutorial-intro-modal');
-    if (modal) modal.classList.add('hidden');
-    const introVideo = document.getElementById('tutorial-intro-video');
-    if (introVideo && typeof introVideo.pause === 'function') introVideo.pause();
-  }
-
-  window.showTutorialIntroModal = showTutorialIntroModal;
-  window.hideTutorialIntroModal = hideTutorialIntroModal;
+  // (チュートリアル最初の説明動画 showTutorialIntroModal / hideTutorialIntroModal は削除した。
+  //  演出はキャラ会話方式に置き換わっており、asset/tutorial_intro.mp4 も不要。)
 })();

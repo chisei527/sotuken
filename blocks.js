@@ -93,6 +93,13 @@ const FORMULA_BLOCK_DEFS = [
   ['formula_14', '⑭', 'sinα+sinβ = 2sin((α+β)/2)·cos((α−β)/2)'],
   ['formula_15', '⑮', 'sinα·cosβ = (sin(α+β)+sin(α−β))/2'],
   ['formula_16', '⑯', 'tan2θ = 2tanθ/(1−tan²θ)'],
+  // 加法定理。math-logic.js の FORMULA_REGISTRY には最初から定義があったのに
+  // ここに無かったため、ブロックが生成されず・ツールボックスにも出ず・
+  // sanitizeUnlockedFormulas に「未知のID」として捨てられていた。
+  // requiredFormulas に書いても解けない状態だったので追加する。
+  ['formula_addition_sin', '加法', 'sin(α+β) = sinαcosβ + cosαsinβ'],
+  ['formula_addition_cos', '加法', 'cos(α+β) = cosαcosβ − sinαsinβ'],
+  ['formula_addition_tan', '加法', 'tan(α+β) = (tanα+tanβ)/(1−tanαtanβ)'],
 ];
 
 function defineMathBlocks() {
@@ -307,24 +314,84 @@ function defineMathBlocks() {
     init() {
       const self = this;
 
-      // 通分する ボタン用の SVG（データURL）
-      const buttonSvg =
-        'data:image/svg+xml;utf8,' +
-        encodeURIComponent(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="30" viewBox="0 0 60 30">' +
-          '<rect x="1" y="1" width="58" height="28" rx="6" ry="6" fill="#f8f8f8" stroke="#666" stroke-width="1"/>' +
-          '<text x="30" y="20" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#222">通分する</text>' +
-          '</svg>'
-        );
+      // ===== 「通分する」ボタンの SVG（データURL） =====
+      //
+      // 以前は白背景 + グレー枠の OS デフォルト風ボタンで、
+      // サイバーグラス調の画面から完全に浮いていた。
+      // アプリ共通のプライマリボタン（.btn-primary: #38bdf8 → #0284c7 のシアン
+      // グラデーション + 白の太字）と同じ質感に揃える。
+      //
+      // ⚠️ SVG 文字列は最後に encodeURIComponent される。
+      //    そのため文字列の中では `#` をそのまま書くこと。
+      //    `%23` と先に書いてしまうと `%` が `%25` に再エンコードされ、
+      //    `url(%2523cdFill)` という壊れた参照になってグラデーションが消える。
+      const BUTTON_W = 80;
+      const BUTTON_H = 30;
+
+      const buildComputeButtonSvg = (state) => {
+        // state: 'idle' | 'busy'  … 押している間だけトーンを落として反応を返す
+        const isBusy = state === 'busy';
+        const topColor    = isBusy ? '#0ea5e9' : '#4cc7fb';
+        const bottomColor = isBusy ? '#075985' : '#0284c7';
+        const sheenAlpha  = isBusy ? '0.10' : '0.30';
+
+        const svg =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="' + BUTTON_W + '" height="' + BUTTON_H + '" ' +
+               'viewBox="0 0 ' + BUTTON_W + ' ' + BUTTON_H + '">' +
+            '<defs>' +
+              // 本体のシアングラデーション（.btn-primary と同系）
+              '<linearGradient id="cdFill" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="' + topColor + '"/>' +
+                '<stop offset="100%" stop-color="' + bottomColor + '"/>' +
+              '</linearGradient>' +
+              // 上端のハイライト（ガラスの映り込み）
+              '<linearGradient id="cdSheen" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#ffffff" stop-opacity="' + sheenAlpha + '"/>' +
+                '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
+              '</linearGradient>' +
+            '</defs>' +
+            // 下に敷く影（緑のブロックから浮かせて押せる感じを出す）
+            '<rect x="2" y="3" width="' + (BUTTON_W - 4) + '" height="' + (BUTTON_H - 4) + '" ' +
+                  'rx="' + ((BUTTON_H - 4) / 2) + '" fill="#031024" fill-opacity="0.28"/>' +
+            // 本体（ピル型）
+            '<rect x="2" y="1.5" width="' + (BUTTON_W - 4) + '" height="' + (BUTTON_H - 5) + '" ' +
+                  'rx="' + ((BUTTON_H - 5) / 2) + '" fill="url(#cdFill)" ' +
+                  'stroke="#e0f2fe" stroke-opacity="0.55" stroke-width="1"/>' +
+            // 上半分のツヤ
+            '<rect x="4" y="3" width="' + (BUTTON_W - 8) + '" height="' + Math.round(BUTTON_H / 2 - 3) + '" ' +
+                  'rx="' + Math.round(BUTTON_H / 4) + '" fill="url(#cdSheen)"/>' +
+            // ラベル（下に薄い影を敷いて可読性を上げる）
+            '<text x="' + (BUTTON_W / 2) + '" y="' + (BUTTON_H / 2 + 5) + '" text-anchor="middle" ' +
+                  'font-size="13" font-weight="700" ' +
+                  'font-family="Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui, sans-serif" ' +
+                  'fill="#04263f" fill-opacity="0.35">通分する</text>' +
+            '<text x="' + (BUTTON_W / 2) + '" y="' + (BUTTON_H / 2 + 4) + '" text-anchor="middle" ' +
+                  'font-size="13" font-weight="700" ' +
+                  'font-family="Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui, sans-serif" ' +
+                  'fill="#ffffff">通分する</text>' +
+          '</svg>';
+
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      };
+
+      const buttonSvg = buildComputeButtonSvg('idle');
+      let computeButtonField = null;
 
       this.appendValueInput('VALUE').appendField('通分');
       this.appendDummyInput()
         .appendField(
-          new Blockly.FieldImage(buttonSvg, 60, 30, 'compute', function () {
-            if (self && typeof self.updateCommonDenominatorReplacement === 'function') {
-              console.log('[通分] ボタンクリック → 通分計算開始');
-              self.updateCommonDenominatorReplacement();
-            }
+          computeButtonField = new Blockly.FieldImage(buttonSvg, BUTTON_W, BUTTON_H, '通分を計算する', function () {
+            if (!self || typeof self.updateCommonDenominatorReplacement !== 'function') return;
+            console.log('[通分] ボタンクリック → 通分計算開始');
+            // 押した瞬間だけ暗くして「反応した」ことを伝える（FieldImage は
+            // CSS の :active が使えないので、画像そのものを差し替えて表現する）
+            try {
+              computeButtonField.setValue(buildComputeButtonSvg('busy'));
+              setTimeout(() => {
+                try { computeButtonField.setValue(buildComputeButtonSvg('idle')); } catch (_) { /* 破棄済みなら無視 */ }
+              }, 160);
+            } catch (_) { /* 差し替えに失敗しても計算は続行 */ }
+            self.updateCommonDenominatorReplacement();
           })
         )
         .appendField('→');
@@ -333,7 +400,7 @@ function defineMathBlocks() {
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(120);
-      this.setTooltip('VALUE に式を入れて「通分する」ボタンを押すと、通分結果が REPLACEMENT に出ます');
+      this.setTooltip('左の穴に式を入れて「通分する」を押すと、通分した式が右の穴に自動で出てきます');
 
       // 再帰防止フラグ
       this._isUpdatingReplacement = false;

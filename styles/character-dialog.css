@@ -10,67 +10,385 @@
         .character-dialog-host.show { opacity: 1; }
         .character-dialog-host.hidden { display: none !important; }
 
-        /* 答え表示中のパル解説モード:
-           盤面を見ながら解説を聞けるよう、暗い背景・blur を消して下部に寄せる。
-           盤面のブロックは上から下に組まれるため、下部寄せにすると重なりにくい。 */
+        /* ============================================================
+           パル解説モード (answer-reveal-mode)
+           ============================================================
+           狙い: 盤面を隠さず、かつ説明は大きく読める。
+
+           以前の作り:
+             画面下中央に幅 720px 固定の吹き出しを浮かべていた。
+             ・幅を 5 段階のメディアクエリで px 直指定していたため、
+               2500px の画面でも 720px のままで余白の海に埋もれ、
+               逆に狭い画面では 420px まで縮んで読みにくかった
+             ・盤面(左上)・吹き出し(下中央)・ボタン(最下部)・
+               マスコット(右下) と視線が四方に散っていた
+             ・全何ステップの何番目か分からず、読み進める見通しが立たない
+
+           新しい作り:
+             ・横長画面 → 画面右にドッキングした縦長パネル
+               盤面は左にまるごと残る。説明は縦に伸ばせるので大きく置ける。
+             ・縦長/狭い画面 → 画面下のシート
+               横幅を使い切れるので 1 行が読みやすい。
+             ・切り替えは画面「幅」ではなく縦横比で判定する。
+               どんなサイズでも「横に余裕があるか」で正しく選ばれる。
+             ・寸法は clamp() の流体指定。段階的なジャンプが無くなる。
+             ・顔アイコン・名前・「ステップ 2 / 4」・進捗バーをヘッダーに集約。
+             ・「たたむ」でパネルを畳んで盤面を覗ける。
+           ============================================================ */
         .character-dialog-host.answer-reveal-mode {
           background: transparent;
           backdrop-filter: none;
-          align-items: flex-end;
-          padding-bottom: 90px; /* 下部アクションバー分の余白 */
-          pointer-events: none; /* 盤面の操作が透過するように */
+          padding: 0;
+          display: block;          /* flex 中央寄せを解除してドック配置に切り替える */
+          pointer-events: none;    /* 盤面の操作を透過させる */
         }
+
+        /* パネル本体 = .character-dialog-scene */
         .character-dialog-host.answer-reveal-mode .character-dialog-scene {
-          /* 立ち絵カラムを非表示にして、吹き出しだけをワイドに配置 */
+          position: fixed;
           grid-template-columns: 1fr;
-          height: auto;
-          max-height: var(--answer-reveal-max-height, 30vh);
-          width: min(var(--answer-reveal-width, 720px), 92vw);
-          pointer-events: auto; /* シーン本体はクリックできる */
+          gap: 0;
+          pointer-events: auto;
+          animation: revealPanelIn 0.35s cubic-bezier(0.2, 0.8, 0.3, 1) both;
         }
-        /* 吹き出し自体も内容に合わせて縮める (下に空きスペースを作らない) */
+
+        /* 解説モードでは立ち絵カラムを使わない (顔はヘッダーの小アイコンに集約) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-portrait-column { display: none; }
+        /* 通常モード用の名前行も隠す (ヘッダー側に名前があるため二重になる) */
+        .character-dialog-host.answer-reveal-mode .character-dialog-name { display: none; }
+
         .character-dialog-host.answer-reveal-mode .character-dialog-bubble-column {
-          justify-content: flex-end; /* 吹き出しを下側に寄せる */
-        }
-        .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
-          height: auto;
+          height: 100%;
           min-height: 0;
-          padding: 14px 20px 8px; /* 上14, 左右20, 下8 (矢印を吹き出し際に置くため) */
         }
-        .character-dialog-host.answer-reveal-mode .character-dialog-text {
-          font-size: var(--answer-reveal-font-size, 1.05rem);
-          line-height: 1.7;
+
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
+          /* 3列 x 4行のグリッド。DOM を変えずに「戻る」と「次へ」を同じ行の
+             左右に振り分けるための構造（flex 縦積みだと2行に割れてしまう）。 */
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          /* 1:ヘッダー 2:進捗 3:本文 4:戻る/次へ 5:もう一度/次の問題へ */
+          grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+          height: 100%;
+          min-height: 0;
+          padding: 0;
+          border-radius: 18px;
+          background: linear-gradient(160deg, rgba(9, 24, 48, 0.97), rgba(5, 14, 32, 0.97));
+          border: 1px solid rgba(56, 189, 248, 0.45);
+          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 32px rgba(56, 189, 248, 0.14);
         }
-        /* 「次へ」矢印は吹き出しの右下角ギリギリに置く (下方向の空きを最小に) */
-        .character-dialog-host.answer-reveal-mode .character-dialog-next {
-          margin: 4px 0 0 auto;
-          height: 20px;
-        }
-        .character-dialog-host.answer-reveal-mode .character-dialog-next::before {
-          font-size: 1.1rem;
-        }
-        /* 戻るボタンも矢印と同じライン上に (下方向の余白を減らす) */
-        .character-dialog-host.answer-reveal-mode .character-dialog-back {
-          margin-top: 4px;
-          padding: 2px 8px;
-          font-size: 0.78rem;
-        }
-        /* タップして進むヒントも詰める (万一表示された時) */
-        .character-dialog-host.answer-reveal-mode .character-dialog-tap-hint {
-          margin-top: 2px;
-        }
-        /* 解説モードでは立ち絵ホストを非表示 (右下常駐パルに任せる) */
-        .character-dialog-host.answer-reveal-mode .character-dialog-portrait-column {
+
+        /* 吹き出しのしっぽ（右向きの三角）は、立ち絵が右にいる通常モード用。
+           解説パネルでは立ち絵を出さないので、右外に飛び出す突起になってしまう。 */
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble::after,
+        .character-dialog-host.answer-reveal-mode .character-dialog-bubble::before {
           display: none;
         }
-        .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
-          background: linear-gradient(135deg, rgba(8, 22, 44, 0.92), rgba(15, 30, 60, 0.88));
-          border: 1px solid rgba(56, 189, 248, 0.5);
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(56, 189, 248, 0.2);
+
+        /* ── ヘッダー (顔 + 名前 + ステップ + たたむ) ── */
+        .character-dialog-reveal-head { display: none; }
+        .character-dialog-host.answer-reveal-mode .character-dialog-reveal-head {
+          grid-column: 1 / -1;
+          grid-row: 1;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px 10px;
+          flex-shrink: 0;
         }
-        /* 解説モード中は右下常駐パルを表示したままにする (吹き出しの発信源として活用) */
-        /* 通常モード用に character-mascot-host を隠す CSS があれば無効化する意味で :not() を使わないため
-           何も追加せず、character-mascot-host は showCharacterMascot / hideCharacterMascot に従うのみとする */
+        .character-dialog-avatar {
+          width: clamp(38px, 3.4vw, 54px);
+          height: clamp(38px, 3.4vw, 54px);
+          border-radius: 50%;
+          object-fit: cover;
+          object-position: top center;
+          background: rgba(56, 189, 248, 0.15);
+          border: 2px solid rgba(56, 189, 248, 0.6);
+          flex-shrink: 0;
+        }
+        .character-dialog-reveal-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+          flex: 1;
+        }
+        .character-dialog-reveal-name {
+          font-weight: 900;
+          font-size: clamp(0.9rem, 0.55vw + 0.62rem, 1.1rem);
+          color: var(--cyber-blue);
+          letter-spacing: 0.02em;
+        }
+        .character-dialog-step {
+          font-size: clamp(0.72rem, 0.3vw + 0.6rem, 0.85rem);
+          font-weight: 700;
+          color: var(--cyber-muted);
+          font-variant-numeric: tabular-nums;
+        }
+        .character-dialog-collapse {
+          width: 30px; height: 30px;
+          flex-shrink: 0;
+          border-radius: 9px;
+          border: 1px solid var(--glass-border);
+          background: rgba(255, 255, 255, 0.06);
+          color: var(--cyber-text);
+          cursor: pointer;
+          font: inherit;
+          transition: background 0.15s ease;
+          position: relative;
+        }
+        .character-dialog-collapse:hover { background: rgba(56, 189, 248, 0.2); }
+        /* 三角形の向きで開閉状態を示す (畳んでいるときは逆向き) */
+        .character-dialog-collapse::before {
+          content: '';
+          position: absolute; top: 50%; left: 50%;
+          width: 0; height: 0;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-top: 6px solid currentColor;
+          transform: translate(-50%, -50%);
+          transition: transform 0.25s ease;
+        }
+        .character-dialog-host.reveal-collapsed .character-dialog-collapse::before {
+          transform: translate(-50%, -50%) rotate(180deg);
+        }
+
+        /* ── 進捗バー ── */
+        .character-dialog-progress { display: none; }
+        .character-dialog-host.answer-reveal-mode .character-dialog-progress {
+          grid-column: 1 / -1;
+          grid-row: 2;
+          display: block;
+          height: 4px;
+          margin: 0 16px 12px;
+          border-radius: 999px;
+          background: rgba(56, 189, 248, 0.15);
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .character-dialog-progress-fill {
+          height: 100%;
+          width: 0%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, var(--cyber-blue), #7dd3fc);
+          transition: width 0.3s ease;
+        }
+
+        /* ── 本文 ── */
+        .character-dialog-host.answer-reveal-mode .character-dialog-text {
+          /* 流体タイポ。狭い画面で 15px、広い画面で 20px まで滑らかに伸びる。
+             以前の 0.85rem〜1.05rem より一段大きく、行間も広げて読みやすくした。 */
+          grid-column: 1 / -1;
+          grid-row: 3;
+          /* 「説明が大きく出る」ことが目的なので思い切って上限を上げる。
+             狭い画面で約 16px、広い画面で 24px まで滑らかに伸びる。 */
+          font-size: clamp(0.98rem, 0.55vw + 0.84rem, 1.5rem);
+          line-height: 1.9;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 0 16px;
+          overscroll-behavior: contain;
+        }
+
+        /* ── フッター (戻る / 次へ) ── */
+        /* 通常モードの「次へ」は文字を透明にして ▼ アイコンだけを見せる作りだが、
+           解説パネルでは「押して読み進める」主役のボタンなので、
+           文字が読める普通のボタンに戻す（color/font-size/width/height を上書き）。 */
+        .character-dialog-host.answer-reveal-mode .character-dialog-back,
+        .character-dialog-host.answer-reveal-mode .character-dialog-next {
+          margin: 0;
+          width: auto;
+          height: auto;
+          line-height: 1.2;
+          padding: 11px 20px;
+          border-radius: 999px;
+          font-size: clamp(0.82rem, 0.28vw + 0.74rem, 0.95rem);
+          font-weight: 800;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-next {
+          color: #ffffff;
+          background: linear-gradient(135deg, #4cc7fb, #0284c7);
+          border: 1px solid rgba(224, 242, 254, 0.5);
+          box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+          transition: filter 0.15s ease, transform 0.15s ease;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-next:hover { filter: brightness(1.1); }
+        .character-dialog-host.answer-reveal-mode .character-dialog-next:active { transform: scale(0.97); }
+        /* ▼ アイコンは不要（ボタン自体に「次へ ▶」と書いてある） */
+        .character-dialog-host.answer-reveal-mode .character-dialog-next::before { display: none; }
+        .character-dialog-host.answer-reveal-mode .character-dialog-back {
+          grid-column: 1;
+          grid-row: 4;
+          justify-self: start;
+          margin: 14px 0 14px 16px;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-next {
+          grid-column: 3;
+          grid-row: 4;
+          justify-self: end;
+          margin: 14px 16px 14px 0;
+        }
+        .character-dialog-host.answer-reveal-mode .character-dialog-tap-hint { display: none; }
+
+        /* ============================================================
+           レイアウト A: 横長画面 → 右サイドドック
+           幅ではなく縦横比で判定する。横に余裕がある画面すべてが対象。
+           ============================================================ */
+        @media (min-aspect-ratio: 1/1) {
+          /* 盤面の「下」に横長のバンドとして敷く。
+             右カラム案も試したが、ブロックは左上にしか置かれないので
+             右上に小さな箱が乗るだけ(画面占有 6.6%)になり、
+             縦に伸ばすと今度は上下に大きな空白ができてしまった。
+             実際に空いているのは盤面の下側なので、そこを横いっぱいに使う。
+             視線も「盤面 → その下の説明」と自然に上から下へ流れる。 */
+          .character-dialog-host.answer-reveal-mode .character-dialog-scene {
+            top: auto;
+            left: clamp(16px, 1.6vw, 40px);
+            right: clamp(16px, 1.6vw, 40px);
+            bottom: calc(var(--reveal-btn-gap, 20px) + var(--reveal-btn-height, 56px) + 16px);
+            /* 横に広がりすぎると 1 行が長くなって読みにくい。
+               上限を切って中央に置く。 */
+            max-width: 1800px;
+            margin-inline: auto;
+            width: auto;
+            height: auto;
+            /* 中身が 1〜2 行でもバンドとしての存在感が出る高さを確保する。
+               短い本文が細い帯に見えるのを防ぐ。 */
+            min-height: clamp(170px, 20vh, 280px);
+            max-height: 44vh;
+          }
+
+          /* バンドの中は 3 列: [誰が話しているか] [本文] [送り] */
+          .character-dialog-host.answer-reveal-mode .character-dialog-bubble {
+            grid-template-columns: minmax(170px, auto) minmax(0, 1fr) auto;
+            grid-template-rows: auto minmax(0, 1fr);
+            column-gap: clamp(16px, 1.6vw, 32px);
+          }
+          .character-dialog-host.answer-reveal-mode .character-dialog-reveal-head {
+            grid-column: 1;
+            grid-row: 1;
+            align-items: center;
+          }
+          .character-dialog-host.answer-reveal-mode .character-dialog-progress {
+            grid-column: 1;
+            grid-row: 2;
+            align-self: start;
+            margin-left: clamp(16px, 1.4vw, 26px);
+            margin-right: 0;
+          }
+          .character-dialog-host.answer-reveal-mode .character-dialog-text {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            align-content: safe center;
+            padding: clamp(18px, 1.6vw, 28px) 0;
+            /* 1 行が長くなりすぎると読み返しづらい。日本語で 40 字前後に収める。 */
+            max-width: 42em;
+          }
+          /* 送りは右の列。「戻る」を右上、「次へ」を右下に置いて縦を使う。
+             読み終わりの視線が落ちる右下に主役ボタンが来るようにする。 */
+          .character-dialog-host.answer-reveal-mode .character-dialog-back {
+            grid-column: 3;
+            grid-row: 1;
+            justify-self: end;
+            align-self: start;
+            margin: clamp(18px, 1.6vw, 28px) clamp(16px, 1.4vw, 26px) 0 0;
+          }
+          .character-dialog-host.answer-reveal-mode .character-dialog-next {
+            grid-column: 3;
+            grid-row: 2;
+            justify-self: end;
+            align-self: end;
+            margin: 0 clamp(16px, 1.4vw, 26px) clamp(18px, 1.6vw, 28px) 0;
+            padding: 14px 28px;
+            font-size: clamp(0.88rem, 0.32vw + 0.78rem, 1.05rem);
+          }
+
+          /* 畳んだ状態: ヘッダー行だけの高さになる */
+          .character-dialog-host.reveal-collapsed .character-dialog-scene {
+            height: auto;
+            /* min-height を打ち消さないと、畳んでもバンドの高さが残ってしまう */
+            min-height: 0;
+            max-height: none;
+          }
+          .character-dialog-host.reveal-collapsed .character-dialog-bubble {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto;
+          }
+          .character-dialog-host.reveal-collapsed .character-dialog-reveal-head {
+            grid-column: 1;
+          }
+        }
+
+        /* ============================================================
+           レイアウト B: 縦長・狭い画面 → 下部シート
+           横幅を使い切れるので 1 行が長く取れて読みやすい。
+           ============================================================ */
+        @media (max-aspect-ratio: 1/1) {
+          .character-dialog-host.answer-reveal-mode .character-dialog-scene {
+            left: clamp(8px, 2vw, 20px);
+            right: clamp(8px, 2vw, 20px);
+            /* ボタン群は画面下端に別途並ぶので、その上端 + 余白の位置に載せる。
+               同じ変数から計算しているので、どの画面サイズでも重ならない。 */
+            bottom: calc(var(--reveal-btn-gap, 20px) + var(--reveal-btn-height, 56px) + 12px);
+            top: auto;
+            width: auto;
+            height: auto;
+            /* 盤面が最低でも半分は見えるように上限を切る */
+            max-height: min(52vh, 520px);
+          }
+          .character-dialog-host.answer-reveal-mode .character-dialog-text {
+            max-height: 30vh;
+          }
+        }
+
+        /* 畳んだとき: 本文・進捗・ボタンを隠してヘッダーだけにする */
+        .character-dialog-host.reveal-collapsed .character-dialog-progress,
+        .character-dialog-host.reveal-collapsed .character-dialog-text,
+        .character-dialog-host.reveal-collapsed .character-dialog-back,
+        .character-dialog-host.reveal-collapsed .character-dialog-next {
+          display: none !important;
+        }
+        .character-dialog-host.reveal-collapsed .character-dialog-reveal-head {
+          padding-bottom: 14px;
+        }
+
+        /* ── パネル内に取り込んだ「もう一度 / 次の問題へ」 ── */
+        .post-explain-button-group.in-reveal-panel {
+          position: static;      /* fixed をやめてグリッドの一員にする */
+          grid-column: 1 / -1;
+          grid-row: 5;
+          display: flex;
+          gap: 10px;
+          margin: 0 16px 16px;
+          padding-top: 14px;
+          border-top: 1px solid rgba(56, 189, 248, 0.22);  /* 「読む」と「進む」の境目 */
+          transform: none;
+          z-index: auto;
+        }
+        .post-explain-button-group.in-reveal-panel.show { transform: none; }
+        .post-explain-button-group.in-reveal-panel .post-explain-btn {
+          flex: 1;
+          min-width: 0;
+          white-space: nowrap;
+          height: var(--reveal-btn-height, 52px);
+          padding: 0 12px;
+          font-size: clamp(0.82rem, 0.3vw + 0.72rem, 1rem);
+        }
+        /* 畳んだときはボタンも一緒に隠す */
+        .character-dialog-host.reveal-collapsed .post-explain-button-group.in-reveal-panel {
+          display: none !important;
+        }
+
+        @keyframes revealPanelIn {
+          from { opacity: 0; transform: translateY(14px) scale(0.98); }
+          to   { opacity: 1; transform: none; }
+        }
+
+        /* 「動きを減らす」設定を尊重する */
+        @media (prefers-reduced-motion: reduce) {
+          .character-dialog-host.answer-reveal-mode .character-dialog-scene { animation: none; }
+          .character-dialog-progress-fill { transition: none; }
+        }
 
         /* 「戻る」ボタン (吹き出しの左下、次へボタンの左に配置) */
         .character-dialog-back {

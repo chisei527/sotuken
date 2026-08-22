@@ -1,0 +1,14 @@
+{
+  "_comment": "本編ステージ数のマニフェスト。tools/generate-manifest.py で自動生成される。問題を追加したら再生成すること。",
+  "mainStageTotal": 22,
+  "tutorialStageIds": [
+    "0-1",
+    "0-2",
+    "0-3",
+    "0-4",
+    "0-5",
+    "0-6",
+    "0-7",
+    "0-8"
+  ]
+}

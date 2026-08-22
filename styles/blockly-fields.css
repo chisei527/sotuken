@@ -19,3 +19,21 @@
         .overlay-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
         /* モーダル共通クールデザイン */
+
+        /* ==========================================================
+           ブロック内のボタン画像（FieldImage）
+           現状は common_denominator_operation の「通分する」ボタンのみ。
+           FieldImage は <image> 要素なので :active が効かない。
+           ホバーだけ CSS で、押下時のトーン変化は blocks.js 側で
+           画像そのものを差し替えて表現している。
+           ========================================================== */
+        #l .blocklyBlockCanvas image,
+        #l .blocklyFlyout image {
+          cursor: pointer;
+          transition: opacity 0.15s ease, filter 0.15s ease;
+        }
+        #l .blocklyBlockCanvas image:hover,
+        #l .blocklyFlyout image:hover {
+          opacity: 0.92;
+          filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.75));
+        }

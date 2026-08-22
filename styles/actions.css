@@ -8,7 +8,10 @@
           box-shadow: var(--cyber-shadow); 
           font-weight: 700; 
           color: var(--cyber-text); 
-          backdrop-filter: blur(14px);
+          /* backdrop-filter を外した。プレイ画面に常駐する要素にこれが付いていると、
+             背後の Blockly がドラッグで動くたびにぼかしを再計算するため
+             ブロック操作が重くなる。不透明度を上げた単色で見た目を代替する。 */
+          background: rgba(6, 22, 44, 0.88);
         }
 
         /* 🚀 サイバーブルーのヒントエリア */
@@ -126,7 +129,8 @@
           border: 1px solid rgba(56, 189, 248, 0.3);
           border-radius: 22px;
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(16px);
+          /* 同上。下部アクションバーも常時表示なので blur を外す */
+          background: linear-gradient(135deg, rgba(8, 20, 44, 0.96), rgba(3, 10, 24, 0.92));
         }
         .action-btn {
           font-family: inherit;
