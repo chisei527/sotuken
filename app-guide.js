@@ -162,9 +162,6 @@ window.getTutorialBannerText = function(stageId) {
 
 
 // ====== 2. 次の行動を示すハイライト（光る枠）機能 ======
-window.findTutorialReplaceOperation = function() {
-  return window.workspace?.getTopBlocks(false)?.find((block) => block.type === 'proof_step')?.getInputTargetBlock('OPERATIONS');
-};
 window.getTutorialToolboxCategoryLabel = function(labelText) {
   // カテゴリラベル要素 (テキスト) より、親の TreeRow を返す方が rect が大きく光らせやすい
   const labels = Array.from(document.querySelectorAll('.blocklyTreeLabel'));

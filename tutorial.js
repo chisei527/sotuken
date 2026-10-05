@@ -64,30 +64,6 @@ window.applyTutorialBlockRestrictions = function() {
   });
 };
 
-// ブロックの制限を完全に解除する関数
-window.clearTutorialBlockRestrictions = function() {
-  if (!window.workspace) return;
-  const toolboxElement = window.workspace.getToolbox();
-  if (!toolboxElement) return;
-  
-  const categories = typeof toolboxElement.getCategories === 'function' 
-    ? toolboxElement.getCategories() 
-    : (typeof toolboxElement.getToolboxItems === 'function' ? toolboxElement.getToolboxItems() : []);
-  
-  if (!categories || !Array.isArray(categories)) return;
-
-  categories.forEach((category) => {
-    if (!category) return;
-    const blocks = typeof category.getContents === 'function' ? category.getContents() : [];
-    if (!blocks || !Array.isArray(blocks)) return;
-
-    blocks.forEach((block) => {
-      if (!block || typeof block.setDisabled !== 'function') return;
-      block.setDisabled(false);
-    });
-  });
-};
-
 // ワークスペースのリアルタイム監視を設定する関数
 window.bindTutorialWorkspaceAutoAdvance = function() {
   if (window.tutorialWorkspaceListenerBound) return;

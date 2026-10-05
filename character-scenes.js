@@ -270,8 +270,7 @@ window.openModeSelectWithCharacter = function() {
 };
 
 /**
- * 公式アンロック時にキャラダイアログで祝う。
- * 既存の formula-unlock-modal の代わりに呼び出される。
+ * 公式アンロック時にキャラダイアログで祝う（app-unlock.js から呼ばれる）。
  * @param {object} context
  *   context.formulaLabel: 表示する公式名 ("公式① sin²θ + cos²θ = 1" など)
  */
@@ -283,14 +282,4 @@ window.openFormulaUnlockedScene = function(context) {
       if (typeof action === 'function') action();
     },
   });
-};
-
-/**
- * エントランスから抜けたときに、キャラダイアログの状態もリセットする。
- * (現状は closeCharacterDialog を呼ぶだけ)
- */
-window.resetCharacterScenesOnEntranceClose = function() {
-  window.closeCharacterDialog();
-  const entranceCard = document.querySelector('.entrance-card');
-  if (entranceCard) entranceCard.classList.remove('hidden');
 };

@@ -30,7 +30,7 @@ window.switchScreen = function(screenId) {
   }
   
   // 画面に合わせた背景画像の切り替え
-  window.setAppBackgroundByKey(screenId === 'p' ? 'stage' : (screenId === 'stage-map-screen' || screenId === 'c' ? 'select' : 'title'));
+  window.setAppBackgroundByKey(screenId === 'p' ? 'stage' : (screenId === 'stage-map-screen' ? 'select' : 'title'));
 };
 
 // 2. 画面遷移の背景画像を制御する関数
@@ -50,21 +50,7 @@ window.closeGameEntrance = function() {
   if (entrance) entrance.classList.add('hidden');
 };
 
-// 4. エントランス画面を再び開く
-window.openGameEntrance = function() {
-  const entrance = document.getElementById('game-entrance');
-  if (entrance) entrance.classList.remove('hidden', 'show-choices');
-  if (typeof window.hideTutorialHighlights === 'function') window.hideTutorialHighlights();
-  window.setAppBackgroundByKey('title');
-  // キャラダイアログ版のモード選択も同時に開く
-  // (タイトルタップで show-choices を付けるハンドラは通らないため、明示的に呼ぶ)
-  if (typeof window.openModeSelectWithCharacter === 'function') {
-    entrance?.classList.add('show-choices');
-    window.openModeSelectWithCharacter();
-  }
-};
-
-// 5. 画面下部に通知メッセージ（トースト）を出す
+// 4. 画面下部に通知メッセージ（トースト）を出す
 window.showToast = function(htmlContent, isAutoClose = true) {
   const toastElement = document.getElementById('toast-message');
   if (toastElement) {
@@ -74,7 +60,7 @@ window.showToast = function(htmlContent, isAutoClose = true) {
   }
 };
 
-// 6. 炎の連動正解カウンターをアニメーション付きで更新する
+// 5. 炎の連動正解カウンターをアニメーション付きで更新する
 window.updateStreakCounter = function(shouldAnimate = false) {
   const counter = document.getElementById('streak-counter');
   if (!counter) return;
@@ -83,12 +69,6 @@ window.updateStreakCounter = function(shouldAnimate = false) {
   if (shouldAnimate) {
     requestAnimationFrame(() => requestAnimationFrame(() => counter.classList.add('streak-bounce')));
   }
-};
-
-// 7. スキップチャレンジのポップアップを閉じる
-window.closeSkipChallengeModal = function() {
-  const skipModal = document.getElementById('skip-challenge-modal');
-  if (skipModal) skipModal.classList.add('hidden');
 };
 
 // ============================================================
