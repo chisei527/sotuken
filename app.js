@@ -732,6 +732,7 @@ window.resetSaveData = function() {
 
 // 全問題を開放する / 解除する のトグル
 window.unlockAllStages = function() {
+  if (!window.IS_DEV) return; // 公開サイトでは使えない
   if (window.unlockAll) {
     // 既に開放中 → 解除
     window.unlockAll = false;
@@ -750,6 +751,7 @@ window.unlockAllStages = function() {
 // 全開放ボタンの文言を現在の状態に合わせて切り替える
 window.syncUnlockAllButtonLabel = function() {
   const btn = document.getElementById('btn-unlock-all');
+  if (btn && !window.IS_DEV) { btn.style.display = 'none'; return; }
   if (!btn) return;
   btn.textContent = window.unlockAll ? '全開放を解除' : '全問題を開放';
 };

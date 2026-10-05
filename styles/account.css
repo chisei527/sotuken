@@ -40,3 +40,5 @@
 .account-toggle input { width: 18px; height: 18px; }
 .account-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 8px; }
 #consent-modal, #account-modal { z-index: 3000; }
+/* ボット対策の確認（必要なときだけ表示される） */
+#turnstile-box { position: fixed; right: 16px; bottom: 16px; z-index: 4000; }

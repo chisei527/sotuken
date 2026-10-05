@@ -1,0 +1,10 @@
+# Cloudflare Pages が読む設定ファイル（公開サイトの HTTP ヘッダー）
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# 画像は変更が少ないので1週間キャッシュ（差し替えたらファイル名を変える）
+/asset/*
+  Cache-Control: public, max-age=604800
