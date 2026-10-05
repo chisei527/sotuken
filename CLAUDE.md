@@ -17,6 +17,8 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - `account-ui.js` … アカウント画面と研究協力の同意画面。
 - ログを足すときはゲーム側から `window.AppLog.xxx()` を呼ぶ。event_type を増やしたら DB の check 制約も更新する。
 - DB の変更は `supabase/migrations/` に SQL を追加してから適用する。すべての表で RLS を有効にする。
+- 新しい表は権限が自動で付かない。必要な GRANT を migration に明記する（anon には何も付けない）。
+- 分析用ビューは `analysis` スキーマ（Data API に公開しない）。
 - Supabase の Auth 設定: Anonymous sign-ins オン / Manual linking オン / Confirm email オフ。
 
 ## 開発
@@ -33,5 +35,6 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 1. [x] 保存処理を storage.js に集約
 2. [x] Supabase: 匿名ログイン + ID/パスワードでの引き継ぎ、進捗同期（profiles / progress）
 3. [x] 操作ログ（event_logs、方式A: 解答提出単位）、研究利用の同意画面
-3b. [ ] プライバシーポリシー（privacy.html は下書き）、ログの CSV 書き出し
-4. [ ] Cloudflare Pages で公開。「全開放」ボタンは本番では隠す（研究データが汚れるため）。匿名ログインの乱用対策に Cloudflare Turnstile（CAPTCHA）を入れる
+3b. [x] ログの CSV 書き出し（analysis スキーマのビュー。手順は docs/analysis.md）
+3c. [ ] プライバシーポリシー（privacy.html は下書き）
+4. [x] Cloudflare Pages で公開（https://sotuken1.pages.dev）。「全開放」ボタンは本番では隠す（研究データが汚れるため）。匿名ログインの乱用対策に Cloudflare Turnstile（CAPTCHA）を入れる
