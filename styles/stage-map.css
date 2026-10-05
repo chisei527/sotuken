@@ -1,4 +1,4 @@
-.skip-challenge-card, .tutorial-intro-card, .formula-unlock-card {
+.formula-unlock-card { /* app-popups.js のポップアップで使用 */
           background: linear-gradient(180deg, rgba(10, 28, 60, 0.9) 0%, rgba(4, 12, 32, 0.8) 100%);
           border: 1px solid rgba(56, 189, 248, 0.35);
           box-shadow: 0 30px 70px rgba(0,0,0,0.6), var(--cyber-glow);

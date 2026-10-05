@@ -1,13 +1,13 @@
 // ===== app-unlock.js =====
 // 公式の段階的アンロック機能。
-// ステージの requiredFormulas に初めて遭遇したとき、画像つきモーダルで「新しい公式」を
-// 紹介してからアンロックする。アンロック状態は localStorage に保存される。
+// ステージの requiredFormulas に初めて遭遇したとき、フリエ（キャラダイアログ）が「新しい公式」を
+// 紹介してからアンロックする。アンロック状態は storage.js 経由で保存される（サーバーにも同期）。
 //
 // 依存:
 //   - window.formulaIdToLabel / window.isSupportedFormulaId / window.FORMULA_REGISTRY (math-logic.js)
 //   - window.unlockedFormulas / saveUnlockedFormulasToStorage (app-state.js)
 //   - FORMULA_BLOCK_DEFS (blocks.js)
-//   - HTML: #formula-unlock-modal ほか（index.html に既存）
+//   - window.openFormulaUnlockedScene (character-scenes.js)
 
 (function () {
   'use strict';
@@ -60,12 +60,8 @@
     return required.map((id) => String(id)).filter(Boolean);
   }
 
-  // (旧 getFormulaUnlockModalNodes は削除。#formula-unlock-modal を使う経路が
-  //  character-dialog 方式に置き換わり、参照が一切なくなったため)
-
   // 新しい公式を1つずつキャラダイアログで紹介する
-  // 旧: formula-unlock-modal による自動再生方式
-  // 新: character-dialog + character-scenes を経由してフリエちゃんが喋る
+  // （character-dialog + character-scenes を経由してフリエが喋る）
   async function showFormulaUnlockModal(formulaIds) {
     const ids = Array.from(new Set((Array.isArray(formulaIds) ? formulaIds : []).map((id) => String(id)).filter(Boolean)));
     if (ids.length === 0) return;

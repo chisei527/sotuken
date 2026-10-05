@@ -215,7 +215,6 @@ window.centerMapCameraOnCurrentStage = function(animate = true) {
 window.renderStageMap = async function() {
   const nodeRoot = document.getElementById('map-nodes');
   const progressLabel = document.getElementById('map-progress');
-  const progressText = document.getElementById('progress-text');
   if (!nodeRoot) return;
 
   // 本編問題数を未検出なら検出してから描画する（ensureMainStageTotal が1回だけを保証）
@@ -365,7 +364,6 @@ window.renderStageMap = async function() {
 
   const clearCount = window.clearedStages ? window.clearedStages.filter(s => s >= 1 && s <= totalStages).length : 0;
   if (progressLabel) progressLabel.textContent = `${clearCount} / ${totalStages} CLEAR`;
-  if (progressText) progressText.textContent = `${clearCount} / ${totalStages} クリア`;
 
   if (typeof window.centerMapCameraOnCurrentStage === 'function') {
     requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(false));
@@ -400,9 +398,6 @@ window.loadStage = async function(stageNumber) {
       console.log('[loadStage]', stageNumber, 'アンロック処理後:', window.unlockedFormulas);
 
       window.currentStageSolved = false;
-      window.currentSkipOffer = null;
-      
-      if (typeof window.closeSkipChallengeModal === 'function') window.closeSkipChallengeModal();
       if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(false);
 
       const stageText = document.getElementById('r');

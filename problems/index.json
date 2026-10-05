@@ -1,5 +1,5 @@
 {
-  "_comment": "本編ステージ数のマニフェスト。tools/generate-manifest.py で自動生成される。問題を追加したら再生成すること。",
+  "_comment": "本編ステージ数のマニフェスト。問題を追加したら mainStageTotal を手で更新すること。",
   "mainStageTotal": 22,
   "tutorialStageIds": [
     "0-1",

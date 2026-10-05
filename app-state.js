@@ -90,12 +90,6 @@ window.getTutorialStageId = function(stageIndex) {
   return window.TUTORIAL_STAGE_IDS[Math.max(0, Math.min(Number(stageIndex) || 0, window.TUTORIAL_STAGE_IDS.length - 1))] || null;
 };
 
-window.getNextTutorialStageId = function(stageId) {
-  const currentIndex = window.getTutorialStageIndex(stageId);
-  if (currentIndex < 0) return null;
-  return window.getTutorialStageId(currentIndex + 1);
-};
-
 // ------------------------------------------------------------
 // チュートリアル進行状態の判定について
 //   getTutorialOperationMissingHole / getTutorialTargetOperationState /

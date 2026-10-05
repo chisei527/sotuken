@@ -55,9 +55,6 @@
     <!-- CSS 分割ファイル -->
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/header.css">
-    <!-- styles/tutorial-banner.css は actions.css と内容が丸かぶり（16セレクタ重複）で、
-         後から読まれる actions.css に完全に上書きされる死にファイルだったため読み込みを外した。
-         ハイライトの配色などは styles/actions.css 側が現行版。 -->
     <link rel="stylesheet" href="styles/actions.css">
     <link rel="stylesheet" href="styles/effects.css">
     <link rel="stylesheet" href="styles/blockly-fields.css">
@@ -94,41 +91,6 @@
       </div>
     </div>
 
-    <!-- ⚠️ 未接続の機能: btn-skip-challenge-accept / -cancel にイベントリスナーが無く、
-         このモーダルを開く経路も存在しない（closeSkipChallengeModal からしか触られない）。
-         実装するか、しないなら丸ごと削除してよいブロック。 -->
-    <div id="skip-challenge-modal" class="overlay-screen hidden">
-      <div class="skip-challenge-card">
-        <h2>ボーナスチャレンジ！</h2>
-        <p id="skip-challenge-message">連続クリアおめでとう！少し先のステージにスキップしてみる？</p>
-        <p style="font-size: 0.9rem; color: var(--cyber-muted);">スキップ先をクリアすれば、間のステージもまとめてクリア扱いになるよ！</p>
-        <div class="skip-actions" style="margin-top:20px; display:flex; gap:12px; justify-content:center;">
-          <button id="btn-skip-challenge-cancel" class="action-btn btn-secondary">順番通りに進む</button>
-          <button id="btn-skip-challenge-accept" class="action-btn btn-primary">スキップに挑戦！</button>
-        </div>
-      </div>
-    </div>
-
-<!-- 動画チュートリアルは廃止済み（character-scenes.js の exec_tutorial_start に
-         「動画モーダルは廃止済み」とある通り、キャラ会話方式に置き換わっている）。
-         ただしエントランスの「チュートリアル」ボタンからは今も呼ばれる経路が残っており、
-         その場合 asset/tutorial_intro.mp4 (12MB) が実際に再生されていた。
-         モーダルごと削除して経路を断ち、12MB のファイルも不要にする。 -->
-
-    <!-- ⚠️ 未使用: 公式アンロック演出は character-dialog 方式（openFormulaUnlockedScene）に
-         置き換わっており、このモーダルを開くコードは残っていない。削除候補。 -->
-    <div id="formula-unlock-modal" class="overlay-screen hidden">
-      <div class="formula-unlock-card">
-        <h2 id="formula-unlock-title">新しい公式をマスター！</h2>
-        <p id="formula-unlock-meta" style="color: var(--cyber-muted); font-weight:700;"></p>
-        <img id="formula-unlock-image" alt="公式" style="width:100%; max-height:55vh; object-fit:contain; border-radius:12px; margin-bottom:14px; border:1px solid var(--glass-border); background:rgba(0,0,0,0.3);" />
-        <div id="formula-unlock-fallback" style="display:none; padding:16px; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:12px; text-align:left;"></div>
-        <div style="margin-top: 16px;">
-          <button id="btn-formula-unlock-close" class="action-btn btn-primary" type="button">確認完了</button>
-        </div>
-      </div>
-    </div>
-
     <!-- 📘 公式リファレンスモーダル（ヘッダー「公式解説」ボタンから開く） -->
     <div id="formula-reference-modal" class="overlay-screen hidden">
       <div class="formula-ref-card">
@@ -159,17 +121,6 @@
           <div id="map-nodes"></div>
         </div>
       </div>
-    </div>
-
-    <!-- ⚠️ 旧ステージ選択画面。stage-map-screen に置き換わっており、
-         switchScreen('c') を呼ぶ箇所が無いため #n は常に空のまま。削除候補。 -->
-    <div id="c" class="a">
-        <h1>ステージ選択</h1>
-        <div style="width: 100%; max-width: 600px; margin-bottom: 25px;">
-          <div id="progress-text">読み込み中…</div><!-- renderStageMap() が実問題数で上書きする -->
-          <div id="overall-progress" style="width: 0%; display:none;"></div>
-        </div>
-        <div class="stage-list-shell"><div id="n" class="stage-list-grid"></div></div>
     </div>
 
     <div id="p" class="a">
