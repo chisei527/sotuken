@@ -178,6 +178,7 @@
 
   window.openAccountModal = function () {
     accountModal = accountModal || buildAccountModal();
+    window.Cloud.retry(); // つながっていなければ、開いたタイミングで再接続を試す
     accountModal.render();
     accountModal.classList.remove('hidden');
   };

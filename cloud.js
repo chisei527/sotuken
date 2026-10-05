@@ -153,9 +153,14 @@
   // ------------------------------------------------------------
   let readyResolve;
   const ready = new Promise((r) => { readyResolve = r; });
+  let retryTimer = null;
+  let initRunning = false;
 
   async function init() {
     if (!enabled) { readyResolve(getStatus()); return; }
+    if (initRunning) return;
+    initRunning = true;
+    clearTimeout(retryTimer);
     try {
       let { data: { session } } = await client.auth.getSession();
       if (!session) {
@@ -169,11 +174,14 @@
       setStatus('online');
       flushLogs();
     } catch (e) {
-      console.warn('[cloud] サーバーに接続できませんでした。この端末だけに保存します:', e?.message || e);
+      console.warn('[cloud] サーバーに接続できませんでした。この端末だけに保存し、あとで再接続します:', e?.message || e);
       setStatus('error');
+      retryTimer = setTimeout(init, 60000); // 1分ごとに再接続を試す
     }
+    initRunning = false;
     readyResolve(getStatus());
   }
+  window.addEventListener('online', () => { if (state.status === 'error') init(); });
 
   S.onProgressChange(() => schedulePush());
   window.addEventListener('pagehide', () => { if (pushTimer) pushNow(); flushLogs(); });
@@ -367,6 +375,7 @@
     logout,
     setConsent,
     flushLogs,
+    retry() { if (state.status === 'error') return init(); return Promise.resolve(); },
     _mergeProgress: mergeProgress, // テスト用
   };
 
