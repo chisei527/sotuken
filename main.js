@@ -389,6 +389,7 @@ window.loadStage = async function(stageNumber) {
       }
       
       window.currentProblemData = parsedData;
+      window.AppLog?.stageStart(stageNumber);
 
       console.log('[loadStage]', stageNumber, '要求公式:', parsedData?.requiredFormulas, '現在のアンロック:', window.unlockedFormulas);
 

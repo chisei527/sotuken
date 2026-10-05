@@ -11,12 +11,21 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - 問題を追加したら `problems/index.json`（mainStageTotal）を更新する。
 - APIキーなどの秘密情報はコードに書かない。Supabase の service_role キーはフロントに絶対に置かない。
 
+## サーバー（Supabase）
+- 設定は `config.js`（URL と Publishable key だけ。secret / service_role キーは絶対に置かない）。空ならオフラインで動く。
+- `cloud.js` … 匿名ログイン、ID+パスワードでの引き継ぎ（ID は `{id}@LOGIN_EMAIL_DOMAIN` のメールとして Supabase Auth に登録）、進捗の同期（和集合でマージ）、操作ログの送信。
+- `account-ui.js` … アカウント画面と研究協力の同意画面。
+- ログを足すときはゲーム側から `window.AppLog.xxx()` を呼ぶ。event_type を増やしたら DB の check 制約も更新する。
+- DB の変更は `supabase/migrations/` に SQL を追加してから適用する。すべての表で RLS を有効にする。
+- Supabase の Auth 設定: Anonymous sign-ins オン / Manual linking オン / Confirm email オフ。
+
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080
 - `AUTO_RESET_ON_LOAD`（app-state.js）は本番では false。
 
 ## ロードマップ
 1. [x] 保存処理を storage.js に集約
-2. [ ] Supabase: 匿名ログイン + ID/パスワードでの引き継ぎ、進捗同期（profiles / progress）
-3. [ ] 操作ログ（event_logs）、研究利用の同意画面、プライバシーポリシー
-4. [ ] Cloudflare Pages で公開。「全開放」ボタンは本番では隠す（研究データが汚れるため）
+2. [x] Supabase: 匿名ログイン + ID/パスワードでの引き継ぎ、進捗同期（profiles / progress）
+3. [x] 操作ログ（event_logs、方式A: 解答提出単位）、研究利用の同意画面
+3b. [ ] プライバシーポリシー（privacy.html は下書き）、ログの CSV 書き出し
+4. [ ] Cloudflare Pages で公開。「全開放」ボタンは本番では隠す（研究データが汚れるため）。匿名ログインの乱用対策に Cloudflare Turnstile（CAPTCHA）を入れる

@@ -398,6 +398,7 @@ window.setupGuideButton = function () {
     } else {
       window.showGoalHintForStage();
     }
+    window.AppLog?.hint(!!window.goalHintActive);
   });
 };
 

@@ -31,6 +31,7 @@ window.setupEventListeners = function() {
   if (btnReset) {
     btnReset.addEventListener('click', async () => {
       window.currentStreak = 0;
+      window.AppLog?.reset();
       if (typeof window.updateStreakCounter === 'function') window.updateStreakCounter(false);
       if (typeof window.loadStage === 'function') await window.loadStage(window.currentStageNumber);
     });
@@ -59,6 +60,7 @@ window.setupEventListeners = function() {
   // 答え表示 + ギブアップ済みフラグを立てる (character-scenes から呼ばれる)
   window.revealAnswerAndMarkGiveUp = function () {
     if (!window.currentProblemData || !window.currentProblemData.answerState || !window.workspace) return;
+    window.AppLog?.giveup(); // 答えで上書きされる前に、その時点のブロックを記録する
     // 「もう一度」ボタンで復元できるよう、あきらめる直前の workspace 状態を保存する。
     try {
       window._preGiveUpWorkspaceState = Blockly.serialization.workspaces.save(window.workspace);
@@ -402,6 +404,7 @@ window.setupEventListeners = function() {
       // 第2引数の mathGenerator は未定義のまま渡していた残骸なので削除
       const ast = window.parseBlocksToAST(window.workspace);
       const validation = window.validateProof(ast, window.currentProblemData);
+      window.AppLog?.submit(validation);
 
       if (validation.isValid) {
         window.currentStageSolved = true;
