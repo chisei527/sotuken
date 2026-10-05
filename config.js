@@ -22,7 +22,7 @@ window.APP_CONFIG = {
   // Cloudflare Turnstile（ボット対策）のサイトキー。公開してよい値。
   // 空なら CAPTCHA なしで動く。Supabase 側で CAPTCHA を有効にするのは、ここを埋めて公開した「後」にすること
   // （先に有効にすると、ログインがすべて失敗する）。
-  TURNSTILE_SITE_KEY: '',
+  TURNSTILE_SITE_KEY: '0x4AAAAAAFOAifJt81ucFwBC',
 };
 
 // 手元（localhost）で動かしているときだけ true。
