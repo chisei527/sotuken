@@ -54,7 +54,7 @@ window.clearedStages = window.AppStorage.getJSON('s', []);
 // ギブアップ済み(=あきらめて解説を見た)ステージ。「クリア」とは別カテゴリで管理する。
 // 後で本人が自力クリアしたら、こっちのリストから削除して clearedStages に格上げする。
 window.giveUppedStages = window.AppStorage.getJSON('gu', []);
-window.unlockAll = window.AppStorage.getRaw('unlock_all') === '1';
+window.unlockAll = window.IS_DEV && window.AppStorage.getRaw('unlock_all') === '1'; // 公開サイトでは常に無効
 window.unlockedFormulas = window.loadUnlockedFormulasFromStorage();
 window.currentStageNumber = 0;
 window.currentProblemData = null;

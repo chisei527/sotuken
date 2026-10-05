@@ -149,6 +149,49 @@
   }
 
   // ------------------------------------------------------------
+  // ボット対策（Cloudflare Turnstile）
+  //   config.js に TURNSTILE_SITE_KEY があるときだけ使う。
+  //   ふつうの人には何も表示されず、怪しいときだけ右下に確認が出る。
+  // ------------------------------------------------------------
+  let turnstileLoading = null;
+  let turnstileWidget = null;
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve();
+    if (turnstileLoading) return turnstileLoading;
+    turnstileLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => { turnstileLoading = null; reject(new Error('ボット対策の読み込みに失敗しました')); };
+      document.head.appendChild(s);
+    });
+    return turnstileLoading;
+  }
+  async function getCaptchaToken() {
+    if (!cfg.TURNSTILE_SITE_KEY) return undefined;
+    await loadTurnstile();
+    let box = document.getElementById('turnstile-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'turnstile-box';
+      document.body.appendChild(box);
+    }
+    if (turnstileWidget !== null) { try { window.turnstile.remove(turnstileWidget); } catch (_) {} turnstileWidget = null; }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('ボット対策の確認がタイムアウトしました')), 60000);
+      const finish = (fn) => (v) => { clearTimeout(timer); fn(v); };
+      turnstileWidget = window.turnstile.render(box, {
+        sitekey: cfg.TURNSTILE_SITE_KEY,
+        appearance: 'interaction-only',
+        callback: finish(resolve),
+        'error-callback': finish(() => reject(new Error('ボット対策の確認に失敗しました'))),
+        'expired-callback': finish(() => reject(new Error('ボット対策の確認の期限が切れました'))),
+      });
+    });
+  }
+
+  // ------------------------------------------------------------
   // 起動
   // ------------------------------------------------------------
   let readyResolve;
@@ -159,7 +202,8 @@
     try {
       let { data: { session } } = await client.auth.getSession();
       if (!session) {
-        const { data, error } = await client.auth.signInAnonymously();
+        const captchaToken = await getCaptchaToken();
+        const { data, error } = await client.auth.signInAnonymously({ options: { captchaToken } });
         if (error) throw error;
         session = data.session;
       }
@@ -232,7 +276,8 @@
     loginId = String(loginId || '').trim().toLowerCase();
     if (!loginId || !password) throw new Error('IDとパスワードを入力してください。');
     await flushLogs();
-    const { data, error } = await client.auth.signInWithPassword({ email: toEmail(loginId), password });
+    const captchaToken = await getCaptchaToken();
+    const { data, error } = await client.auth.signInWithPassword({ email: toEmail(loginId), password, options: { captchaToken } });
     if (error) throw new Error(friendlyError(error));
     state.user = data.user;
     S.remove(K.DEVICE.RESEARCH_CONSENT); // ログイン先アカウントの同意状態を使う

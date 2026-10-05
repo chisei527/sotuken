@@ -22,6 +22,12 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080
 - `AUTO_RESET_ON_LOAD`（app-state.js）は本番では false。
+- `window.IS_DEV`（config.js）は localhost のときだけ true。開発用機能（全問題を開放など）は IS_DEV のときだけ動かす。
+
+## 公開（Cloudflare Pages）
+- GitHub の main にマージすると自動で公開される（ビルドなし、出力ディレクトリはリポジトリのルート）。
+- `_headers` でセキュリティ用の HTTP ヘッダーを設定。
+- ボット対策: Cloudflare Turnstile。config.js の TURNSTILE_SITE_KEY を入れて公開 → その後 Supabase の Auth で CAPTCHA を有効化（順番を逆にするとログインが全部失敗する）。
 
 ## ロードマップ
 1. [x] 保存処理を storage.js に集約
