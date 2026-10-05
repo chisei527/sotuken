@@ -1,6 +1,27 @@
-#start-prompt-text {
+/* タイトル画面の背景。
+           以前は body の背景（cover）だけだったため、16:9 以外の画面ではロゴの端が切れていた。
+           ::after … 画像全体を画面に収める（contain）。ロゴが必ず全部見える
+           ::before … 同じ画像をぼかして画面いっぱいに敷き、余白を埋める */
+        #game-entrance { overflow: hidden; background: none; }
+        #game-entrance::before,
+        #game-entrance::after {
+          content: ''; position: absolute; pointer-events: none; z-index: -1;
+        }
+        #game-entrance::before {
+          inset: -48px;
+          background: url("../asset/bg_title.webp") center / cover no-repeat;
+          filter: blur(28px) brightness(0.5) saturate(1.2);
+        }
+        #game-entrance::after {
+          inset: 0;
+          background:
+            linear-gradient(rgba(3, 10, 24, 0.4), rgba(3, 10, 24, 0.4)),
+            url("../asset/bg_title.webp") center / contain no-repeat;
+        }
+
+        #start-prompt-text {
           position: absolute; left: 50%; bottom: 15vh; transform: translateX(-50%);
-          font-size: 1.6rem; font-weight: 900; letter-spacing: 0.3em; color: #e0f2fe;
+          font-size: clamp(1rem, 0.6rem + 1.6vw, 1.9rem); font-weight: 900; letter-spacing: 0.3em; color: #e0f2fe;
           text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(34, 211, 238, 0.4);
           animation: pressStartPulse 1.2s infinite alternate ease-in-out;
           pointer-events: none; white-space: nowrap;
