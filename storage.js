@@ -31,6 +31,8 @@
     DEVICE: {
       PAL_MINI: 'pal_mini',
       PROOF_SCAFFOLD_MODE: 'proof_scaffold_mode',
+      RESEARCH_CONSENT: 'research_consent', // 'true' / 'false' / 未回答なら null（サーバーの profiles にも保存）
+      LOG_QUEUE: 'log_queue',               // 送信待ちの操作ログ（オフライン時に貯める）
     },
     DEBUG: {
       UNLOCK_ALL: 'unlock_all',

@@ -7,6 +7,7 @@
     <!-- CDN への接続を先に張っておく（DNS + TLS のぶん初回が速くなる） -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
     <!-- Blockly: バージョンを固定する。
          以前は https://unpkg.com/blockly/blockly.min.js とバージョン無指定で、
@@ -22,8 +23,12 @@
          起動時には読まず、初めて必要になったとき app-ui.js の
          ensureMathJaxLoaded() が動的に読み込む。 -->
 
+    <!-- Supabase（サーバー）: バージョン固定。config.js が空ならサーバーは使わない -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+    <script defer src="config.js"></script>
     <script defer src="storage.js"></script>
     <script defer src="app-state.js"></script>
+    <script defer src="cloud.js"></script>
     <script defer src="math-logic.js"></script>
     <script defer src="explanations.js"></script>
     <script defer src="app-effects.js"></script>
@@ -45,6 +50,7 @@
     <script defer src="basics-tutorial.js"></script>
     <script defer src="pal-tutorial-data.js"></script>
     <script defer src="pal-tutorial.js"></script>
+    <script defer src="account-ui.js"></script>
 
     <!-- CSS 分割ファイル -->
     <link rel="stylesheet" href="styles/base.css">
@@ -63,6 +69,7 @@
     <link rel="stylesheet" href="styles/header-tools.css">
     <link rel="stylesheet" href="styles/formula-ref.css">
     <link rel="stylesheet" href="styles/transition.css">
+    <link rel="stylesheet" href="styles/account.css">
 </head>
 <body>
     <div id="transition-curtain" class="curtain hidden"></div>
