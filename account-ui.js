@@ -169,11 +169,19 @@
   let consentModal = null;
   let accountModal = null;
 
-  async function showConsentIfNeeded() {
-    const st = await window.Cloud.ready;
-    if (!st.enabled || window.Cloud.getStatus().consent != null) return;
+  // 同意画面は「サーバー接続を待たずに」すぐ出す。
+  // 以前は接続完了（1〜2秒）を待っていたため、その間にタイトルをタップすると
+  // フリエの会話が先に始まってしまっていた。
+  // 回答はこの端末に保存され、つながった時点でサーバーへ送られる。
+  function showConsentIfNeeded() {
+    const st = window.Cloud.getStatus();
+    if (!st.enabled || st.consent != null) return;
     consentModal = consentModal || buildConsentModal();
     consentModal.classList.remove('hidden');
+    // ログイン済みの端末でサーバー側に回答が残っていた場合は、接続後に閉じる
+    window.Cloud.ready.then(() => {
+      if (window.Cloud.getStatus().consent != null) consentModal.classList.add('hidden');
+    });
   }
 
   window.openAccountModal = function () {

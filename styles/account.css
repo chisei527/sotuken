@@ -39,6 +39,7 @@
 .account-toggle { display: flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; margin-bottom: 6px; }
 .account-toggle input { width: 18px; height: 18px; }
 .account-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 8px; }
-#consent-modal, #account-modal { z-index: 3000; }
+/* キャラ会話(3000)・パル(3100)より前面に出す。同意画面が開いている間は後ろを触れない */
+#consent-modal, #account-modal { z-index: 5000; }
 /* ボット対策の確認（必要なときだけ表示される） */
 #turnstile-box { position: fixed; right: 16px; bottom: 16px; z-index: 4000; }
