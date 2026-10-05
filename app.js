@@ -83,7 +83,7 @@ window.setupEventListeners = function() {
         if (!(window.giveUppedStages || []).includes(numStage)) {
           window.giveUppedStages = window.giveUppedStages || [];
           window.giveUppedStages.push(numStage);
-          localStorage.setItem('gu', JSON.stringify(window.giveUppedStages));
+          window.AppStorage.setJSON('gu', window.giveUppedStages);
           console.log('[app] ギブアップ記録:', numStage, window.giveUppedStages);
         }
         // ギブアップは clearedStages には入れない。
@@ -437,12 +437,12 @@ window.setupEventListeners = function() {
            const numStage = Number(window.currentStageNumber);
            if (numStage && (!window.clearedStages.includes(numStage))) {
              window.clearedStages.push(numStage);
-             localStorage.setItem('s', JSON.stringify(window.clearedStages));
+             window.AppStorage.setJSON('s', window.clearedStages);
            }
            // 過去にギブアップしていたステージを自力クリアしたら、ギブアップ済みリストから削除して「格上げ」する
            if (numStage && window.giveUppedStages && window.giveUppedStages.includes(numStage)) {
              window.giveUppedStages = window.giveUppedStages.filter((n) => n !== numStage);
-             localStorage.setItem('gu', JSON.stringify(window.giveUppedStages));
+             window.AppStorage.setJSON('gu', window.giveUppedStages);
              console.log('[app] ギブアップ済みから自力クリアに格上げ:', numStage);
            }
         }
@@ -603,7 +603,7 @@ window.setupEventListeners = function() {
 
   document.getElementById('btn-entry-map')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
-    localStorage.setItem('tutorial_seen', 'true');
+    window.AppStorage.setRaw('tutorial_seen', 'true');
     const transitionLayer = document.getElementById('cyber-transition');
     const bootText = document.getElementById('cyber-boot-text');
     
@@ -713,7 +713,7 @@ window.resetSaveData = function() {
   const keys = Array.isArray(window.APP_STORAGE_KEYS)
     ? window.APP_STORAGE_KEYS
     : ['s', 'tutorial_progress', 'tutorial_seen', 'unlocked_formulas', 'unlock_all'];
-  keys.forEach((key) => { if (key) localStorage.removeItem(key); });
+  keys.forEach((key) => { if (key) window.AppStorage.remove(key); });
 
   window.clearedStages = [];
   window.giveUppedStages = [];   // ← 以前ここが抜けていて、リロードするまで古い値が残っていた
@@ -732,12 +732,12 @@ window.unlockAllStages = function() {
   if (window.unlockAll) {
     // 既に開放中 → 解除
     window.unlockAll = false;
-    localStorage.removeItem('unlock_all');
+    window.AppStorage.remove('unlock_all');
     if (typeof window.showToast === 'function') window.showToast('全開放を解除しました。');
   } else {
     // 開放
     window.unlockAll = true;
-    localStorage.setItem('unlock_all', '1');
+    window.AppStorage.setRaw('unlock_all', '1');
     if (typeof window.showToast === 'function') window.showToast('全ステージを開放しました。');
   }
   if (typeof window.syncUnlockAllButtonLabel === 'function') window.syncUnlockAllButtonLabel();

@@ -178,11 +178,9 @@
    *   null    → 画面幅で自動判定
    */
   function shouldStartInMini() {
-    try {
-      const stored = localStorage.getItem(PAL_MINI_KEY);
-      if (stored === 'true') return true;
-      if (stored === 'false') return false;
-    } catch (_) { /* localStorage 使えない環境 */ }
+    const stored = window.AppStorage.getRaw(PAL_MINI_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
     // ユーザー選択未設定 → 画面幅で自動判定
     return window.innerWidth < 1024;
   }
@@ -196,7 +194,7 @@
     host.classList.remove('menu-open');
     host.classList.add('mini');
     if (persist) {
-      try { localStorage.setItem(PAL_MINI_KEY, 'true'); } catch (_) { /* ignore */ }
+      window.AppStorage.setRaw(PAL_MINI_KEY, 'true');
     }
   };
 
@@ -208,7 +206,7 @@
     const host = ensureMascotHost();
     host.classList.remove('mini');
     if (persist) {
-      try { localStorage.setItem(PAL_MINI_KEY, 'false'); } catch (_) { /* ignore */ }
+      window.AppStorage.setRaw(PAL_MINI_KEY, 'false');
     }
   };
 

@@ -26,7 +26,7 @@ window.APP_STORAGE_KEYS = ['s', 'gu', 'unlock_all', 'tutorial_seen', 'proof_scaf
 // ------------------------------------------------------------
 window.AUTO_RESET_ON_LOAD = false;
 if (window.AUTO_RESET_ON_LOAD) {
-  window.APP_STORAGE_KEYS.forEach((key) => { if (key) localStorage.removeItem(key); });
+  window.APP_STORAGE_KEYS.forEach((key) => { if (key) window.AppStorage.remove(key); });
   console.log('[app-state] AUTO_RESET_ON_LOAD が有効なため localStorage をリセットしました');
 }
 
@@ -35,9 +35,7 @@ if (window.AUTO_RESET_ON_LOAD) {
 // ------------------------------------------------------------
 window.loadUnlockedFormulasFromStorage = function() {
   try {
-    const raw = localStorage.getItem(window.UNLOCKED_FORMULAS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
+    const parsed = window.AppStorage.getJSON(window.UNLOCKED_FORMULAS_STORAGE_KEY, []);
     return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
   } catch (_) {
     return [];
@@ -46,17 +44,17 @@ window.loadUnlockedFormulasFromStorage = function() {
 
 window.saveUnlockedFormulasToStorage = function(formulaIds) {
   const safeIds = Array.isArray(formulaIds) ? formulaIds.map((id) => String(id)) : [];
-  localStorage.setItem(window.UNLOCKED_FORMULAS_STORAGE_KEY, JSON.stringify(safeIds));
+  window.AppStorage.setJSON(window.UNLOCKED_FORMULAS_STORAGE_KEY, safeIds);
 };
 
 // ------------------------------------------------------------
 // 共有状態（書き換わる値）— すべて window 直書きで一元化
 // ------------------------------------------------------------
-window.clearedStages = JSON.parse(localStorage.getItem('s')) || [];
+window.clearedStages = window.AppStorage.getJSON('s', []);
 // ギブアップ済み(=あきらめて解説を見た)ステージ。「クリア」とは別カテゴリで管理する。
 // 後で本人が自力クリアしたら、こっちのリストから削除して clearedStages に格上げする。
-window.giveUppedStages = JSON.parse(localStorage.getItem('gu')) || [];
-window.unlockAll = localStorage.getItem('unlock_all') === '1';
+window.giveUppedStages = window.AppStorage.getJSON('gu', []);
+window.unlockAll = window.AppStorage.getRaw('unlock_all') === '1';
 window.unlockedFormulas = window.loadUnlockedFormulasFromStorage();
 window.currentStageNumber = 0;
 window.currentProblemData = null;
@@ -68,7 +66,7 @@ window.workspace = null;
 // チュートリアル関連
 window.tutorialModeActive = false;
 window.tutorialWorkspaceListenerBound = false;
-window.tutorialProgressCount = Math.max(0, parseInt(localStorage.getItem('tutorial_progress') || '0', 10) || 0);
+window.tutorialProgressCount = Math.max(0, parseInt(window.AppStorage.getRaw('tutorial_progress') || '0', 10) || 0);
 
 // ガイド/ヒント関連
 window.goalHintActive = false;
