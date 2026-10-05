@@ -34,7 +34,7 @@
     if (String(stageNumber) !== '1') return;
     
     // すでに表示済みの場合はスキップ
-    if (localStorage.getItem('popup_seen_1_1') === 'true') return;
+    if (window.AppStorage.getRaw('popup_seen_1_1') === 'true') return;
 
     // サイバーパンク風モーダルのHTML要素を動的に作成
     const overlay = document.createElement('div');
@@ -84,7 +84,7 @@
         overlay.classList.add('hidden');
         setTimeout(() => overlay.remove(), 300);
         // 一度見たら保存して二度と出さない
-        localStorage.setItem('popup_seen_1_1', 'true');
+        window.AppStorage.setRaw('popup_seen_1_1', 'true');
       };
     }
   };

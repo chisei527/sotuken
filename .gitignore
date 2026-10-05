@@ -1,0 +1,12 @@
+# AIツールのキャッシュ
+.aider*
+# エディタの個人設定（launch.json は共有してよい）
+.vscode/settings.json
+# 秘密情報（APIキーなど）
+.env
+.env.*
+!.env.example
+# OS・依存関係
+.DS_Store
+Thumbs.db
+node_modules/

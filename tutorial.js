@@ -140,5 +140,5 @@ window.updateTutorialProgressBar = function(stageId) {
   // 到達した最大ステップを保存しておく（次回起動時の参考値）
   const reached = Math.max(window.tutorialProgressCount || 0, done);
   window.tutorialProgressCount = reached;
-  try { localStorage.setItem('tutorial_progress', String(reached)); } catch (_) { /* 保存失敗は無視 */ }
+  window.AppStorage.setRaw('tutorial_progress', String(reached));
 };
