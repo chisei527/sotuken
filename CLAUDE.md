@@ -57,6 +57,10 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - `PAL_TUTORIAL_SCRIPTS[ステージID]` に台本があれば、そのステージに初めて入ったときに流れる。チュートリアル(`0-*`)だけでなく本編ステージでも動く（例: `'23'` で加法定理の導入）。
 - 「もう見た」の記録は、チュートリアルはメモリだけ、本編は `AppStorage.KEYS.DEVICE.PAL_TUTORIAL_SEEN`（端末だけ）。
 - 公式紹介の演出と重ならないよう、`window._formulaUnlockSceneActive` が立っている間は待つ。
+- 台本の進行中は `CONTROLLED_BUTTON_IDS`（リセット／あきらめる／正解をチェック／ヒント）が押せない。
+  押させたいステップでは `enableButtons: [...]` に書く。
+- 別のステージへ移ると `loadStage` が `abortPalTutorial()` を呼んで台本を終わらせる
+  （以前は「ステージ選択」からしか終わらず、ヘッダーの ← → で抜けるとボタンが押せないままだった）。
 
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080

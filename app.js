@@ -365,36 +365,8 @@ window.setupEventListeners = function() {
     }
   };
 
-  // 🛠️ ガイド機能 ON/OFF ボタン
-  const btnOverwrite = document.getElementById('btn-overwrite-permission');
-  if (btnOverwrite) {
-    btnOverwrite.addEventListener('click', () => {
-      const isOff = btnOverwrite.classList.contains('off');
-      if (isOff) {
-        btnOverwrite.classList.remove('off');
-        btnOverwrite.classList.add('on');
-        btnOverwrite.textContent = 'ガイド機能: ON';
-        if (typeof window.showToast === 'function') window.showToast('ガイド機能を ON にしました');
-      } else {
-        btnOverwrite.classList.remove('on');
-        btnOverwrite.classList.add('off');
-        btnOverwrite.textContent = 'ガイド機能: OFF';
-        if (typeof window.showToast === 'function') window.showToast('ガイド機能を OFF にしました');
-      }
-      
-      if (window.workspace && window.currentProblemData) {
-        window.workspace.clear();
-        if (window.currentProblemData.initialState) {
-          Blockly.serialization.workspaces.load(window.currentProblemData.initialState, window.workspace);
-        }
-        if (typeof window.applyConditionalInitialStateGeneration === 'function') {
-          window.applyConditionalInitialStateGeneration(window.workspace);
-        }
-        if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
-        if (typeof window.arrangeBlocks === 'function') window.arrangeBlocks();
-      }
-    });
-  }
+  // 旧「ガイド機能」ボタンはヒントのレベル3（app-guide.js の applyHintScaffold）に統合して削除した。
+  // 旧実装は押すたびに盤面を作り直していたので、途中まで組んだブロックが消えていた。
 
   // ✅ 正解をチェックボタン
   const btnSubmit = document.getElementById('btn-submit');

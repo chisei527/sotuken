@@ -373,6 +373,18 @@ window.renderStageMap = async function() {
 // ====== ステージロードとブロック初期配置 ======
 window.loadStage = async function(stageNumber) {
   try {
+      // 別のステージへ移るときは、動いているパルのチュートリアルを終わらせる。
+      // 以前は「ステージ選択」ボタンからしか終了処理が走らず、ヘッダーの ← → で
+      // 抜けると「リセット」「あきらめる」などが押せないまま残っていた。
+      // （同じステージの読み直し＝リセットのときは終わらせない）
+      if (window._lastLoadedStageId != null && String(window._lastLoadedStageId) !== String(stageNumber)) {
+        if (typeof window.isPalTutorialActive === 'function' && window.isPalTutorialActive()
+            && typeof window.abortPalTutorial === 'function') {
+          window.abortPalTutorial();
+        }
+      }
+      window._lastLoadedStageId = String(stageNumber);
+
       const isTutorialStage = window.isTutorialStageId(stageNumber);
       const stageFile = isTutorialStage ? `problems/tutorial/${stageNumber}.json` : `problems/${stageNumber}.json`;
       
@@ -561,11 +573,14 @@ window.loadStage = async function(stageNumber) {
   }
 };
 
+// 盤面の骨組みを整える: 「証明」ブロックと「よって〜となる」を用意し、
+// 「よって」の穴に問題の右辺を入れる。ステージを読み込むたびに呼ばれる。
+//
+// 「置き換え」ブロックを先に置いてあげるおぜん立ては、ヒントのレベル3
+// （app-guide.js の applyHintScaffold）に移した。ここではやらない。
 window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
   if (!targetWorkspace) return;
-  const overwriteButton = document.getElementById('btn-overwrite-permission');
-  const isOverwriteOn = !!overwriteButton && !overwriteButton.classList.contains('off');
-  
+
   let proofStep = targetWorkspace.getTopBlocks(false).find(b => b.type === 'proof_step');
   if (!proofStep) {
       proofStep = targetWorkspace.newBlock('proof_step');
@@ -583,7 +598,8 @@ window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
         && !['proof_step', 'replace_operation', 'common_denominator_operation', 'simplify_operation', 'conclusion_operation'].includes(block.type))
       .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
       
-  const leftExpressionBlock = mathBlocks[0] || null;
+  // 「よって」に入れるのは右辺（いちばん下の式のブロック）。
+  // 左辺はここでは使わない（ヒントのレベル3が applyHintScaffold で使う）。
   const rightExpressionBlock = mathBlocks.length >= 2 ? mathBlocks[mathBlocks.length - 1] : mathBlocks[0] || null;
 
   const operations = [];
@@ -596,33 +612,12 @@ window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
       conclusionOp.initSvg(); conclusionOp.render();
   }
 
-  if (isOverwriteOn) {
-      let replaceOp = operations.find(op => op.type === 'replace_operation') || null;
-      if (!replaceOp) {
-          replaceOp = targetWorkspace.newBlock('replace_operation');
-          replaceOp.initSvg(); replaceOp.render();
-      }
-      
-      if (operationInputConnection.targetBlock() !== replaceOp) {
-          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
-          operationInputConnection.connect(replaceOp.previousConnection);
-      }
-      if (replaceOp.nextConnection && replaceOp.nextConnection.targetBlock() !== conclusionOp) {
-          if (replaceOp.nextConnection.targetBlock()) replaceOp.nextConnection.targetBlock().unplug(true);
-          replaceOp.nextConnection.connect(conclusionOp.previousConnection);
-      }
-      
-      if (leftExpressionBlock && replaceOp.getInput('VALUE')?.connection && !replaceOp.getInput('VALUE').connection.targetBlock()) {
-          replaceOp.getInput('VALUE').connection.connect(leftExpressionBlock.outputConnection);
-      }
-  } else {
-      if (operationInputConnection.targetBlock() !== conclusionOp) {
-          if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
-          operationInputConnection.connect(conclusionOp.previousConnection);
-      }
-      operations.forEach(op => { if (op !== conclusionOp) op.dispose(true); });
-      if (conclusionOp.nextConnection?.targetBlock()) conclusionOp.nextConnection.targetBlock().unplug(true);
+  if (operationInputConnection.targetBlock() !== conclusionOp) {
+      if (operationInputConnection.targetBlock()) operationInputConnection.targetBlock().unplug(true);
+      operationInputConnection.connect(conclusionOp.previousConnection);
   }
+  operations.forEach(op => { if (op !== conclusionOp) op.dispose(true); });
+  if (conclusionOp.nextConnection?.targetBlock()) conclusionOp.nextConnection.targetBlock().unplug(true);
 
   if (rightExpressionBlock && conclusionOp.getInput('VALUE')?.connection && !conclusionOp.getInput('VALUE').connection.targetBlock()) {
       conclusionOp.getInput('VALUE').connection.connect(rightExpressionBlock.outputConnection);
