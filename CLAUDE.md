@@ -21,6 +21,14 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - 分析用ビューは `analysis` スキーマ（Data API に公開しない）。
 - Supabase の Auth 設定: Anonymous sign-ins オン / Manual linking オン / Confirm email オフ。
 
+## ブロックの型（blocks.js）
+- 式のブロック（数・項・+・−・×・分数・2乗）は `setOutput(true, TYPE_EXPR)`、公式ブロックは `TYPE_FORMULA`。
+- 「公式」の穴は `setCheck(TYPE_FORMULA)`、式を入れる穴は `setCheck(TYPE_EXPR)`。穴に入れ間違えられないようにするため。
+- 「公式」の穴には `formula_placeholder`（紫の見本 = shadow ブロック）が入っている。
+  shadow は保存時 `inputs.FORMULA.shadow` に入るので、`readInputBlock`（math-logic.js）は拾わない＝未入力として判定される。
+  穴が埋まっているかを見るときは `window.getFilledInputBlock()`（app-guide.js）を使う（`getInputTargetBlock` は見本も拾ってしまう）。
+- Blockly の画像（ゴミ箱など）は `asset/blockly-media/` に同梱し、`Blockly.inject` の `media` で指定する。外部サイトを参照させない。
+
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080
 - `AUTO_RESET_ON_LOAD`（app-state.js）は本番では false。
