@@ -5,6 +5,14 @@
 // 初期化は app-state.js が担当（ここで再代入すると読み込み順で値が巻き戻る）。
 
 // ====== 1. ブロックの解析・目標設定 ======
+// 穴が「本当に埋まっているか」。見本（shadow）ブロックは未入力として扱う。
+window.getFilledInputBlock = function(block, inputName) {
+  const target = block && typeof block.getInputTargetBlock === 'function' ? block.getInputTargetBlock(inputName) : null;
+  if (!target) return null;
+  if (typeof target.isShadow === 'function' && target.isShadow()) return null;
+  return target;
+};
+
 window.parseRequiredBlockTypes = function(requiredBlocks) {
   if (!Array.isArray(requiredBlocks)) return [];
   return requiredBlocks.map((entry) => {
@@ -40,19 +48,19 @@ window.getTutorialOperationLabel = function(type) {
 window.getTutorialOperationMissingHole = function(type, block) {
   if (!block) return null;
   if (type === 'replace_operation') {
-    if (!block.getInputTargetBlock('VALUE')) return { key: 'fill-replace-value', text: '【目標】『置き換え』ブロックの「式」の穴を埋めましょう。' };
-    if (!block.getInputTargetBlock('FORMULA')) return { key: 'fill-replace-formula', text: '【目標】『置き換え』ブロックの「公式」の穴を埋めましょう。' };
-    if (!block.getInputTargetBlock('REPLACEMENT')) return { key: 'fill-replace-result', text: '【目標】『置き換え』ブロックの「結果」の穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'VALUE')) return { key: 'fill-replace-value', text: '【目標】『置き換え』ブロックの「式」の穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'FORMULA')) return { key: 'fill-replace-formula', text: '【目標】『置き換え』ブロックの「公式」の穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'REPLACEMENT')) return { key: 'fill-replace-result', text: '【目標】『置き換え』ブロックの「結果」の穴を埋めましょう。' };
   }
   if (type === 'common_denominator_operation') {
-    if (!block.getInputTargetBlock('VALUE') || !block.getInputTargetBlock('REPLACEMENT')) return { key: 'fill-common', text: '【目標】『通分』ブロックの空いている穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'VALUE') || !window.getFilledInputBlock(block, 'REPLACEMENT')) return { key: 'fill-common', text: '【目標】『通分』ブロックの空いている穴を埋めましょう。' };
   }
   if (type === 'simplify_operation') {
-    if (!block.getInputTargetBlock('VALUE')) return { key: 'fill-simplify-value', text: '【目標】『計算』ブロックの「式」の穴を埋めましょう。' };
-    if (!block.getInputTargetBlock('REPLACEMENT')) return { key: 'fill-simplify-result', text: '【目標】『計算』ブロックの「結果」の穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'VALUE')) return { key: 'fill-simplify-value', text: '【目標】『計算』ブロックの「式」の穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'REPLACEMENT')) return { key: 'fill-simplify-result', text: '【目標】『計算』ブロックの「結果」の穴を埋めましょう。' };
   }
   if (type === 'conclusion_operation') {
-    if (!block.getInputTargetBlock('VALUE')) return { key: 'fill-conclusion-value', text: '【目標】『よって〜となる』ブロックの空いている穴を埋めましょう。' };
+    if (!window.getFilledInputBlock(block, 'VALUE')) return { key: 'fill-conclusion-value', text: '【目標】『よって〜となる』ブロックの空いている穴を埋めましょう。' };
   }
   return null;
 };
@@ -227,8 +235,8 @@ window.getTutorialHighlightTargets = function(stageId) {
       if (goalKey === 'fill-replace-value') return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
       if (goalKey === 'fill-replace-formula') return { target: window.getInputConnectionRect(currentOp, 'FORMULA') || toolboxLabel };
       if (goalKey === 'fill-replace-result') return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
-      if (goalKey === 'fill-common' && !currentOp.getInputTargetBlock('VALUE')) return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
-      if (goalKey === 'fill-common' && !currentOp.getInputTargetBlock('REPLACEMENT')) return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
+      if (goalKey === 'fill-common' && !window.getFilledInputBlock(currentOp, 'VALUE')) return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
+      if (goalKey === 'fill-common' && !window.getFilledInputBlock(currentOp, 'REPLACEMENT')) return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
       if (goalKey === 'fill-simplify-value') return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };
       if (goalKey === 'fill-simplify-result') return { target: window.getInputConnectionRect(currentOp, 'REPLACEMENT') || toolboxLabel };
       if (goalKey === 'fill-conclusion-value') return { target: window.getInputConnectionRect(currentOp, 'VALUE') || toolboxLabel };

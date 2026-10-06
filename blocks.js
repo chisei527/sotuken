@@ -102,11 +102,19 @@ const FORMULA_BLOCK_DEFS = [
   ['formula_addition_tan', '加法', 'tan(α+β) = (tanα+tanβ)/(1−tanαtanβ)'],
 ];
 
+// ブロックの「型」。これで穴に入れられるブロックを制限する。
+//   TYPE_EXPR    … 式のブロック（数・項・+・−・×・分数・2乗）
+//   TYPE_FORMULA … 公式ブロック（紫）
+// 「公式」の穴には公式ブロックしか入らず、式の穴には公式ブロックが入らない。
+// 以前はどの穴にも何でも入ったので、公式の穴に「1」を入れたまま進めてしまっていた。
+const TYPE_EXPR = 'Expr';
+const TYPE_FORMULA = 'Formula';
+
 function defineMathBlocks() {
   Blockly.Blocks.custom_number = {
     init() {
       this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(225);
     },
   };
@@ -139,7 +147,7 @@ function defineMathBlocks() {
     Blockly.Blocks[type] = {
       init() {
         this.appendDummyInput().appendField(label);
-        this.setOutput(true, null);
+        this.setOutput(true, TYPE_EXPR);
         this.setColour(200);
       },
     };
@@ -154,9 +162,9 @@ function defineMathBlocks() {
   trigOfTerms.forEach(([type, label]) => {
     Blockly.Blocks[type] = {
       init() {
-        this.appendValueInput('ANGLE').appendField(`${label}(`);
+        this.appendValueInput('ANGLE').setCheck(TYPE_EXPR).appendField(`${label}(`);
         this.appendDummyInput().appendField(')');
-        this.setOutput(true, null);
+        this.setOutput(true, TYPE_EXPR);
         this.setColour(200);
       },
     };
@@ -164,10 +172,10 @@ function defineMathBlocks() {
 
   Blockly.Blocks.math_add = {
     init() {
-      this.appendValueInput('A');
-      this.appendValueInput('B').appendField('+');
+      this.appendValueInput('A').setCheck(TYPE_EXPR);
+      this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('+');
       this.setInputsInline(true);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
     },
   };
@@ -177,9 +185,9 @@ function defineMathBlocks() {
     init() {
       this.appendValueInput('A');
       // マイナス記号を NEG_SIGN フィールドにすることで、CSS で大きく表示できる
-      this.appendValueInput('B').appendField('−', 'NEG_SIGN');
+      this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('−', 'NEG_SIGN');
       this.setInputsInline(true);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
     },
   };
@@ -188,37 +196,37 @@ function defineMathBlocks() {
     init() {
       // マイナス記号(U+2212 MINUS SIGN) と '(' を別フィールドにして、
       // マイナスだけCSSで大きく見せられるようにする (data-argument-name="NEG_SIGN")
-      this.appendValueInput('A')
+      this.appendValueInput('A').setCheck(TYPE_EXPR)
         .appendField('−', 'NEG_SIGN')
         .appendField('(');
       this.appendDummyInput().appendField(')');
       this.setInputsInline(true);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
     },
   };
 
   Blockly.Blocks.math_multiply = {
     init() {
-      this.appendValueInput('A');
-      this.appendValueInput('B').appendField('×');
+      this.appendValueInput('A').setCheck(TYPE_EXPR);
+      this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('×');
       this.setInputsInline(true);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
     },
   };
 
   Blockly.Blocks.math_fraction = {
     init() {
-      this.appendValueInput('NUMERATOR')
+      this.appendValueInput('NUMERATOR').setCheck(TYPE_EXPR)
         .appendField(new FieldSpacer(0), 'NUMERATOR_PAD');
       this.appendDummyInput('FRACTION_LINE')
         .appendField(new FieldSpacer(0), 'LINE_PAD')
         .appendField('—', 'FRACTION_LINE');
-      this.appendValueInput('DENOMINATOR')
+      this.appendValueInput('DENOMINATOR').setCheck(TYPE_EXPR)
         .appendField(new FieldSpacer(0), 'DENOMINATOR_PAD');
       this.setInputsInline(false);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
     },
     onchange(event) {
@@ -251,11 +259,25 @@ function defineMathBlocks() {
 
   Blockly.Blocks.math_square = {
     init() {
-      this.appendValueInput('A');
+      this.appendValueInput('A').setCheck(TYPE_EXPR);
       this.appendDummyInput().appendField('²');
       this.setInputsInline(true);
-      this.setOutput(true, null);
+      this.setOutput(true, TYPE_EXPR);
       this.setColour(30);
+    },
+  };
+
+  // 「公式」の穴に最初から入っている紫の見本ブロック。
+  // ここが紫＝公式ブロック専用の穴だと、見ただけで分かるようにするためのもの。
+  // shadow ブロックなので、本物の公式ブロックを重ねるだけで置き換わる。
+  // 保存時は inputs.FORMULA.shadow に入り、.block には入らないので、
+  // 見本のままでは「公式が未入力」と判定される（math-logic.js の readInputBlock）。
+  Blockly.Blocks.formula_placeholder = {
+    init() {
+      this.appendDummyInput().appendField('公式をここへ');
+      this.setOutput(true, TYPE_FORMULA);
+      this.setColour(260);
+      this.setTooltip('「公式」カテゴリの紫のブロックだけを入れられます');
     },
   };
 
@@ -267,7 +289,7 @@ function defineMathBlocks() {
         this.appendDummyInput()
           .appendField(numberLabel, 'FORMULA_NUMBER')
           .appendField(formulaLabel, 'FORMULA_TEXT');
-        this.setOutput(true, null);
+        this.setOutput(true, TYPE_FORMULA);
         this.setColour(260);
         // ホバー時のツールチップ（番号＋数式の両方を表示）
         this.setTooltip(`${numberLabel}  ${formulaLabel}`);
@@ -287,11 +309,15 @@ function defineMathBlocks() {
 
   Blockly.Blocks.replace_operation = {
     init() {
-      this.appendValueInput('VALUE').appendField('置き換え 式');
+      this.appendValueInput('VALUE').setCheck(TYPE_EXPR).appendField('置き換え 式');
       this.appendDummyInput().appendField('【');
-      this.appendValueInput('FORMULA').appendField('公式');
+      const formulaInput = this.appendValueInput('FORMULA').setCheck(TYPE_FORMULA).appendField('公式');
+      // 空の穴に紫の見本を出す（公式ブロック専用だと見て分かるように）
+      if (formulaInput.connection && typeof formulaInput.connection.setShadowState === 'function') {
+        formulaInput.connection.setShadowState({ type: 'formula_placeholder' });
+      }
       this.appendDummyInput().appendField('】 →');
-      this.appendValueInput('REPLACEMENT');
+      this.appendValueInput('REPLACEMENT').setCheck(TYPE_EXPR);
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
@@ -377,7 +403,7 @@ function defineMathBlocks() {
       const buttonSvg = buildComputeButtonSvg('idle');
       let computeButtonField = null;
 
-      this.appendValueInput('VALUE').appendField('通分');
+      this.appendValueInput('VALUE').setCheck(TYPE_EXPR).appendField('通分');
       this.appendDummyInput()
         .appendField(
           computeButtonField = new Blockly.FieldImage(buttonSvg, BUTTON_W, BUTTON_H, '通分を計算する', function () {
@@ -395,7 +421,7 @@ function defineMathBlocks() {
           })
         )
         .appendField('→');
-      this.appendValueInput('REPLACEMENT');
+      this.appendValueInput('REPLACEMENT').setCheck(TYPE_EXPR);
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
@@ -512,9 +538,9 @@ function defineMathBlocks() {
   // 例: sin²θ - (sin²θ + cos²θ) → -cos²θ （展開・整理だけで公式適用ではない）
   Blockly.Blocks.simplify_operation = {
     init() {
-      this.appendValueInput('VALUE').appendField('計算 式');
+      this.appendValueInput('VALUE').setCheck(TYPE_EXPR).appendField('計算 式');
       this.appendDummyInput().appendField('→');
-      this.appendValueInput('REPLACEMENT');
+      this.appendValueInput('REPLACEMENT').setCheck(TYPE_EXPR);
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
@@ -525,7 +551,7 @@ function defineMathBlocks() {
 
   Blockly.Blocks.conclusion_operation = {
     init() {
-      this.appendValueInput('VALUE').appendField('よって');
+      this.appendValueInput('VALUE').setCheck(TYPE_EXPR).appendField('よって');
       this.appendDummyInput().appendField('となる');
       this.setPreviousStatement(true, null);
       this.setNextStatement(false);

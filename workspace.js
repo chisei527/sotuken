@@ -105,6 +105,11 @@ const mathDarkTheme = Blockly.Theme.defineTheme('mathDarkTheme', {
 })();
 
 window.workspace = Blockly.inject('l', {
+  // ゴミ箱やカーソルの画像の置き場所。
+  // 指定しないと Blockly は外部サイト (blockly-demo.appspot.com) から読み込む設定になり、
+  // 読み込めない環境ではゴミ箱が「画像なし」で何も見えない状態になっていた。
+  // 研究用アプリなので外部サイトへの通信もなくしたい。asset/blockly-media/ に同梱する。
+  media: 'asset/blockly-media/',
   toolbox: window.buildToolboxConfig(),
   renderer: 'zelos',
   theme: mathDarkTheme,
@@ -119,6 +124,13 @@ window.forceWorkspaceLayoutSync = function() {
   Blockly.svgResize(window.workspace);
   window.workspace.resizeContents();
   window.workspace.render();
+  // 画面切り替え直後は #l の高さがまだ確定しておらず、Blockly が古い高さのまま
+  // ゴミ箱やズームボタンを配置してしまう（ゴミ箱が画面の下にはみ出していた）。
+  // 次のフレームでもう一度計算し直させる。
+  requestAnimationFrame(() => {
+    if (!window.workspace) return;
+    try { Blockly.svgResize(window.workspace); } catch (_) { /* 失敗しても描画は続行 */ }
+  });
 };
 
 window.arrangeBlocks = function() {

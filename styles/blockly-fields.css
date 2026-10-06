@@ -34,3 +34,14 @@
           opacity: 0.92;
           filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.75));
         }
+        /* ===== ゴミ箱 =====
+           Blockly はゴミ箱をワークスペースの右下に置くが、そこはパルの定位置と
+           重なっていて見えなかった。パルの高さぶん上へずらして、常に見えるようにする。
+           transform ではなく translate を使うのは、Blockly 自身が transform 属性で
+           位置を指定しているため（translate は後から足し算される）。 */
+        .blocklyTrash {
+          translate: -8px calc(-1 * var(--pal-size, 400px) - 12px);
+          opacity: 1 !important;
+          /* 背景が明るい模様なので、影を付けて輪郭を見えるようにする */
+          filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.85));
+        }
