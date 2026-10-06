@@ -202,8 +202,14 @@ window.CHARACTER_SCENE_ACTIONS = {
           window.startBasicsTutorial(function () {
             console.log('[character-scenes] 基礎チュートリアル完了、パルチュートリアル起動');
             // フリエ基礎完了 → パルチュートリアルへ
+            // 基礎チュートリアルで「1」や「+」のブロックを何個も出したままだと、
+            // パルの「既に置いてある〜の式」「既にある1」がどれを指すのか分からなくなる。
+            // 盤面を問題の初期状態に戻してから始める（0-1 は loadStage からはパルが起動しない）。
+            const resetBoard = (typeof window.loadStage === 'function')
+              ? Promise.resolve(window.loadStage('0-1')).catch(() => {})
+              : Promise.resolve();
             if (typeof window.startPalTutorial === 'function') {
-              window.startPalTutorial('0-1', function () {
+              resetBoard.then(() => window.startPalTutorial('0-1', function () {
                 console.log('[character-scenes] パルチュートリアル完了');
                 window._basicsTutorialActive = false;
                 document.body.classList.remove('basics-tutorial-active');
@@ -214,7 +220,7 @@ window.CHARACTER_SCENE_ACTIONS = {
                     window.flushPendingFormulaUnlock();
                   }
                 }, 500);
-              });
+              }));
             } else {
               // パルチュートリアルが読み込まれていない場合はそのままアンロックへ
               console.warn('[character-scenes] startPalTutorial が未定義');

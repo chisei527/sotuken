@@ -17,7 +17,7 @@ window.APP_CONFIG = {
   LOGIN_EMAIL_DOMAIN: 'users.mathblock.app',
 
   // ログに残すアプリのバージョン。問題やロジックを変えたら上げると、分析時に区別できる。
-  APP_VERSION: '1.0.0',
+  APP_VERSION: '1.1.0', // 1.1.0: 正誤判定を厳密化（2026-10-06）
 
   // Cloudflare Turnstile（ボット対策）のサイトキー。公開してよい値。
   // 空なら CAPTCHA なしで動く。Supabase 側で CAPTCHA を有効にするのは、ここを埋めて公開した「後」にすること

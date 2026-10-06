@@ -349,7 +349,12 @@ window.setupEventListeners = function() {
     if (typeof window.getNextStageId === 'function') {
       nextStageNumber = window.getNextStageId(window.currentStageNumber);
     }
-    if (nextStageNumber) {
+    if (nextStageNumber && window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStageNumber)) {
+      window.showTutorialCompleteScreen({
+        onStart: () => { window.currentStageNumber = nextStageNumber; if (typeof window.loadStage === 'function') window.loadStage(nextStageNumber); },
+        onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
+      });
+    } else if (nextStageNumber) {
       window.currentStageNumber = nextStageNumber;
       if (typeof window.loadStage === 'function') {
         window.loadStage(nextStageNumber);
@@ -661,6 +666,12 @@ window.scheduleAutoAdvanceAfterClear = function() {
              if (typeof window.showToast === 'function') {
                window.showToast("<span style='color:#58cc02; font-size:1.1em;'>🎉 ここまでの問題は全てクリアです！</span>", false);
              }
+           } else if (window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStage)) {
+             // チュートリアルを全部終えた → 完了画面を出してから本編へ
+             window.showTutorialCompleteScreen({
+               onStart: () => window.transitionToStage(nextStage),
+               onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
+             });
            } else {
              await window.transitionToStage(nextStage);
            }

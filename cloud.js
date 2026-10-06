@@ -168,6 +168,11 @@
     });
     return turnstileLoading;
   }
+  function cleanupTurnstile() {
+    if (turnstileWidget !== null) { try { window.turnstile.remove(turnstileWidget); } catch (_) {} turnstileWidget = null; }
+    const box = document.getElementById('turnstile-box');
+    if (box) box.remove();
+  }
   async function getCaptchaToken() {
     if (!cfg.TURNSTILE_SITE_KEY) return undefined;
     await loadTurnstile();
@@ -179,8 +184,10 @@
     }
     if (turnstileWidget !== null) { try { window.turnstile.remove(turnstileWidget); } catch (_) {} turnstileWidget = null; }
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('ボット対策の確認がタイムアウトしました')), 60000);
-      const finish = (fn) => (v) => { clearTimeout(timer); fn(v); };
+      const timer = setTimeout(() => { cleanupTurnstile(); reject(new Error('ボット対策の確認がタイムアウトしました')); }, 60000);
+      // 確認が終わったら（成功・失敗とも）右下の表示を消す。
+      // 以前は「成功しました」の表示が画面に残り続けていた。
+      const finish = (fn) => (v) => { clearTimeout(timer); setTimeout(cleanupTurnstile, 0); fn(v); };
       turnstileWidget = window.turnstile.render(box, {
         sitekey: cfg.TURNSTILE_SITE_KEY,
         appearance: 'interaction-only',
