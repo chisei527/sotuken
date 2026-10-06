@@ -1106,6 +1106,111 @@
     });
   }
 
+  // ============================================
+  // 厳密な判定（2026-10 追加）
+  //
+  // 以前は「式の値が等しいか」だけを見ていた。三角関数の公式はどの θ でも成り立つので、
+  //   - 「計算」ブロック1個で左辺 → 右辺に飛ぶ
+  //   - 違う公式を指定して置き換える
+  // といった答えも正解になっていた（verifyFormulaApplication の差分判定は事実上いつも true）。
+  //
+  // そこで sinθ・cosθ・tanθ を「互いに無関係な文字 S, C, T」に置き換えて比べる:
+  //   free … S, C, T を全部バラバラの値にする（＝ふつうの文字式の計算だけで等しいか）
+  //   f1   … S²+C²=1 だけ成り立つ値（公式①だけを使ってよい）
+  //   f2   … T=S/C だけ成り立つ値（公式②だけを使ってよい）
+  //   f3   … 1+T²=1/C² だけ成り立つ値（公式③だけを使ってよい）
+  // ============================================
+  const STRICT_FORMULA_MODES = { formula_1: 'f1', formula_2: 'f2', formula_3: 'f3' };
+  const STRICT_SAMPLE_COUNT = 12;
+
+  function normalizeTrigArg(node) {
+    let str = node.toString({ parenthesis: 'auto' }).replace(/\s+/g, '');
+    while (/^\(.*\)$/.test(str)) {
+      let depth = 0, wraps = true;
+      for (let i = 0; i < str.length - 1; i++) {
+        if (str[i] === '(') depth++;
+        else if (str[i] === ')') depth--;
+        if (depth === 0) { wraps = false; break; }
+      }
+      if (!wraps) break;
+      str = str.slice(1, -1);
+    }
+    return str;
+  }
+
+  // 複数の式を、共通の S_i / C_i / T_i 記号に置き換えてコンパイルする
+  function compileAlgebraic(exprs) {
+    const args = [];
+    const compiled = [];
+    for (const expr of exprs) {
+      let node;
+      try { node = math.parse(String(expr)); } catch (_) { return null; }
+      const replaced = node.transform((n) => {
+        if (n && n.isFunctionNode && n.fn && ['sin', 'cos', 'tan'].includes(n.fn.name) && n.args.length === 1) {
+          const key = normalizeTrigArg(n.args[0]);
+          let idx = args.indexOf(key);
+          if (idx < 0) { args.push(key); idx = args.length - 1; }
+          return new math.SymbolNode(n.fn.name[0].toUpperCase() + '_' + idx);
+        }
+        return n;
+      });
+      try { compiled.push(replaced.compile()); } catch (_) { return null; }
+    }
+    return { args, compiled };
+  }
+
+  // 再現性のある疑似乱数（同じ答えには毎回同じ判定）
+  function makeRng(seed) {
+    let x = seed >>> 0;
+    return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  }
+
+  function strictScope(mode, argCount, rng) {
+    const scope = { theta: 0.3 + rng() * 1.1, pi: Math.PI, e: Math.E };
+    const free = () => (rng() < 0.5 ? -1 : 1) * (0.35 + rng() * 1.6);
+    for (let i = 0; i < argCount; i++) {
+      const phi = 0.2 + rng() * 1.2 + (rng() < 0.5 ? 0 : Math.PI);
+      let S = free(), C = free(), T = free();
+      if (mode === 'f1') { S = Math.sin(phi); C = Math.cos(phi); }
+      else if (mode === 'f2') { T = S / C; }
+      else if (mode === 'f3') { C = Math.cos(phi); T = Math.tan(phi); }
+      scope['S_' + i] = S; scope['C_' + i] = C; scope['T_' + i] = T;
+    }
+    return scope;
+  }
+
+  /** mode の関係だけを使って exprA と exprB が等しいか */
+  function strictEquivalent(exprA, exprB, mode) {
+    if (String(exprA) === String(exprB)) return true;
+    const c = compileAlgebraic([exprA, exprB]);
+    if (!c) return false;
+    const rng = makeRng(20261006);
+    let checked = 0;
+    for (let k = 0; k < STRICT_SAMPLE_COUNT; k++) {
+      const scope = strictScope(mode, c.args.length, rng);
+      let a, b;
+      try { a = c.compiled[0].evaluate(scope); b = c.compiled[1].evaluate(scope); } catch (_) { continue; }
+      if (typeof a !== 'number' || typeof b !== 'number' || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+      if (Math.abs(a - b) > 1e-7 * Math.max(1, Math.abs(a), Math.abs(b))) return false;
+      checked++;
+    }
+    return checked >= 4;
+  }
+
+  /** 置き換えブロックの判定: 'ok' | 'not-used' | 'mismatch' | null(厳密判定の対象外の公式) */
+  function strictFormulaCheck(formulaId, beforeExpr, afterExpr) {
+    const mode = STRICT_FORMULA_MODES[formulaId];
+    if (!mode) return null;
+    if (strictEquivalent(beforeExpr, afterExpr, 'free')) return 'not-used';
+    return strictEquivalent(beforeExpr, afterExpr, mode) ? 'ok' : 'mismatch';
+  }
+
+  function strictMatchingFormulaLabels(beforeExpr, afterExpr) {
+    return Object.keys(STRICT_FORMULA_MODES)
+      .filter((id) => strictEquivalent(beforeExpr, afterExpr, STRICT_FORMULA_MODES[id]))
+      .map((id) => formulaIdToLabel(id));
+  }
+
   function getErrorMessage(errorCode, stepIndex, suggestions) {
     const stepPrefix = stepIndex == null ? '' : `${stepIndex}段目: `;
     const suggestionText = Array.isArray(suggestions) && suggestions.length > 0
@@ -1129,6 +1234,10 @@
         return `${stepPrefix}その公式は使えないよ。別の公式を試そう。`;
       case 'ERROR_FORMULA_MISMATCH':
         return `${stepPrefix}使った公式と、式の変身が合っていないよ。${suggestionText}`.trim();
+      case 'ERROR_FORMULA_NOT_USED':
+        return `${stepPrefix}この置き換えでは公式を使っていないよ。ふつうの計算なら「計算」ブロックを使おう。`;
+      case 'ERROR_SIMPLIFY_NEEDS_FORMULA':
+        return `${stepPrefix}「計算」「通分」ブロックでは公式を使った書き換えはできないよ。公式を使うところは「置き換え」ブロックで、使う公式を入れてね。`;
       case 'ERROR_COMMON_DENOMINATOR_RULE':
         return `${stepPrefix}「通分」ブロックでは公式は使えないよ。「置き換え」ブロックを使おう！`;
       case 'ERROR_CHAIN_EMPTY_INPUT':
@@ -1249,7 +1358,7 @@
       return { isValid: false, errorStepIndex: firstStep.step || 1, errorCode: 'ERROR_EMPTY_INPUT', suggestions: [] };
     }
     const leftCheck = evaluateEquivalence(firstBefore, initialLeftExpr);
-    if (!leftCheck.ok) {
+    if (!leftCheck.ok || !strictEquivalent(firstBefore, initialLeftExpr, 'free')) {
       return { isValid: false, errorStepIndex: firstStep.step || 1, errorCode: 'ERROR_INITIAL_LEFT_MISMATCH', suggestions: [] };
     }
 
@@ -1291,7 +1400,15 @@
         if (!formulaId) {
           return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_UNSUPPORTED_FORMULA', suggestions: [] };
         }
-        const formulaMatch = verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
+        const strict = strictFormulaCheck(formulaId, beforeExpr, afterExpr);
+        if (strict === 'not-used') {
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_NOT_USED', suggestions: [] };
+        }
+        if (strict === 'mismatch') {
+          const candidates = strictMatchingFormulaLabels(beforeExpr, afterExpr).filter((l) => l !== formulaIdToLabel(formulaId));
+          return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_MISMATCH', suggestions: candidates };
+        }
+        const formulaMatch = strict === 'ok' || verifyFormulaApplication(formulaId, beforeExpr, afterExpr);
         if (!formulaMatch) {
           const candidates = (typeof detectMatchingFormulaIds === 'function'
             ? detectMatchingFormulaIds(beforeExpr, afterExpr)
@@ -1300,7 +1417,11 @@
           return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_FORMULA_MISMATCH', suggestions: candidates };
         }
       }
-      // simplify_operation と common_denominator_operation は公式チェックなし
+      // 「計算」「通分」は公式を使わない計算だけを許す（S, C, T を独立した文字として等しいこと）
+      if ((operationType === 'simplify_operation' || operationType === 'common_denominator_operation')
+          && !strictEquivalent(beforeExpr, afterExpr, 'free')) {
+        return { isValid: false, errorStepIndex: stepIndex, errorCode: 'ERROR_SIMPLIFY_NEEDS_FORMULA', suggestions: [] };
+      }
     }
 
     // 要件6: 操作間の連鎖（直前の after ≡ 次の before）
@@ -1313,6 +1434,9 @@
         return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_EMPTY_INPUT', suggestions: [] };
       }
       const chainCheck = evaluateEquivalence(prevAfterExpr, currentBeforeExpr);
+      if (chainCheck.ok && !strictEquivalent(prevAfterExpr, currentBeforeExpr, 'free')) {
+        return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_MISMATCH', suggestions: [] };
+      }
       if (!chainCheck.ok) {
         if (chainCheck.reason === 'non-finite' || chainCheck.reason === 'division-by-zero') {
           return { isValid: false, errorStepIndex: currentStepIndex, errorCode: 'ERROR_CHAIN_DIVISION_BY_ZERO', suggestions: [] };
@@ -1332,7 +1456,7 @@
       return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
     }
     const finalAfterCheck = evaluateEquivalence(lastAfterExpr, initialRightExpr);
-    if (!finalAfterCheck.ok) {
+    if (!finalAfterCheck.ok || !strictEquivalent(lastAfterExpr, initialRightExpr, 'free')) {
       return { isValid: false, errorStepIndex: lastTransform.step || transformSteps.length, errorCode: 'ERROR_FINAL_MISMATCH', suggestions: [] };
     }
 
@@ -1343,7 +1467,7 @@
       return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_FINAL_EMPTY', suggestions: [] };
     }
     const conclusionCheck = evaluateEquivalence(conclusionExpr, initialRightExpr);
-    if (!conclusionCheck.ok) {
+    if (!conclusionCheck.ok || !strictEquivalent(conclusionExpr, initialRightExpr, 'free')) {
       return { isValid: false, errorStepIndex: lastStep.step || astArray.length, errorCode: 'ERROR_CONCLUSION_NOT_GOAL', suggestions: [] };
     }
 
@@ -1730,6 +1854,7 @@
     collectAppliedFormulaIdsFromAST,
     getErrorMessage,
     validateProof,
+    strictEquivalent,
     computeCommonDenominator,
     prettyFormatExpression,
     expressionFromSerializedBlock,

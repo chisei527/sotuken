@@ -53,13 +53,13 @@ window.CHARACTER_SCENES = {
     lines: [
       'はじめまして！わたし、有葉フリエ。',
       { character: 'hippalcos', portrait: 'joy', text: 'はじめまして！ぼくはヒッパルコス、パルって呼んでね！' },
-      'これから一緒に、三角関数の証明パズルを解いていくよ！',
-      'まずどうする？基本操作をゆっくり覚えていくか、いきなり本編に挑戦するか、選んでね！',
+      'これから一緒に、三角関数の等式を証明するパズルに挑戦しよう！',
+      'まずは基本操作から覚える？それとも、いきなり本編に挑戦する？',
     ],
     choices: [
       {
         label: '基本操作から覚える（おすすめ）',
-        subLabel: 'まずは基本の使い方をチュートリアルで学ぶよ',
+        subLabel: 'チュートリアルで使い方を覚えるよ',
         actionId: 'start_tutorial',
       },
       {
@@ -76,8 +76,8 @@ window.CHARACTER_SCENES = {
     portrait: 'joyPlain',
     lines: [
       'おかえり！次はどうする？',
-      { character: 'hippalcos', portrait: 'joy', text: 'またあったね！準備できたら教えてね！' },
-      'チュートリアルをもう1回やる？それとも本編に挑戦してみる？',
+      { character: 'hippalcos', portrait: 'joy', text: 'また会えたね！準備ができたら始めよう！' },
+      'チュートリアルをもう一度やる？それとも本編に挑戦する？',
     ],
     choices: [
       {
@@ -98,8 +98,8 @@ window.CHARACTER_SCENES = {
     character: 'furie',
     portrait: 'joyPlain',
     lines: [
-      'まず、ブロックを組み合わせて式を作るんだ。',
-      '左辺と右辺が等しくなるようにブロックを使って証明していくよ！',
+      'このパズルでは、ブロックを組み立てて等式を証明するよ。',
+      '左辺の式を、公式や計算で少しずつ書き換えていって、右辺と同じ形にできたらクリア！',
     ],
     // 選択肢を出さず、最終行タップで confirm_tutorial_start を発火する
     choices: [],
@@ -115,9 +115,9 @@ window.CHARACTER_SCENES = {
     buildLines: function(context) {
       const name = (context && context.formulaLabel) ? context.formulaLabel : '新しい公式';
       return [
-        'わあ！新しい公式を覚えたね！',
-        `${name} だよ、これで色々な変形ができるようになるよ！`,
-        'これからも一緒にがんばろうね！',
+        'わあ、新しい公式が使えるようになったよ！',
+        `${name} だよ。これで、できる書き換えが増えたね！`,
+        '公式は左の「公式」カテゴリに入っているよ。これからも一緒にがんばろうね！',
       ];
     },
     choices: [
@@ -136,9 +136,8 @@ window.CHARACTER_SCENES = {
     character: 'hippalcos',
     portrait: 'explain',
     lines: [
-      '詰まったら、いつでも右下の僕を押してね！',
-      '三角関数のことなら何でも聞いてね！',
-      'ヒントとかガイドもぼくが担当するよ、右下にいるからいつでも押してね！',
+      'ぼくは、いつも画面の右下にいるよ。',
+      '困ったときはぼくを押してね。ヒントやガイド、三角関数の解説を出せるよ！',
     ],
     choices: [
       {
@@ -171,7 +170,7 @@ window.CHARACTER_SCENES = {
     character: 'furie',
     portrait: 'welcome',
     lines: [
-      'じゃあ本編を始めるけど、簡単に使い方だけ紹介するね！',
+      '本編を始める前に、使い方をかんたんに紹介しようか？',
     ],
     choices: [
       {
@@ -192,10 +191,10 @@ window.CHARACTER_SCENES = {
     character: 'furie',
     portrait: 'default',
     lines: [
-      '左のメニューから、証明に使うブロックを引き出してね！',
-      '「基本」「公式」「操作」の3つのカテゴリがあるよ！',
-      '引き出したブロックは、証明ブロックの中に組み立てて使うんだ！',
-      'じゃあ、あとはパルに任せるね！',
+      '左のメニューには「基本」「公式」「操作」の3つのカテゴリがあるよ。',
+      '「操作」の「置き換え」ブロックに、いまの式・使う公式・書き換えたあとの式を入れて、左辺を少しずつ書き換えていくんだ。',
+      '右辺と同じ形になったら、「よって〜となる」で締めくくれば証明完成！',
+      'くわしいことは、パルに聞いてね！',
     ],
     choices: [],
     nextActionId: 'briefing_show_pal',
@@ -206,8 +205,8 @@ window.CHARACTER_SCENES = {
     character: 'furie',
     portrait: 'think',
     lines: [
-      'あっ、この解答だと少し違うみたいだよ！',
-      'どうする？もう一度自分でやってみる？それとも、パルに答えを聞いて解説してもらう？',
+      'あれっ、どこかが違うみたい。',
+      'もう一度自分でやってみる？それとも、答えを見てパルに解説してもらう？',
     ],
     choices: [
       { label: 'もう一度やってみる 💪', subLabel: '', actionId: 'incorrect_retry' },
@@ -221,7 +220,7 @@ window.CHARACTER_SCENES = {
     portrait: 'think',
     lines: [
       '本当にあきらめる？',
-      'あきらめると、この問題はクリア判定にならないよ？',
+      'あきらめると、この問題は「クリア」にならないよ。それでもいい？',
     ],
     choices: [
       { label: 'もう少し頑張る 💪', subLabel: '', actionId: 'giveup_cancel' },
@@ -234,8 +233,8 @@ window.CHARACTER_SCENES = {
     character: 'furie',
     portrait: 'default',
     lines: [
-      'じゃあ、正解の並びを見てみよう！',
-      'ここからはパルに解説してもらうね！',
+      'じゃあ、正解の並べ方を見てみよう！',
+      '解説はパルにお願いするね！',
     ],
     choices: [
       { label: '見る 👀', subLabel: '', actionId: 'answer_reveal_show' },

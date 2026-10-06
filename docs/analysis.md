@@ -9,6 +9,7 @@
 |---|---|---|
 | 解答提出の記録 | `select * from analysis.submissions order by participant_no, log_id;` | 「正解をチェック」1回 |
 | ステージごとの結果 | `select * from analysis.stage_results order by participant_no, stage_id;` | 参加者 × ステージ |
+| ステージごとの結果（登録ID付き。アンケート・紙テストとの突き合わせ用） | `select * from analysis.stage_results_by_login order by login_id, stage_id;` | 参加者 × ステージ |
 | 参加者一覧 | `select * from analysis.participants order by participant_no;` | 参加者1人 |
 | すべての操作 | `select * from analysis.events order by participant_no, log_id;` | 操作1回 |
 | ブロックの組み方 | `select * from analysis.submission_blocks order by log_id;` | 提出・ギブアップ1回（JSON） |

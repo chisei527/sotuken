@@ -4,48 +4,14 @@
            サイズは --pal-size 変数で段階的に制御 (メディアクエリで切替)。
            radial menu の位置は --pal-size に対する割合で計算される。
            ======================================== */
+        /* 以前は画面の「幅」で 300〜800px に切り替えていたため、横長のモニターでは
+           パルが画面の高さの大半を占めていた。画面の「高さ」に合わせ、上限も下げる。 */
         :root {
-          --pal-size: 800px;
-          --pal-menu-item-size: 150px;
-          --pal-menu-label-size: 1.05rem;
-          --pal-menu-sublabel-size: 0.75rem;
-          --pal-menu-item-padding: 12px;
-        }
-        @media (max-width: 1919px) {
-          :root {
-            --pal-size: 700px;
-            --pal-menu-item-size: 140px;
-            --pal-menu-label-size: 1rem;
-            --pal-menu-sublabel-size: 0.72rem;
-            --pal-menu-item-padding: 11px;
-          }
-        }
-        @media (max-width: 1599px) {
-          :root {
-            --pal-size: 550px;
-            --pal-menu-item-size: 120px;
-            --pal-menu-label-size: 0.9rem;
-            --pal-menu-sublabel-size: 0.68rem;
-            --pal-menu-item-padding: 9px;
-          }
-        }
-        @media (max-width: 1279px) {
-          :root {
-            --pal-size: 400px;
-            --pal-menu-item-size: 100px;
-            --pal-menu-label-size: 0.8rem;
-            --pal-menu-sublabel-size: 0.62rem;
-            --pal-menu-item-padding: 7px;
-          }
-        }
-        @media (max-width: 1023px) {
-          :root {
-            --pal-size: 300px;
-            --pal-menu-item-size: 80px;
-            --pal-menu-label-size: 0.7rem;
-            --pal-menu-sublabel-size: 0.58rem;
-            --pal-menu-item-padding: 6px;
-          }
+          --pal-size: clamp(260px, 48vh, 500px);
+          --pal-menu-item-size: clamp(80px, 12vh, 120px);
+          --pal-menu-label-size: clamp(0.68rem, 1.3vh, 0.9rem);
+          --pal-menu-sublabel-size: clamp(0.56rem, 1vh, 0.7rem);
+          --pal-menu-item-padding: clamp(5px, 0.8vh, 9px);
         }
 
         .character-mascot-host {
@@ -70,12 +36,14 @@
           border: none;
           cursor: pointer;
           pointer-events: auto;
-          filter: drop-shadow(0 8px 24px rgba(56, 189, 248, 0.5));
-          transition: transform 0.2s ease, filter 0.2s ease;
+          /* 影は固定にし、動かすのは transform だけにする。
+             大きな画像の影（filter）をアニメーションさせると毎フレーム描き直しになり、動きが重くなる */
+          filter: drop-shadow(0 6px 16px rgba(56, 189, 248, 0.45));
+          transition: transform 0.2s ease;
+          will-change: transform;
         }
         .character-mascot-pal:hover {
-          transform: translateY(-12px);
-          filter: drop-shadow(0 16px 32px rgba(56, 189, 248, 0.75));
+          transform: translateY(-8px);
         }
         .character-mascot-pal img {
           width: 100%;

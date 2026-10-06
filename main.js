@@ -556,8 +556,12 @@ window.applyConditionalInitialStateGeneration = function(targetWorkspace) {
   const operationInputConnection = proofStep.getInput('OPERATIONS')?.connection;
   if (!operationInputConnection) return;
 
+  // 左辺・右辺の候補は「式」のブロックだけ。公式ブロック（formula_N）も出力を持つため、
+  // 以前は盤面のいちばん下に公式が置かれていると「よって〔公式③〕となる」になっていた。
   const mathBlocks = targetWorkspace.getTopBlocks(false)
-      .filter(block => block && block.outputConnection && !['proof_step', 'replace_operation', 'common_denominator_operation', 'conclusion_operation'].includes(block.type))
+      .filter(block => block && block.outputConnection
+        && !/^formula_/.test(block.type)
+        && !['proof_step', 'replace_operation', 'common_denominator_operation', 'simplify_operation', 'conclusion_operation'].includes(block.type))
       .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
       
   const leftExpressionBlock = mathBlocks[0] || null;
