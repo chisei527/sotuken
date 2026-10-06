@@ -30,6 +30,7 @@
     },
     DEVICE: {
       PAL_MINI: 'pal_mini',
+      PAL_TUTORIAL_SEEN: 'pal_tutorial_seen', // パルの説明をもう見たステージIDの配列（この端末だけ）
       PROOF_SCAFFOLD_MODE: 'proof_scaffold_mode',
       RESEARCH_CONSENT: 'research_consent', // 'true' / 'false' / 未回答なら null（サーバーの profiles にも保存）
       LOG_QUEUE: 'log_queue',               // 送信待ちの操作ログ（オフライン時に貯める）

@@ -26,7 +26,7 @@
             <li>「通分」… 分数を1つにまとめる</li>
             <li>困ったら右下のパルから「ヒント」「ガイド」「三角関数の解説」</li>
           </ul>
-          <p class="tutorial-complete-next">ここからは本編。全22ステージに挑戦しよう！</p>
+          <p class="tutorial-complete-next">ここからは本編。全26ステージに挑戦しよう！</p>
           <div class="tutorial-complete-actions">
             <button id="btn-tc-map" class="action-btn btn-secondary" type="button">ステージマップを見る</button>
             <button id="btn-tc-start" class="action-btn btn-primary" type="button">本編を始める ▶</button>

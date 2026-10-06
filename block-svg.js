@@ -14,6 +14,8 @@
 //   window.BlockSvg.formula(1)         // 公式① (紫)
 //   window.BlockSvg.formula(2)         // 公式② (紫)
 //   window.BlockSvg.formula(3)         // 公式③ (紫)
+//   window.BlockSvg.formula('formula_addition_sin') // 加法公式 sin (紫)
+//   window.BlockSvg.term('α')          // α などの角のブロック (青)
 //
 // 全ての SVG は class="basics-tutorial-hint-block" を持ち、
 // 高さは CSS で 1.6em (basics-tutorial-waiting-hint-text のスタイルに合わせる)。
@@ -121,22 +123,52 @@
       </svg>`;
     },
 
-    // formula: 紫色のブロック 公式ID→表示ラベル
+    // formula: 紫色のブロック
+    //   formula(1) / formula('2')              … 公式①②③
+    //   formula('formula_addition_sin') など   … 加法公式（ブロックIDでも指定できる）
     formula: function(n) {
-      const num = String(n);
-      const labels = {
+      const key = String(n);
+      const MARKS = {
+        '1': '①', '2': '②', '3': '③',
+        formula_1: '①', formula_2: '②', formula_3: '③',
+        formula_addition_sin: '加法', formula_addition_cos: '加法', formula_addition_tan: '加法',
+      };
+      const LABELS = {
         '1': 'sin²θ + cos²θ = 1',
         '2': 'tanθ = sinθ/cosθ',
         '3': '1 + tan²θ = 1/cos²θ',
+        formula_1: 'sin²θ + cos²θ = 1',
+        formula_2: 'tanθ = sinθ/cosθ',
+        formula_3: '1 + tan²θ = 1/cos²θ',
+        formula_addition_sin: 'sin(α+β) = sinαcosβ + cosαsinβ',
+        formula_addition_cos: 'cos(α+β) = cosαcosβ − sinαsinβ',
+        formula_addition_tan: 'tan(α+β) = (tanα+tanβ)/(1−tanαtanβ)',
       };
-      const circleNum = n === 1 || n === '1' ? '①' : (n === 2 || n === '2' ? '②' : '③');
-      const label = labels[num] || `公式${circleNum}`;
+      const mark = MARKS[key] || '③';
+      const label = LABELS[key] || `公式${mark}`;
+      // 加法公式は数式が長いので、記号の欄を広めに取り、文字を少し小さくする
+      const isAddition = mark === '加法';
+      const markX = isAddition ? 30 : 20;
+      const markSize = isAddition ? 11 : 16;
+      const textX = isAddition ? 135 : 120;
+      const textSize = isAddition ? 10 : 11;
       // 幅は中身の長さで自動 (最大 240 くらい想定)
-      return `<svg class="${SVG_CLASS}" viewBox="0 0 220 34" xmlns="http://www.w3.org/2000/svg" aria-label="公式${circleNum}ブロック">
-        <rect x="1" y="1" width="218" height="32" rx="16" ry="16"
+      return `<svg class="${SVG_CLASS}" viewBox="0 0 250 34" xmlns="http://www.w3.org/2000/svg" aria-label="${mark === '加法' ? '加法公式' : '公式' + mark}ブロック">
+        <rect x="1" y="1" width="248" height="32" rx="16" ry="16"
           fill="#9333ea" stroke="#6b21a8" stroke-width="1.5"/>
-        ${_label(20, 23, circleNum, { fontSize: 16, fontWeight: 900, fill: '#ffffff' })}
-        ${_label(120, 22, label, { fontSize: 11, fontWeight: 700, fill: '#ffffff', fontFamily: 'serif' })}
+        ${_label(markX, 23, mark, { fontSize: markSize, fontWeight: 900, fill: '#ffffff' })}
+        ${_label(textX, 22, label, { fontSize: textSize, fontWeight: 700, fill: '#ffffff', fontFamily: 'serif' })}
+      </svg>`;
+    },
+
+    // 角のブロック (α / β / sin( ) など)。青系の基本ブロックと同じ見た目。
+    term: function(label = 'α') {
+      const text = String(label);
+      const width = Math.max(44, 18 + text.length * 11);
+      return `<svg class="${SVG_CLASS}" viewBox="0 0 ${width} 34" xmlns="http://www.w3.org/2000/svg" aria-label="${text}のブロック">
+        <rect x="1" y="1" width="${width - 2}" height="32" rx="16" ry="16"
+          fill="#4a90d9" stroke="#2c5f8d" stroke-width="1.5"/>
+        ${_label(width / 2, 23, text, { fontSize: 14, fontWeight: 800, fill: '#ffffff', fontFamily: 'serif' })}
       </svg>`;
     },
   };

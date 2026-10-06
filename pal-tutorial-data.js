@@ -367,3 +367,129 @@ window.PAL_TUTORIAL_SCRIPTS['0-8'] = {
     },
   ],
 };
+
+// ============================================
+// 23: 加法定理（sin）の初登場
+//   ここから「角が2つある公式」が始まる。
+//   これまでの①②③は角が θ ひとつだけだったので、
+//   「α・β という2つの角」「sin( ) の穴に角を入れて式を作る」の2点を説明する。
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['23'] = {
+  steps: [
+    {
+      id: 'step_two_angles',
+      introLines: [
+        'ここからは新しい章だよ。今までの公式①②③は、角が θ ひとつだけだったよね。',
+        `今回からは角が2つ出てくるよ。${window.BlockSvg.term('α')}（アルファ）と ${window.BlockSvg.term('β')}（ベータ）だ。`,
+        'たとえば「30°と45°を足した角」みたいに、2つの角を足した角を考えるときに使うんだ。',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_build_trig',
+      introLines: [
+        `角が2つあるので、ブロックも新しくなるよ。左のメニューに「角 α・β」というカテゴリが増えているから見てみて！`,
+        `${window.BlockSvg.term('sin( )')} は、穴に入れた角の sin を表すブロックだよ。穴に ${window.BlockSvg.term('α')} を入れれば sinα、${window.BlockSvg.term('β')} を入れれば sinβ になる。`,
+        `穴に「α + β」の足し算ブロック ${window.BlockSvg.add()} を入れれば sin(α+β) だね。cos( ) と tan( ) も同じ使い方だよ。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_addition_sin',
+      introLines: [
+        `そして今回の新しい公式が、加法公式 sin ${window.BlockSvg.formula('formula_addition_sin')} だよ。`,
+        '「足した角の sin は、バラバラにすると sinα·cosβ + cosα·sinβ になる」という意味。sin と cos が入れかわって並ぶのがポイントだね。',
+        'sin(α+β) は sinα + sinβ ではないんだ。ここを間違える人がとても多いから気をつけて！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_how_to_solve',
+      introLines: [
+        `解き方は今までと同じだよ。「置き換え」ブロック ${window.BlockSvg.replaceOperation()} の左に sin(α+β)、真ん中に加法公式 sin、右に書き換えたあとの式を入れよう。`,
+        '右の穴に入れる sinα·cosβ + cosα·sinβ は、かけ算ブロックと足し算ブロックを組み合わせて自分で組み立ててね。',
+        '組み立てるのが大変なら、右上にある答えの式のブロックを右クリックして「複製」すると早いよ。',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 24: 加法定理（cos）— マイナスが付くことと、打ち消し合いは「計算」ブロック
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['24'] = {
+  steps: [
+    {
+      id: 'step_addition_cos',
+      introLines: [
+        `次は加法公式 cos ${window.BlockSvg.formula('formula_addition_cos')} だよ。`,
+        'sin のときは「+」だったけど、cos では真ん中が「−」になるんだ。ここが入れかわりやすいところだよ。',
+        `まず「置き換え」で cos(α+β) を cosα·cosβ − sinα·sinβ に書き換えよう。右の穴には、残っている + sinα·sinβ も付けた式全体を入れるのを忘れずにね。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_cancel',
+      introLines: [
+        '書き換えると「− sinα·sinβ」と「+ sinα·sinβ」が並ぶよね。これは打ち消し合って消えるよ。',
+        `打ち消し合いは公式ではなく、ただの計算だから「計算」ブロック ${window.BlockSvg.simplifyOperation()} を使ってね。`,
+        '残るのは cosα·cosβ。これが右辺と同じだから、「よって〜となる」につなげれば完成だよ！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 25: 加法定理（tan）— 分数の形。約分は「計算」ブロック
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['25'] = {
+  steps: [
+    {
+      id: 'step_addition_tan',
+      introLines: [
+        `最後の加法公式、tan ${window.BlockSvg.formula('formula_addition_tan')} だよ。`,
+        'tan のときだけ分数の形になるんだ。分母が「1 − tanα·tanβ」で、マイナスが分母にあるところに注意してね。',
+        `今回の左辺は、その分母と同じ「(1 − tanα·tanβ)」が掛けられている形。まず「置き換え」で tan(α+β) を分数に書き換えよう。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_reduce',
+      introLines: [
+        '書き換えると、分母の (1 − tanα·tanβ) と、掛けられている (1 − tanα·tanβ) で約分できるね。',
+        `約分は公式ではないので「計算」ブロック ${window.BlockSvg.simplifyOperation()} だよ。残るのは tanα + tanβ。`,
+        'これで3つの加法公式はぜんぶ登場したよ。次の問題では組み合わせて使ってみよう！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 26: 加法定理 + 公式② の組み合わせ（最終問題）
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['26'] = {
+  steps: [
+    {
+      id: 'step_final',
+      introLines: [
+        'いよいよ最後の問題！加法公式と、今までの公式を組み合わせて解くよ。',
+        `まず分子の sin(α+β) に加法公式 sin ${window.BlockSvg.formula('formula_addition_sin')} を使って、(sinα·cosβ + cosα·sinβ)/(cosα·cosβ) にしよう。`,
+        'そのあと分母の cosα·cosβ で約分すると、sinα/cosα + sinβ/cosβ の形に分かれるよ。約分は「計算」ブロックだね。',
+        `最後は見覚えのある形！公式② ${window.BlockSvg.formula(2)}「tanθ = sinθ/cosθ」で、sinα/cosα を tanα に、sinβ/cosβ を tanβ に置き換えれば完成だよ。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};

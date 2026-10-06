@@ -1,0 +1,410 @@
+{
+  "id": 23,
+  "mathText": "\\[ \\sin(\\alpha + \\beta) = \\sin\\alpha\\cos\\beta + \\cos\\alpha\\sin\\beta \\]",
+  "requiredFormulas": [
+    "formula_addition_sin"
+  ],
+  "hints": [
+    "これまでの公式は角が θ ひとつだけでした。今回は α と β という2つの角を使います。",
+    "「置き換え」ブロックの左に sin(α+β)、真ん中に加法公式 sin を入れましょう。",
+    "右の穴には sinα·cosβ + cosα·sinβ を組み立てて入れます。sin( ) ブロックの穴に α や β を入れて作ります。"
+  ],
+  "initialState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "term_sin_of",
+          "inputs": {
+            "ANGLE": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_alpha"
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_beta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_add",
+          "inputs": {
+            "A": {
+              "block": {
+                "type": "math_multiply",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_sin_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_alpha"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_cos_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_beta"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_multiply",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_cos_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_alpha"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_sin_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_beta"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 620,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 240
+        },
+        {
+          "type": "formula_addition_sin",
+          "x": 460,
+          "y": 240
+        }
+      ]
+    }
+  },
+  "answerState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "term_sin_of",
+          "inputs": {
+            "ANGLE": {
+              "block": {
+                "type": "math_add",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_alpha"
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_beta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 50,
+          "y": 50
+        },
+        {
+          "type": "math_add",
+          "inputs": {
+            "A": {
+              "block": {
+                "type": "math_multiply",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_sin_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_alpha"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_cos_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_beta"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "B": {
+              "block": {
+                "type": "math_multiply",
+                "inputs": {
+                  "A": {
+                    "block": {
+                      "type": "term_cos_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_alpha"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "B": {
+                    "block": {
+                      "type": "term_sin_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "term_beta"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "x": 620,
+          "y": 50
+        },
+        {
+          "type": "proof_step",
+          "x": 50,
+          "y": 240,
+          "inputs": {
+            "OPERATIONS": {
+              "block": {
+                "type": "replace_operation",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "term_sin_of",
+                      "inputs": {
+                        "ANGLE": {
+                          "block": {
+                            "type": "math_add",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_alpha"
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "term_beta"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "FORMULA": {
+                    "block": {
+                      "type": "formula_addition_sin"
+                    }
+                  },
+                  "REPLACEMENT": {
+                    "block": {
+                      "type": "math_add",
+                      "inputs": {
+                        "A": {
+                          "block": {
+                            "type": "math_multiply",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_sin_of",
+                                  "inputs": {
+                                    "ANGLE": {
+                                      "block": {
+                                        "type": "term_alpha"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "term_cos_of",
+                                  "inputs": {
+                                    "ANGLE": {
+                                      "block": {
+                                        "type": "term_beta"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "B": {
+                          "block": {
+                            "type": "math_multiply",
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "type": "term_cos_of",
+                                  "inputs": {
+                                    "ANGLE": {
+                                      "block": {
+                                        "type": "term_alpha"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "term_sin_of",
+                                  "inputs": {
+                                    "ANGLE": {
+                                      "block": {
+                                        "type": "term_beta"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "conclusion_operation",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_add",
+                          "inputs": {
+                            "A": {
+                              "block": {
+                                "type": "math_multiply",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "term_sin_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_alpha"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "B": {
+                                    "block": {
+                                      "type": "term_cos_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_beta"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "B": {
+                              "block": {
+                                "type": "math_multiply",
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "type": "term_cos_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_alpha"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "B": {
+                                    "block": {
+                                      "type": "term_sin_of",
+                                      "inputs": {
+                                        "ANGLE": {
+                                          "block": {
+                                            "type": "term_beta"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

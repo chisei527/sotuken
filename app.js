@@ -846,7 +846,12 @@ window.openFormulaReferenceModal = function(initialEntryId) {
   // タブ一覧を構築（三角関数の基礎 → 公式 の順）
   const registry = window.FORMULA_REGISTRY || {};
   const basics = window.TRIG_BASICS_ENTRIES || [];
-  const formulaIds = Object.keys(registry).filter((id) => registry[id].explanation);
+  // 解説があり、かつ解放済みの公式だけタブにする
+  // （まだ習っていない公式の解説が並んでいると迷うため。解放状況が分からないときは全部出す）
+  const unlocked = typeof window.getUnlockedFormulaIds === 'function' ? window.getUnlockedFormulaIds() : null;
+  const formulaIds = Object.keys(registry)
+    .filter((id) => registry[id].explanation)
+    .filter((id) => !Array.isArray(unlocked) || unlocked.length === 0 || unlocked.includes(id));
 
   const tabs = [];
   basics.forEach((b) => tabs.push({ id: b.id, label: b.label }));

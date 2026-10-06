@@ -154,7 +154,14 @@
     }
 
     // ★ 修正2: ここで「await」を使うとシャッターが一生開かなくなるため、独立した監視処理を走らせる
-    waitShutterThen(() => showFormulaUnlockModal(newlyFound));
+    // _formulaUnlockSceneActive は「公式紹介の演出がこれから/いま流れる」印。
+    // main.js のパルチュートリアルは、この印が消えるまで待つ（2つが重なって喋らないように）。
+    window._formulaUnlockSceneActive = true;
+    waitShutterThen(() => {
+      Promise.resolve(showFormulaUnlockModal(newlyFound))
+        .catch(() => {})
+        .then(() => { window._formulaUnlockSceneActive = false; });
+    });
 
     // ★ 修正3: 関数自体はすぐに終了させて、ロード処理とシャッターを開ける動作を先に進ませる！
     return newlyFound;
@@ -182,7 +189,12 @@
     if (pending.length === 0) return;
     window._pendingUnlockFormulaIds = [];
     console.log('[app-unlock] 保留されていた公式アンロックを発火 (シャッター待ち):', pending);
-    waitShutterThen(() => showFormulaUnlockModal(pending));
+    window._formulaUnlockSceneActive = true;
+    waitShutterThen(() => {
+      Promise.resolve(showFormulaUnlockModal(pending))
+        .catch(() => {})
+        .then(() => { window._formulaUnlockSceneActive = false; });
+    });
   };
 
   // シャッター待ちヘルパを外部に公開 (basics-tutorial などから使えるように)

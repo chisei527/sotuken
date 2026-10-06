@@ -29,6 +29,20 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   穴が埋まっているかを見るときは `window.getFilledInputBlock()`（app-guide.js）を使う（`getInputTargetBlock` は見本も拾ってしまう）。
 - Blockly の画像（ゴミ箱など）は `asset/blockly-media/` に同梱し、`Blockly.inject` の `media` で指定する。外部サイトを参照させない。
 
+## 加法定理（角が2つある問題）
+- 角のブロックは `term_alpha` / `term_beta`（α・β）、三角関数は `term_sin_of` / `term_cos_of` / `term_tan_of`（穴に角を入れる形）。
+- ツールボックスの「角 α・β」カテゴリは、加法公式（`formula_addition_sin/cos/tan`）のどれかが解放されたときだけ出る（`buildToolboxConfig`）。
+- 正誤判定（math-logic.js の厳密判定）は①②③に加えて加法定理3つに対応している。
+  - ①②③は「同じ角の中の関係」なので、S・C・T に値を入れるだけで判定できる。
+  - 加法定理は「違う角をまたぐ関係」なので、まず `findAngleSums()` が「どの角がどの角の和か」を数値で見つけ、その関係だけを成り立たせて判定する。
+  - `STRICT_FORMULA_MODES` に無い公式（④以降）は、従来のゆるい判定にフォールバックする。厳密にしたい公式を増やすときはここにモードを足す。
+- 解説（`explanations.js` の `FORMULA_EXPLANATIONS`）は、解放済みの公式だけタブに出る。
+
+## パルのチュートリアル
+- `PAL_TUTORIAL_SCRIPTS[ステージID]` に台本があれば、そのステージに初めて入ったときに流れる。チュートリアル(`0-*`)だけでなく本編ステージでも動く（例: `'23'` で加法定理の導入）。
+- 「もう見た」の記録は、チュートリアルはメモリだけ、本編は `AppStorage.KEYS.DEVICE.PAL_TUTORIAL_SEEN`（端末だけ）。
+- 公式紹介の演出と重ならないよう、`window._formulaUnlockSceneActive` が立っている間は待つ。
+
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080
 - `AUTO_RESET_ON_LOAD`（app-state.js）は本番では false。
@@ -46,3 +60,4 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 3b. [x] ログの CSV 書き出し（analysis スキーマのビュー。手順は docs/analysis.md）
 3c. [ ] プライバシーポリシー（privacy.html は下書き）
 4. [x] Cloudflare Pages で公開（https://sotuken1.pages.dev）。「全開放」ボタンは本番では隠す（研究データが汚れるため）。匿名ログインの乱用対策に Cloudflare Turnstile（CAPTCHA）を入れる
+5. [ ] 加法定理の章（ステージ23〜26 + パルのチュートリアル）。手元のフォルダにだけ入れてある段階で、実験が終わるまで公開しない

@@ -8,9 +8,12 @@ window.buildToolboxConfig = function(problemData) {
     : Array.from({length: 16}, (_, i) => `formula_${i+1}`);
   console.log('[buildToolboxConfig] ツールボックスに乗せる公式:', unlockedFormulaIds);
 
-  return {
-    kind: 'categoryToolbox',
-    contents: [
+  // 加法定理（α・βという2つの角を使う公式）が解放されているか。
+  // 解放されるまでは α・β・sin( ) などを出さない（θだけの問題で選択肢が増えて迷うのを防ぐ）。
+  const ADDITION_FORMULA_IDS = ['formula_addition_sin', 'formula_addition_cos', 'formula_addition_tan'];
+  const hasAdditionFormula = unlockedFormulaIds.some((id) => ADDITION_FORMULA_IDS.includes(id));
+
+  const contents = [
       {
         kind: 'category', name: '基本', colour: '200',
         contents: [
@@ -29,6 +32,24 @@ window.buildToolboxConfig = function(problemData) {
           { kind: 'block', type: 'math_square' }
         ]
       },
+  ];
+
+  // 2つの角を使う問題（加法定理）用のカテゴリ。
+  // sin( ) の穴に α や α+β を入れて、sinα や sin(α+β) を自分で組み立てる。
+  if (hasAdditionFormula) {
+    contents.push({
+      kind: 'category', name: '角 α・β', colour: '180',
+      contents: [
+        { kind: 'block', type: 'term_alpha' },
+        { kind: 'block', type: 'term_beta' },
+        { kind: 'block', type: 'term_sin_of' },
+        { kind: 'block', type: 'term_cos_of' },
+        { kind: 'block', type: 'term_tan_of' }
+      ]
+    });
+  }
+
+  contents.push(
       {
         kind: 'category', name: '公式', colour: '260',
         contents: unlockedFormulaIds.map((type) => ({ kind: 'block', type }))
@@ -42,8 +63,9 @@ window.buildToolboxConfig = function(problemData) {
           { kind: 'block', type: 'conclusion_operation' }
         ]
       }
-    ]
-  };
+  );
+
+  return { kind: 'categoryToolbox', contents };
 };
 
 // 2. サイバーデザインのダークテーマ設定

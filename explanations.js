@@ -68,6 +68,70 @@ window.FORMULA_EXPLANATIONS = {
     ],
     svgKey: null, // 公式①②から導出される関係なので、専用の図は省略
   },
+
+  // ---- 加法定理（角が2つある公式） ----
+  // ①②③と違い、α と β という「別々の2つの角」を結びつける関係。
+  // そのため ①②③をいくら組み合わせても導けない、独立した公式になっている。
+  formula_addition_sin: {
+    title: '加法公式 sin',
+    displayLatex: '\\sin(\\alpha + \\beta) = \\sin\\alpha\\cos\\beta + \\cos\\alpha\\sin\\beta',
+    meaning:
+      '2つの角を足した角の sin を、それぞれの角の sin と cos だけで表す公式。' +
+      'sin(&alpha;+&beta;) は sin&alpha; + sin&beta; では<b>ない</b>、というのがいちばん大事なところ。' +
+      '試しに &alpha; = &beta; = 30° で確かめると、左辺は sin60° = 0.866、sin30° + sin30° = 1 で合わない。',
+    derivation:
+      '単位円の上で、角 &alpha; だけ回した点を (cos&alpha;, sin&alpha;) とする。' +
+      'そこからさらに &beta; 回すのは、座標を &beta; だけ回転させることに等しい。' +
+      '回転後の y 座標を計算すると sin&alpha;·cos&beta; + cos&alpha;·sin&beta; になり、' +
+      'それは角 &alpha;+&beta; の点の y 座標、つまり sin(&alpha;+&beta;) と同じ。',
+    usage:
+      'sin(&alpha;+&beta;) のように「足し算の角」が出てきたら、バラバラの角に分解できる。' +
+      '逆に sin&alpha;·cos&beta; + cos&alpha;·sin&beta; の形を見つけたら、sin(&alpha;+&beta;) にまとめて式を短くできる。' +
+      '&alpha; = &beta; = &theta; と置くと sin2&theta; = 2sin&theta;cos&theta;（公式④）になる。',
+    variants: [
+      '\\sin(\\alpha - \\beta) = \\sin\\alpha\\cos\\beta - \\cos\\alpha\\sin\\beta',
+      '\\sin 2\\theta = 2\\sin\\theta\\cos\\theta',
+    ],
+    svgKey: 'unitCircle',
+  },
+  formula_addition_cos: {
+    title: '加法公式 cos',
+    displayLatex: '\\cos(\\alpha + \\beta) = \\cos\\alpha\\cos\\beta - \\sin\\alpha\\sin\\beta',
+    meaning:
+      'sin のときと形は似ているが、真ん中の符号が<b>マイナス</b>になる。' +
+      'sin は「+」、cos は「−」。ここを入れかえてしまう間違いがとても多い。',
+    derivation:
+      'sin のときと同じ回転の考え方で、回転後の x 座標を計算すると ' +
+      'cos&alpha;·cos&beta; − sin&alpha;·sin&beta; になる。' +
+      'これが角 &alpha;+&beta; の点の x 座標、つまり cos(&alpha;+&beta;)。',
+    usage:
+      '&alpha; = &beta; = &theta; と置くと cos2&theta; = cos²&theta; − sin²&theta; になり、' +
+      'さらに公式①を使えば 1 − 2sin²&theta; や 2cos²&theta; − 1 の形にも変形できる。',
+    variants: [
+      '\\cos(\\alpha - \\beta) = \\cos\\alpha\\cos\\beta + \\sin\\alpha\\sin\\beta',
+      '\\cos 2\\theta = \\cos^2\\theta - \\sin^2\\theta',
+    ],
+    svgKey: 'unitCircle',
+  },
+  formula_addition_tan: {
+    title: '加法公式 tan',
+    displayLatex: '\\tan(\\alpha + \\beta) = \\dfrac{\\tan\\alpha + \\tan\\beta}{1 - \\tan\\alpha\\tan\\beta}',
+    meaning:
+      '3つの加法公式のうち、tan だけが分数の形になる。' +
+      '分子が「足し算」、分母が「1 − かけ算」と覚えるとよい。',
+    derivation:
+      'tan = sin/cos なので、tan(&alpha;+&beta;) = sin(&alpha;+&beta;)/cos(&alpha;+&beta;) に ' +
+      'sin と cos の加法公式を入れる。そのあと分子・分母を cos&alpha;·cos&beta; で割ると、' +
+      'すべて tan の形になって (tan&alpha; + tan&beta;)/(1 − tan&alpha;·tan&beta;) が出てくる。',
+    usage:
+      '分母が 0 になる（tan&alpha;·tan&beta; = 1 の）ときは使えない点に注意。' +
+      '&alpha; = &beta; = &theta; と置くと tan2&theta; = 2tan&theta;/(1 − tan²&theta;)（公式⑯）になる。',
+    variants: [
+      '\\tan(\\alpha - \\beta) = \\dfrac{\\tan\\alpha - \\tan\\beta}{1 + \\tan\\alpha\\tan\\beta}',
+      '\\tan 2\\theta = \\dfrac{2\\tan\\theta}{1 - \\tan^2\\theta}',
+    ],
+    svgKey: null,
+  },
 };
 
 // ============================================

@@ -492,14 +492,29 @@ window.loadStage = async function(stageNumber) {
       // ステージ進入時のパルチュートリアル起動フック
       // 各ステージには PAL_TUTORIAL_SCRIPTS[stageId] で台本が定義されている場合があり、
       // そのステージに初めて入ったときだけパルチュートリアルを起動する。
+      // チュートリアル(0-*)だけでなく本編ステージでも動く（加法定理の導入など、
+      // 新しい考え方が出てくるステージで説明を入れられるようにするため）。
       // 例外: 0-1 は character-scenes.js の exec_tutorial_start から起動されるためスキップ
+      //
+      // 「もう見た」の記録:
+      //   チュートリアル(0-*) … これまで通りメモリだけ（読み込みし直すとまた流れる）
+      //   本編ステージ        … 端末に保存して、二度目以降は流さない（AppStorage.KEYS.DEVICE）
       // ==================================
-      if (isTutorialStage && String(stageNumber) !== '0-1'
+      if (String(stageNumber) !== '0-1'
           && typeof window.startPalTutorial === 'function'
           && window.PAL_TUTORIAL_SCRIPTS && window.PAL_TUTORIAL_SCRIPTS[String(stageNumber)]) {
         window._palTutorialStageSeen = window._palTutorialStageSeen || {};
-        if (!window._palTutorialStageSeen[String(stageNumber)]) {
+        const seenKey = window.AppStorage?.KEYS?.DEVICE?.PAL_TUTORIAL_SEEN;
+        const seenStored = (!isTutorialStage && seenKey && window.AppStorage)
+          ? (window.AppStorage.getJSON(seenKey, []) || [])
+          : [];
+        const alreadySeen = window._palTutorialStageSeen[String(stageNumber)]
+          || (Array.isArray(seenStored) && seenStored.includes(String(stageNumber)));
+        if (!alreadySeen) {
           window._palTutorialStageSeen[String(stageNumber)] = true;
+          if (!isTutorialStage && seenKey && window.AppStorage) {
+            window.AppStorage.setJSON(seenKey, Array.from(new Set([...seenStored, String(stageNumber)])));
+          }
 
           // 起動条件を全て満たしてから開始する:
           //   1. シャッター (cyber-transition) が開き終わっている
@@ -510,7 +525,8 @@ window.loadStage = async function(stageNumber) {
             const host = document.getElementById('character-dialog-host');
             return host && !host.classList.contains('hidden');
           };
-          const hasPendingUnlock = () => (window._pendingUnlockFormulaIds || []).length > 0;
+          const hasPendingUnlock = () => (window._pendingUnlockFormulaIds || []).length > 0
+            || window._formulaUnlockSceneActive === true;
 
           const waitAllConditionsThenStart = () => {
             if (isCharacterDialogVisible() || hasPendingUnlock()) {

@@ -504,6 +504,10 @@
         return 'cos(2 * theta)';
       case 'term_theta':
         return 'theta';
+      case 'term_alpha':
+        return 'alpha';
+      case 'term_beta':
+        return 'beta';
       case 'term_two_theta':
         return '(2 * theta)';
       case 'term_three_theta':
@@ -1120,7 +1124,18 @@
   //   f2   … T=S/C だけ成り立つ値（公式②だけを使ってよい）
   //   f3   … 1+T²=1/C² だけ成り立つ値（公式③だけを使ってよい）
   // ============================================
-  const STRICT_FORMULA_MODES = { formula_1: 'f1', formula_2: 'f2', formula_3: 'f3' };
+  // 公式ID → 「その公式だけが成り立つ世界」のモード名
+  //   f1/f2/f3  … 同じ角どうしの関係（①②③）
+  //   add_*     … 違う角をまたぐ関係（加法定理）。角どうしの足し算の関係を見つけて適用する
+  const STRICT_FORMULA_MODES = {
+    formula_1: 'f1',
+    formula_2: 'f2',
+    formula_3: 'f3',
+    formula_addition_sin: 'add_sin',
+    formula_addition_cos: 'add_cos',
+    formula_addition_tan: 'add_tan',
+  };
+  const ADDITION_MODES = ['add_sin', 'add_cos', 'add_tan'];
   const STRICT_SAMPLE_COUNT = 12;
 
   function normalizeTrigArg(node) {
@@ -1159,13 +1174,55 @@
     return { args, compiled };
   }
 
+  // 角どうしの足し算の関係を見つける。
+  //   args = ['alpha', 'beta', 'alpha+beta'] のとき [{k:2, i:0, j:1}] を返す。
+  //   （「3番目の角は、1番目と2番目の角を足したもの」という意味）
+  // 加法定理は「違う角をまたぐ関係」なので、どの角とどの角の和なのかが分からないと判定できない。
+  // 角の式に乱数を入れて実際に足し算が成り立つかを見る。偶然の一致を避けるため3通りで確かめる。
+  function findAngleSums(args) {
+    if (!Array.isArray(args) || args.length < 2) return [];
+    let nodes;
+    try { nodes = args.map((a) => math.parse(a)); } catch (_) { return []; }
+
+    const vars = new Set();
+    nodes.forEach((n) => n.traverse((x) => {
+      if (x && x.isSymbolNode && !['pi', 'e', 'i'].includes(x.name)) vars.add(x.name);
+    }));
+
+    let candidates = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const rng = makeRng(777 + attempt * 101);
+      const scope = { pi: Math.PI, e: Math.E };
+      vars.forEach((v) => { scope[v] = 0.3 + rng() * 2.1; });
+      let values;
+      try { values = nodes.map((n) => n.compile().evaluate(scope)); } catch (_) { return []; }
+      if (values.some((v) => typeof v !== 'number' || !Number.isFinite(v))) return [];
+
+      const found = new Set();
+      for (let k = 0; k < values.length; k++) {
+        for (let i = 0; i < values.length; i++) {
+          for (let j = i; j < values.length; j++) {
+            if (k === i || k === j) continue;
+            if (Math.abs(values[k] - (values[i] + values[j])) < 1e-9) found.add(k + ',' + i + ',' + j);
+          }
+        }
+      }
+      candidates = candidates === null ? found : new Set([...candidates].filter((x) => found.has(x)));
+      if (candidates.size === 0) return [];
+    }
+    return [...candidates].map((key) => {
+      const [k, i, j] = key.split(',').map(Number);
+      return { k, i, j };
+    });
+  }
+
   // 再現性のある疑似乱数（同じ答えには毎回同じ判定）
   function makeRng(seed) {
     let x = seed >>> 0;
     return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
   }
 
-  function strictScope(mode, argCount, rng) {
+  function strictScope(mode, argCount, rng, angleSums) {
     const scope = { theta: 0.3 + rng() * 1.1, pi: Math.PI, e: Math.E };
     const free = () => (rng() < 0.5 ? -1 : 1) * (0.35 + rng() * 1.6);
     for (let i = 0; i < argCount; i++) {
@@ -1176,6 +1233,21 @@
       else if (mode === 'f3') { C = Math.cos(phi); T = Math.tan(phi); }
       scope['S_' + i] = S; scope['C_' + i] = C; scope['T_' + i] = T;
     }
+
+    // 加法定理のモードでは、和の角の値だけを「足し算の関係」から計算し直す。
+    // それ以外（①②③の関係）は成り立たないままなので、公式の取り違えを見逃さない。
+    if (ADDITION_MODES.includes(mode) && Array.isArray(angleSums) && angleSums.length > 0) {
+      // 入れ子（(α+β)+γ など）に備えて数回まわす
+      for (let pass = 0; pass < 3; pass++) {
+        angleSums.forEach(({ k, i, j }) => {
+          const Si = scope['S_' + i], Ci = scope['C_' + i], Ti = scope['T_' + i];
+          const Sj = scope['S_' + j], Cj = scope['C_' + j], Tj = scope['T_' + j];
+          if (mode === 'add_sin') scope['S_' + k] = Si * Cj + Ci * Sj;
+          else if (mode === 'add_cos') scope['C_' + k] = Ci * Cj - Si * Sj;
+          else if (mode === 'add_tan') scope['T_' + k] = (Ti + Tj) / (1 - Ti * Tj);
+        });
+      }
+    }
     return scope;
   }
 
@@ -1184,10 +1256,11 @@
     if (String(exprA) === String(exprB)) return true;
     const c = compileAlgebraic([exprA, exprB]);
     if (!c) return false;
+    const angleSums = ADDITION_MODES.includes(mode) ? findAngleSums(c.args) : null;
     const rng = makeRng(20261006);
     let checked = 0;
     for (let k = 0; k < STRICT_SAMPLE_COUNT; k++) {
-      const scope = strictScope(mode, c.args.length, rng);
+      const scope = strictScope(mode, c.args.length, rng, angleSums);
       let a, b;
       try { a = c.compiled[0].evaluate(scope); b = c.compiled[1].evaluate(scope); } catch (_) { continue; }
       if (typeof a !== 'number' || typeof b !== 'number' || !Number.isFinite(a) || !Number.isFinite(b)) continue;
@@ -1589,12 +1662,13 @@
 
     // ③ 三角関数を日本語表記に。いったん空白付きにしてから
     //    「sin θ²」→「sin²θ」の順に組み替える
-    s = s.replace(/sin\(theta\)/g, 'sin θ')
-         .replace(/cos\(theta\)/g, 'cos θ')
-         .replace(/tan\(theta\)/g, 'tan θ');
-    s = s.replace(/(sin|cos|tan) θ([²³])/g, '$1$2θ');
-    s = s.replace(/(sin|cos|tan) θ/g, '$1θ');
-    s = s.replace(/\btheta\b/g, 'θ');
+    [['theta', 'θ'], ['alpha', 'α'], ['beta', 'β']].forEach(([name, mark]) => {
+      const fn = new RegExp('(sin|cos|tan)\\(' + name + '\\)', 'g');
+      s = s.replace(fn, '$1 ' + mark);
+      s = s.replace(new RegExp('(sin|cos|tan) ' + mark + '([²³])', 'g'), '$1$2' + mark);
+      s = s.replace(new RegExp('(sin|cos|tan) ' + mark, 'g'), '$1' + mark);
+      s = s.replace(new RegExp('\\b' + name + '\\b', 'g'), mark);
+    });
 
     // ④ 記号の見た目を整える
     s = s.replace(/\s*\*\s*/g, '·');
@@ -1717,6 +1791,8 @@
     // シンボル（変数）
     if (node.isSymbolNode) {
       if (node.name === 'theta') return _bTermTheta();
+      if (node.name === 'alpha') return { type: 'term_alpha' };
+      if (node.name === 'beta') return { type: 'term_beta' };
       return null; // それ以外の変数は未対応
     }
 
