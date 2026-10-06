@@ -68,7 +68,11 @@ window.tutorialModeActive = false;
 window.tutorialWorkspaceListenerBound = false;
 window.tutorialProgressCount = Math.max(0, parseInt(window.AppStorage.getRaw('tutorial_progress') || '0', 10) || 0);
 
-// ガイド/ヒント関連
+// ヒント関連
+// hintLevel … 段階的ヒントの段階。0=なし / 1=ヒント文 / 2=＋穴を光らせる / 3=＋置き換えブロックを置く
+// goalHintActive は「ヒントが出ているか」の真偽。古いコード（ログ・パルのチュートリアル）が
+// これを見ているので、hintLevel > 0 と同じ意味で残してある。
+window.hintLevel = 0;
 window.goalHintActive = false;
 window.currentHighlightTargetNode = null;
 window.highlightTrackingFrameId = 0;

@@ -116,6 +116,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
       introLines: [
         '答え合わせの前に、下のボタンも紹介しておくね。',
         '「リセット」は、ブロックを問題の最初の状態に戻すボタンだよ。',
+        '「ヒント」は、行き詰まったときの助けだよ。使い方は次の問題でくわしく教えるね。',
         '「あきらめる」を押すと、正解の並べ方を見たうえで、ぼくが解き方を解説するよ。ただし、その問題はクリアにならないから気をつけてね。',
       ],
       completeLines: [],
@@ -139,18 +140,17 @@ window.PAL_TUTORIAL_SCRIPTS['0-1'] = {
 };
 
 // ============================================
-// 0-2: パルのメニュー（三角関数の解説 / ガイド / ヒント）の紹介
-//   ガイド … ON にすると「置き換え」ブロックと左辺が最初から並んだ盤面になる
-//            (main.js applyConditionalInitialStateGeneration)
-//   ヒント … 次にやることが表示され、触る場所が光る (app-guide.js)
+// 0-2: 困ったときの助け（ヒント / 三角関数の解説）の紹介
+//   ヒント … 下のボタン。押すたびに段階が上がる (app-guide.js の hintLevel)
+//             1回目=問題ごとのヒント文 / 2回目=穴が光る / 3回目=「置き換え」ブロックを置く
+//   解説  … パルのメニューから開く (character-mascot.js → explanations.js)
 // ============================================
 window.PAL_TUTORIAL_SCRIPTS['0-2'] = {
   steps: [
     {
       id: 'step_intro',
       introLines: [
-        'ここからは自分の力で解いてもらうよ。その前に、ぼくにできることを紹介するね！',
-        '画面の右下にいるぼくを押すと、メニューが開くよ。',
+        'ここからは自分の力で解いてもらうよ。その前に、困ったときの助けを2つ紹介するね！',
       ],
       completeLines: [],
       autoAdvance: true,
@@ -158,53 +158,37 @@ window.PAL_TUTORIAL_SCRIPTS['0-2'] = {
     {
       id: 'step_explain_trig',
       introLines: [
-        'まずは「三角関数の解説」。三角関数の基本や、公式①〜③の意味と使いどころを説明するよ。',
+        '1つ目は「三角関数の解説」。画面の右下にいるぼくを押すと、メニューから開けるよ。',
+        '三角関数の基本や、公式①〜③の意味と使いどころを説明しているんだ。',
         'どの公式を使えばいいか迷ったら、ここを開いてみてね。',
       ],
       completeLines: [],
       autoAdvance: true,
     },
     {
-      id: 'step_explain_guide',
-      introLines: [
-        '次は「ガイド」。ONにすると、「置き換え」ブロックが証明の中に置かれて、左の穴に左辺も入った状態から始められるよ。',
-        'どこから手をつければいいか分からないときに便利なんだ。',
-        'じゃあ、ぼくを押して「ガイド」をONにしてみて！',
-      ],
-      completeLines: [
-        'ばっちり！盤面が並べ直されたね。あとは真ん中と右の穴を埋めればいいよ。',
-      ],
-      hintHtml: '右下のパルを押して、「ガイド」をONにしよう！',
-      // ガイドの ON/OFF はヘッダーのボタン (id=btn-overwrite-permission) の 'on' クラスで判定する
-      customWatch: {
-        pollCheck: () => {
-          const btn = document.getElementById('btn-overwrite-permission');
-          return !!(btn && btn.classList.contains('on'));
-        },
-      },
-      hintHtmlEmphasizeMascot: true,
-    },
-    {
       id: 'step_explain_hint',
       introLines: [
-        '最後は「ヒント」。ONにすると、次にやることが画面に表示されて、さわる場所が光るよ。',
-        'ぼくを押して、「ヒント」もONにしてみて！',
+        '2つ目は「ヒント」。画面の下にある「ヒント」ボタンだよ。',
+        'ヒントは3段階になっていて、押すたびに助けが強くなるんだ。',
+        '1回目は、この問題の進め方のヒントが出る。2回目は、次に埋める穴が光る。3回目は、「置き換え」ブロックを証明の中に置いてあげるよ。',
+        'いきなり全部は出ないから、まずは1回だけ押してみて！',
       ],
       completeLines: [
-        'これで、次に何をすればいいか分かるね！',
+        '出たね！右上のカードに書いてあるのがヒントだよ。もう一度押すと、もう1段くわしくなる。',
+        'もう要らなくなったら、カードの × か、ボタンをもう一度押していけば消えるよ。',
       ],
-      hintHtml: '右下のパルを押して、「ヒント」をONにしよう！',
+      hintHtml: '画面の下の「ヒント」ボタンを押してみよう！',
       customWatch: {
-        pollCheck: () => !!window.goalHintActive,
+        pollCheck: () => (window.hintLevel || 0) >= 1,
       },
-      hintHtmlEmphasizeMascot: true,
+      enableButtons: ['btn-hint'],
     },
     {
       id: 'step_outro',
       introLines: [
         'ぼくの紹介はこれでおしまい！',
         'この問題は、さっきの式の足し算の順番が入れかわっただけ。さっきと同じ手順で解いてみよう！',
-        'ガイドとヒントは、いらなくなったらぼくのメニューからOFFにできるよ。',
+        'ヒントは、ぼくのメニューからでも出せるよ。使えば使うほどいいものでもないから、まずは自分で考えてみてね。',
       ],
       completeLines: [],
       autoAdvance: true,
@@ -300,7 +284,7 @@ window.PAL_TUTORIAL_SCRIPTS['0-6'] = {
       introLines: [
         'ブロックは上から順につなげていくよ。「置き換え → 計算 → よって」の順だね。',
         '2つ目のブロックの左の穴には、1つ目のブロックの右の穴と同じ式を入れよう。前の結果から続けて書き換えていくイメージだよ。',
-        '困ったら、ヒントやガイド、三角関数の解説を使ってね！',
+        '困ったら、下の「ヒント」ボタンや、ぼくの「三角関数の解説」を使ってね！',
       ],
       completeLines: [],
       autoAdvance: true,
@@ -361,6 +345,132 @@ window.PAL_TUTORIAL_SCRIPTS['0-8'] = {
         'まず公式①で sin²θ + cos²θ を 1 にすると、式全体は 1 + tan²θ になるね。',
         'その 1 + tan²θ に公式③を使えば 1/cos²θ。置き換えブロックを2つ、上から順につなげよう！',
         '2つ目の置き換えの左の穴には、1つ目の右の穴と同じ「1 + tan²θ」を入れるのを忘れずにね。',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 23: 加法定理（sin）の初登場
+//   ここから「角が2つある公式」が始まる。
+//   これまでの①②③は角が θ ひとつだけだったので、
+//   「α・β という2つの角」「sin( ) の穴に角を入れて式を作る」の2点を説明する。
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['23'] = {
+  steps: [
+    {
+      id: 'step_two_angles',
+      introLines: [
+        'ここからは新しい章だよ。今までの公式①②③は、角が θ ひとつだけだったよね。',
+        `今回からは角が2つ出てくるよ。${window.BlockSvg.term('α')}（アルファ）と ${window.BlockSvg.term('β')}（ベータ）だ。`,
+        'たとえば「30°と45°を足した角」みたいに、2つの角を足した角を考えるときに使うんだ。',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_build_trig',
+      introLines: [
+        `角が2つあるので、ブロックも新しくなるよ。左のメニューに「角 α・β」というカテゴリが増えているから見てみて！`,
+        `${window.BlockSvg.term('sin( )')} は、穴に入れた角の sin を表すブロックだよ。穴に ${window.BlockSvg.term('α')} を入れれば sinα、${window.BlockSvg.term('β')} を入れれば sinβ になる。`,
+        `穴に「α + β」の足し算ブロック ${window.BlockSvg.add()} を入れれば sin(α+β) だね。cos( ) と tan( ) も同じ使い方だよ。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_addition_sin',
+      introLines: [
+        `そして今回の新しい公式が、加法公式 sin ${window.BlockSvg.formula('formula_addition_sin')} だよ。`,
+        '「足した角の sin は、バラバラにすると sinα·cosβ + cosα·sinβ になる」という意味。sin と cos が入れかわって並ぶのがポイントだね。',
+        'sin(α+β) は sinα + sinβ ではないんだ。ここを間違える人がとても多いから気をつけて！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_how_to_solve',
+      introLines: [
+        `解き方は今までと同じだよ。「置き換え」ブロック ${window.BlockSvg.replaceOperation()} の左に sin(α+β)、真ん中に加法公式 sin、右に書き換えたあとの式を入れよう。`,
+        '右の穴に入れる sinα·cosβ + cosα·sinβ は、かけ算ブロックと足し算ブロックを組み合わせて自分で組み立ててね。',
+        '組み立てるのが大変なら、右上にある答えの式のブロックを右クリックして「複製」すると早いよ。',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 24: 加法定理（cos）— マイナスが付くことと、打ち消し合いは「計算」ブロック
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['24'] = {
+  steps: [
+    {
+      id: 'step_addition_cos',
+      introLines: [
+        `次は加法公式 cos ${window.BlockSvg.formula('formula_addition_cos')} だよ。`,
+        'sin のときは「+」だったけど、cos では真ん中が「−」になるんだ。ここが入れかわりやすいところだよ。',
+        `まず「置き換え」で cos(α+β) を cosα·cosβ − sinα·sinβ に書き換えよう。右の穴には、残っている + sinα·sinβ も付けた式全体を入れるのを忘れずにね。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_cancel',
+      introLines: [
+        '書き換えると「− sinα·sinβ」と「+ sinα·sinβ」が並ぶよね。これは打ち消し合って消えるよ。',
+        `打ち消し合いは公式ではなく、ただの計算だから「計算」ブロック ${window.BlockSvg.simplifyOperation()} を使ってね。`,
+        '残るのは cosα·cosβ。これが右辺と同じだから、「よって〜となる」につなげれば完成だよ！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 25: 加法定理（tan）— 分数の形。約分は「計算」ブロック
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['25'] = {
+  steps: [
+    {
+      id: 'step_addition_tan',
+      introLines: [
+        `最後の加法公式、tan ${window.BlockSvg.formula('formula_addition_tan')} だよ。`,
+        'tan のときだけ分数の形になるんだ。分母が「1 − tanα·tanβ」で、マイナスが分母にあるところに注意してね。',
+        `今回の左辺は、その分母と同じ「(1 − tanα·tanβ)」が掛けられている形。まず「置き換え」で tan(α+β) を分数に書き換えよう。`,
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+    {
+      id: 'step_reduce',
+      introLines: [
+        '書き換えると、分母の (1 − tanα·tanβ) と、掛けられている (1 − tanα·tanβ) で約分できるね。',
+        `約分は公式ではないので「計算」ブロック ${window.BlockSvg.simplifyOperation()} だよ。残るのは tanα + tanβ。`,
+        'これで3つの加法公式はぜんぶ登場したよ。次の問題では組み合わせて使ってみよう！',
+      ],
+      completeLines: [],
+      autoAdvance: true,
+    },
+  ],
+};
+
+// ============================================
+// 26: 加法定理 + 公式② の組み合わせ（最終問題）
+// ============================================
+window.PAL_TUTORIAL_SCRIPTS['26'] = {
+  steps: [
+    {
+      id: 'step_final',
+      introLines: [
+        'いよいよ最後の問題！加法公式と、今までの公式を組み合わせて解くよ。',
+        `まず分子の sin(α+β) に加法公式 sin ${window.BlockSvg.formula('formula_addition_sin')} を使って、(sinα·cosβ + cosα·sinβ)/(cosα·cosβ) にしよう。`,
+        'そのあと分母の cosα·cosβ で約分すると、sinα/cosα + sinβ/cosβ の形に分かれるよ。約分は「計算」ブロックだね。',
+        `最後は見覚えのある形！公式② ${window.BlockSvg.formula(2)}「tanθ = sinθ/cosθ」で、sinα/cosα を tanα に、sinβ/cosβ を tanβ に置き換えれば完成だよ。`,
       ],
       completeLines: [],
       autoAdvance: true,

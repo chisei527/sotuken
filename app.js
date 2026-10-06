@@ -365,36 +365,8 @@ window.setupEventListeners = function() {
     }
   };
 
-  // 🛠️ ガイド機能 ON/OFF ボタン
-  const btnOverwrite = document.getElementById('btn-overwrite-permission');
-  if (btnOverwrite) {
-    btnOverwrite.addEventListener('click', () => {
-      const isOff = btnOverwrite.classList.contains('off');
-      if (isOff) {
-        btnOverwrite.classList.remove('off');
-        btnOverwrite.classList.add('on');
-        btnOverwrite.textContent = 'ガイド機能: ON';
-        if (typeof window.showToast === 'function') window.showToast('ガイド機能を ON にしました');
-      } else {
-        btnOverwrite.classList.remove('on');
-        btnOverwrite.classList.add('off');
-        btnOverwrite.textContent = 'ガイド機能: OFF';
-        if (typeof window.showToast === 'function') window.showToast('ガイド機能を OFF にしました');
-      }
-      
-      if (window.workspace && window.currentProblemData) {
-        window.workspace.clear();
-        if (window.currentProblemData.initialState) {
-          Blockly.serialization.workspaces.load(window.currentProblemData.initialState, window.workspace);
-        }
-        if (typeof window.applyConditionalInitialStateGeneration === 'function') {
-          window.applyConditionalInitialStateGeneration(window.workspace);
-        }
-        if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
-        if (typeof window.arrangeBlocks === 'function') window.arrangeBlocks();
-      }
-    });
-  }
+  // 旧「ガイド機能」ボタンはヒントのレベル3（app-guide.js の applyHintScaffold）に統合して削除した。
+  // 旧実装は押すたびに盤面を作り直していたので、途中まで組んだブロックが消えていた。
 
   // ✅ 正解をチェックボタン
   const btnSubmit = document.getElementById('btn-submit');
@@ -846,7 +818,12 @@ window.openFormulaReferenceModal = function(initialEntryId) {
   // タブ一覧を構築（三角関数の基礎 → 公式 の順）
   const registry = window.FORMULA_REGISTRY || {};
   const basics = window.TRIG_BASICS_ENTRIES || [];
-  const formulaIds = Object.keys(registry).filter((id) => registry[id].explanation);
+  // 解説があり、かつ解放済みの公式だけタブにする
+  // （まだ習っていない公式の解説が並んでいると迷うため。解放状況が分からないときは全部出す）
+  const unlocked = typeof window.getUnlockedFormulaIds === 'function' ? window.getUnlockedFormulaIds() : null;
+  const formulaIds = Object.keys(registry)
+    .filter((id) => registry[id].explanation)
+    .filter((id) => !Array.isArray(unlocked) || unlocked.length === 0 || unlocked.includes(id));
 
   const tabs = [];
   basics.forEach((b) => tabs.push({ id: b.id, label: b.label }));

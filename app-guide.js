@@ -261,9 +261,9 @@ window.startHighlightTracking = function() {
   // ヒントOFFのときは追従ループを回さない。
   // 以前は無条件に requestAnimationFrame を回し続けていて、
   // ヒントを消した後もずっと毎フレーム DOM を触っていた。
-  if (!window.goalHintActive) return;
+  if (!window.isHighlightLevel()) return;
   function track() {
-    if (!window.goalHintActive) { window.highlightTrackingFrameId = 0; return; }
+    if (!window.isHighlightLevel()) { window.highlightTrackingFrameId = 0; return; }
     const pulseElement = document.getElementById('tutorial-highlight-target');
     if (pulseElement && window.currentHighlightTargetNode && !pulseElement.classList.contains('hidden')) {
       const rect = typeof window.currentHighlightTargetNode.getBoundingClientRect === 'function' ? window.currentHighlightTargetNode.getBoundingClientRect() : window.currentHighlightTargetNode;
@@ -303,7 +303,7 @@ window.updateTutorialHighlightUI = function(stageNumber) {
   if (highlightTargets?.target) {
     window.currentHighlightTargetNode = highlightTargets.target;
     // ヒントONの間だけ枠を光らせる
-    if (window.goalHintActive && targetPulse) {
+    if (window.isHighlightLevel() && targetPulse) {
       // 最初のフレームで rect を確定させて hidden を外す
       const rect = typeof highlightTargets.target.getBoundingClientRect === 'function'
         ? highlightTargets.target.getBoundingClientRect()
@@ -323,34 +323,17 @@ window.updateTutorialHighlightUI = function(stageNumber) {
 
   window.startHighlightTracking();
 
-  // 🛠️ チュートリアルモードの表示制御
-  if (window.tutorialModeActive) {
-    if (banner) {
-      if (window.goalHintActive) {
-        banner.innerHTML = goalText;
-        banner.classList.add('visible');
-        banner.style.display = 'block';
-      } else {
-        banner.innerHTML = '';
-        banner.classList.remove('visible');
-        banner.style.display = 'none';
-      }
-    }
-    return;
-  }
+  // 目標テキストは浮かぶヒントカードに出す。
+  // 以前は問題文の下の「帯」(#tutorial-next-under-problem / #tutorial-banner) に出していたが、
+  // ONにするたびに作業エリアが下へずれてしまうのでやめた。DOM は他から参照されるので残し、中身だけ空にする。
+  [banner, underProblem].forEach((el) => {
+    if (!el) return;
+    el.innerHTML = '';
+    el.classList.remove('visible', 'pulse');
+    if (el === banner) el.style.display = 'none';
+  });
 
-  // 本編モードの表示制御
-  if (underProblem) {
-    if (window.goalHintActive) {
-      underProblem.innerHTML = goalText;
-      underProblem.classList.add('visible');
-      underProblem.classList.add('pulse');
-    } else {
-      underProblem.innerHTML = '';
-      underProblem.classList.remove('visible');
-      underProblem.classList.remove('pulse');
-    }
-  }
+  window.renderHintCard(goalText);
 };
 
 window.hideTutorialHighlights = function() {
@@ -358,19 +341,229 @@ window.hideTutorialHighlights = function() {
   if (target) target.classList.add('hidden');
 };
 
-window.showGoalHintForStage = function() {
-  window.goalHintActive = true;
-  const hintButton = document.getElementById('btn-hint');
-  if (hintButton) hintButton.textContent = 'ヒントを消す';
+// ====== 3b. 段階的ヒント ======
+// ヒントは3段階。ボタンを押すごとに1段ずつ上がり、最後まで行くと消える。
+//   1 … 問題ごとのヒント文（problems/*.json の hints）を1つ目から
+//   2 … ＋ 次に埋める穴を光らせる／【目標】を出す（ヒント文も1つ増える）
+//   3 … ＋ 「置き換え」ブロックを置く（旧「ガイド機能」。ヒント文も1つ増える）
+// 以前はこの3つが「ガイド機能」ボタン（ヘッダー）と「ヒント」ボタンに分かれていた。
+window.HINT_MAX_LEVEL = 3;
+
+// 光らせる・【目標】を出すのはレベル2から
+window.isHighlightLevel = function() {
+  return (window.hintLevel || 0) >= 2;
+};
+
+window.getProblemHints = function() {
+  const hints = window.currentProblemData?.hints;
+  return Array.isArray(hints) ? hints.filter((h) => typeof h === 'string' && h.trim()) : [];
+};
+
+// 「置き換え」ブロックを1つ置いて、左の穴に問題の左辺を入れる（レベル3）。
+// ⚠️ 旧ガイド機能は盤面をいったん全部消して作り直していたので、
+//    途中まで組んだブロックが消えてしまった。ここでは消さずに足すだけにする。
+//    すでに自分で操作ブロックを置いているときは、何もしない。
+window.applyHintScaffold = function() {
+  const ws = window.workspace;
+  if (!ws) return false;
+  const proof = ws.getTopBlocks(false).find((b) => b.type === 'proof_step');
+  if (!proof) return false;
+  const opConn = proof.getInput('OPERATIONS')?.connection;
+  if (!opConn) return false;
+
+  const first = opConn.targetBlock();
+  // 「よって」以外がすでに入っている = 自分で組み始めている → 触らない
+  if (first && first.type !== 'conclusion_operation') return false;
+
+  let replaceOp;
+  try {
+    replaceOp = ws.newBlock('replace_operation');
+    replaceOp.initSvg();
+    replaceOp.render();
+  } catch (err) {
+    console.warn('[Hint] 置き換えブロックを作れませんでした:', err);
+    return false;
+  }
+
+  if (first && first.previousConnection) {
+    first.previousConnection.disconnect();
+    if (replaceOp.nextConnection) replaceOp.nextConnection.connect(first.previousConnection);
+  }
+  opConn.connect(replaceOp.previousConnection);
+
+  // 盤面に余っている左辺のブロックがあれば「式」の穴に入れる
+  const valueConn = replaceOp.getInput('VALUE')?.connection;
+  if (valueConn && !valueConn.targetBlock()) {
+    const leftBlock = ws.getTopBlocks(false)
+      .filter((b) => b && b.outputConnection && !/^formula_/.test(b.type)
+        && !window.isProofOrOperationBlockType(b.type))
+      .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y)[0];
+    if (leftBlock) valueConn.connect(leftBlock.outputConnection);
+  }
+
+  if (typeof window.forceWorkspaceLayoutSync === 'function') window.forceWorkspaceLayoutSync();
+  return true;
+};
+
+window.updateHintButton = function() {
+  const btn = document.getElementById('btn-hint');
+  if (!btn) return;
+  const level = window.hintLevel || 0;
+  const max = window.HINT_MAX_LEVEL;
+  // ボタンの文字は短くする。狭い画面で折り返して2行になってしまうため。
+  // 「もう一度押すと何が起きるか」はヒントカードの下に書いてある。
+  btn.textContent = level === 0 ? 'ヒント' : (level >= max ? 'ヒントを消す' : `ヒント ${level}/${max}`);
+  btn.classList.toggle('hint-on', level > 0);
+};
+
+window.setHintLevel = function(nextLevel) {
+  const max = window.HINT_MAX_LEVEL;
+  const before = window.hintLevel || 0;
+  const level = Math.max(0, Math.min(max, Number(nextLevel) || 0));
+  window.hintLevel = level;
+  window.goalHintActive = level > 0;
+
+  // レベル3に上がった瞬間だけ盤面に置き換えブロックを置く（毎回置くと増えてしまう）
+  let scaffolded = false;
+  if (level >= max && before < max) scaffolded = window.applyHintScaffold();
+
+  window.updateHintButton();
   window.updateTutorialHighlightUI(window.currentStageNumber);
+  if (level === 0) window.hideTutorialHighlights();
+
+  if (scaffolded && typeof window.showToast === 'function') {
+    window.showToast('「置き換え」ブロックを置いたよ。左の穴には問題の左辺が入っているよ');
+  }
+  return level;
+};
+
+// ボタンを押したときの進み方: 0 → 1 → 2 → 3 → 0
+window.advanceHintLevel = function() {
+  const level = window.hintLevel || 0;
+  return window.setHintLevel(level >= window.HINT_MAX_LEVEL ? 0 : level + 1);
+};
+
+// ステージを読み込んだときに段階をリセットする
+window.resetHintLevel = function() {
+  window.hintLevel = 0;
+  window.goalHintActive = false;
+  window.updateHintButton();
+  window.renderHintCard('');
+  window.hideTutorialHighlights();
+};
+
+// 旧API（他のファイルやパルのチュートリアルから呼ばれる）
+window.showGoalHintForStage = function() {
+  if ((window.hintLevel || 0) === 0) window.setHintLevel(1);
 };
 
 window.hideGoalHintForStage = function() {
-  window.goalHintActive = false;
-  const hintButton = document.getElementById('btn-hint');
-  if (hintButton) hintButton.textContent = 'ヒント';
-  window.updateTutorialHighlightUI(window.currentStageNumber);
-  window.hideTutorialHighlights();
+  window.setHintLevel(0);
+};
+
+// ====== 3c. ヒントカード（作業エリアの右上に浮かべる） ======
+window.ensureHintCard = function() {
+  let card = document.getElementById('hint-card');
+  if (card) return card;
+  card = document.createElement('div');
+  card.id = 'hint-card';
+  card.className = 'hidden';
+  card.innerHTML = `
+    <div class="hint-card-head">
+      <span class="hint-card-title">💡 ヒント <span id="hint-card-level">1/3</span></span>
+      <button id="hint-card-fold" type="button" aria-label="ヒントをたたむ" title="たたむ（ヒントは消えません）">▾</button>
+      <button id="hint-card-close" type="button" aria-label="ヒントを消す" title="ヒントを消す">×</button>
+    </div>
+    <ol class="hint-card-list" id="hint-card-list"></ol>
+    <div class="hint-card-goal" id="hint-card-goal"></div>
+    <div class="hint-card-next" id="hint-card-next"></div>`;
+  document.body.appendChild(card);
+  card.querySelector('#hint-card-close').addEventListener('click', () => window.setHintLevel(0));
+  // たたむ/開く。ブロックに重なって読みにくいときのため。段階はそのまま残す。
+  card.querySelector('#hint-card-fold').addEventListener('click', () => {
+    const folded = card.classList.toggle('collapsed');
+    const btn = card.querySelector('#hint-card-fold');
+    btn.textContent = folded ? '▸' : '▾';
+    btn.title = folded ? '開く' : 'たたむ（ヒントは消えません）';
+    window.positionHintCard();
+  });
+  window.addEventListener('resize', () => window.positionHintCard());
+  return card;
+};
+
+// 作業エリア(#l)の右上に合わせて置く。position:fixed なので盤面のレイアウトがずれない。
+// 右端はゴミ箱のぶんだけ空けておく。
+window.positionHintCard = function() {
+  const card = document.getElementById('hint-card');
+  const area = document.getElementById('l');
+  if (!card || !area || card.classList.contains('hidden')) return;
+  const rect = area.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const TRASH_GUTTER = 84;
+  const top = Math.round(rect.top + 12);
+  card.style.top = `${top}px`;
+  card.style.right = `${Math.round(window.innerWidth - rect.right + TRASH_GUTTER)}px`;
+
+  // 下は「リセット／あきらめる／…」のボタン列の手前で止める。
+  // 画面が低いときにカードがボタンの裏まで伸びてしまうのを防ぐ。
+  const actionBar = document.querySelector('.action-bar-container');
+  const barRect = actionBar ? actionBar.getBoundingClientRect() : null;
+  const bottomLimit = (barRect && barRect.height > 0) ? barRect.top : rect.bottom;
+  card.style.maxHeight = `${Math.max(120, Math.round(bottomLimit - top - 16))}px`;
+};
+
+window.renderHintCard = function(goalText) {
+  const level = window.hintLevel || 0;
+  const card = level > 0 ? window.ensureHintCard() : document.getElementById('hint-card');
+  if (!card) return;
+
+  if (level === 0) {
+    card.classList.add('hidden');
+    window._hintCardShownLevel = 0;
+    return;
+  }
+
+  const max = window.HINT_MAX_LEVEL;
+  const hints = window.getProblemHints();
+  const list = card.querySelector('#hint-card-list');
+  const goal = card.querySelector('#hint-card-goal');
+  const next = card.querySelector('#hint-card-next');
+  const levelLabel = card.querySelector('#hint-card-level');
+
+  if (levelLabel) levelLabel.textContent = `${level}/${max}`;
+
+  // レベルの数だけヒント文を出す（ヒント文が無い問題では【目標】だけになる）
+  if (list) {
+    const shown = hints.slice(0, level);
+    list.innerHTML = shown.map((h) => `<li>${h}</li>`).join('');
+    list.style.display = shown.length ? 'block' : 'none';
+  }
+
+  if (goal) {
+    const text = level >= 2 ? (goalText || '') : '';
+    goal.innerHTML = text;
+    goal.style.display = text ? 'block' : 'none';
+  }
+
+  if (next) {
+    let message = '';
+    if (level === 1) message = 'もう一度押すと、次に埋める穴が光るよ';
+    else if (level === 2) message = 'もう一度押すと、「置き換え」ブロックを置くよ';
+    else message = 'ここまでがヒントの全部。もう一度押すと消えるよ';
+    next.textContent = message;
+  }
+
+  card.classList.remove('hidden');
+  // 段階が上がったときは、たたんであっても開いて新しいヒントを見せる
+  if (level !== window._hintCardShownLevel) {
+    card.classList.remove('collapsed');
+    const foldBtn = card.querySelector('#hint-card-fold');
+    if (foldBtn) { foldBtn.textContent = '▾'; foldBtn.title = 'たたむ（ヒントは消えません）'; }
+    window._hintCardShownLevel = level;
+  }
+  window.positionHintCard();
+  // 画面の切り替え直後は #l の大きさが確定していないので、次のフレームでもう一度合わせる
+  requestAnimationFrame(() => window.positionHintCard());
 };
 
 // ====== 4. ブロック変化の監視とボタン初期化 ======
@@ -380,7 +573,7 @@ window.bindGuideWorkspaceListener = function() {
   window.guideWorkspaceListenerBound = true;
   window.workspace.addChangeListener(function(event) {
     if (!window.goalHintActive) return;
-    if (event && event.isUiEvent) return; 
+    if (event && event.isUiEvent) return;
     window.updateTutorialHighlightUI(window.currentStageNumber);
   });
 };
@@ -397,13 +590,9 @@ window.setupGuideButton = function () {
   btn.dataset.guideBound = '1';
   
   btn.addEventListener('click', function () {
-    // 🛠️ 【ここを完全修正】チュートリアル中でも本編でも共通のトグル（ON/OFF）制御に変更
-    if (window.goalHintActive) {
-      window.hideGoalHintForStage();
-    } else {
-      window.showGoalHintForStage();
-    }
-    window.AppLog?.hint(!!window.goalHintActive);
+    const level = window.advanceHintLevel();
+    // ログには「何段目まで見たか」を残す（研究用: どれだけ助けを借りたかの指標になる）
+    window.AppLog?.hint(level > 0, level);
   });
 };
 
@@ -413,6 +602,7 @@ window.setupGuideButton = function () {
 window.initGuideFeature = function() {
   if (typeof window.bindGuideWorkspaceListener === 'function') window.bindGuideWorkspaceListener();
   if (typeof window.setupGuideButton === 'function') window.setupGuideButton();
+  if (typeof window.updateHintButton === 'function') window.updateHintButton();
 };
 
 // 初期化のスケジュールはここ1箇所だけ。

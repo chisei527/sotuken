@@ -135,7 +135,10 @@
   // ============================================
   // ボタン有効/無効の制御
   // ============================================
-  const CONTROLLED_BUTTON_IDS = ['btn-reset', 'btn-answer', 'btn-submit'];
+  // パルのチュートリアル中は、台本が許可するまで押せなくするボタン。
+  // btn-hint も含める: 0-1 は完全誘導なので、途中でヒントが「置き換え」ブロックを
+  // 置いてしまうと「自分で引き出してみて」の案内と食い違うため。
+  const CONTROLLED_BUTTON_IDS = ['btn-reset', 'btn-answer', 'btn-submit', 'btn-hint'];
 
   function disableAllControlledButtons() {
     CONTROLLED_BUTTON_IDS.forEach((id) => {
@@ -166,17 +169,6 @@
         btn.classList.remove('pal-tutorial-disabled');
       }
     });
-  }
-
-  // ============================================
-  // ガイド機能OFFの強制 (0-1 チュートリアル用)
-  // 現状 0-1 のみ強制 OFF する (完全誘導のため答えの骨組み表示が邪魔になる)。
-  // 他ステージでは何もしない。
-  // ============================================
-  function ensureGuideOff() {
-    const btn = document.getElementById('btn-overwrite-permission');
-    if (!btn) return;
-    if (btn.classList.contains('on')) btn.click();
   }
 
   // ============================================
@@ -382,9 +374,10 @@
       onComplete: onComplete || function () {},
     };
 
-    // 0-1 のみガイド機能を強制 OFF (完全誘導のため)
-    if (stageId === '0-1') {
-      ensureGuideOff();
+    // 0-1 は完全誘導なので、ヒントが出ていたら消しておく
+    // （「置き換え」ブロックが先に置かれていると、台本の「引き出してみて」が成り立たない）
+    if (stageId === '0-1' && typeof window.resetHintLevel === 'function') {
+      window.resetHintLevel();
     }
     disableAllControlledButtons();
 

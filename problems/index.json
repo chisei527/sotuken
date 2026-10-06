@@ -1,6 +1,6 @@
 {
   "_comment": "本編ステージ数のマニフェスト。問題を追加したら mainStageTotal を手で更新すること。",
-  "mainStageTotal": 22,
+  "mainStageTotal": 26,
   "tutorialStageIds": [
     "0-1",
     "0-2",

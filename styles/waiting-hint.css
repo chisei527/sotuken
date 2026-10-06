@@ -160,9 +160,12 @@
            パルに統合された旧UI要素を視覚的に隠す
            character-mascot.js が click() で内部発火する必要があるため
            DOM ノード自体は残し、CSS で display: none する。
+
+           ⚠️ #btn-hint はここから外した。
+              ヒントは段階的（押すごとに 1→2→3）になり、いま何段目かが
+              分からないと使いづらいので、下のボタン列に戻して状態を見せる。
+           （旧「ガイド機能」ボタンはヒントのレベル3に統合して、HTMLごと削除した）
            ======================================== */
-        #btn-hint,
-        #btn-overwrite-permission,
         #btn-formula-reference {
           display: none !important;
         }

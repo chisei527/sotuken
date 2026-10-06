@@ -126,6 +126,8 @@ function defineMathBlocks() {
     ['term_sin2', 'sin2θ'],
     ['term_cos2', 'cos2θ'],
     ['term_theta', 'θ'],
+    ['term_alpha', 'α'],
+    ['term_beta', 'β'],
     ['term_two_theta', '2θ'],
     ['term_three_theta', '3θ'],
     ['term_four_theta', '4θ'],

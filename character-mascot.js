@@ -17,21 +17,11 @@
   //   position は 'up' (真上) / 'up-left' (左上) / 'left' (真左) / 'right' (右上)
   const MENU_ITEMS = [
     {
-      key: 'guide',
-      label: 'ガイド',
-      subLabel: 'ON/OFF',
-      position: 'up-left',
-      onSelect: () => {
-        const btn = document.getElementById('btn-overwrite-permission');
-        if (btn) btn.click();
-        refreshMenuState();
-      },
-    },
-    {
+      // 旧「ガイド」はヒントのレベル3に統合したので、項目は1つだけにした。
       key: 'hint',
       label: 'ヒント',
-      subLabel: '表示切替',
-      position: 'left',
+      subLabel: 'OFF',
+      position: 'up-left',
       onSelect: () => {
         const btn = document.getElementById('btn-hint');
         if (btn) btn.click();
@@ -64,28 +54,18 @@
   ];
 
   /**
-   * radial menu の各項目の状態表示 (ON/OFF や選択中マーク) を、
-   * 既存機能の現在の状態に合わせて更新する。
-   * ガイド機能: btn-overwrite-permission の on/off クラスから読む
-   * ヒント: window.goalHintActive を見る
+   * radial menu の各項目の状態表示を、いまのヒントの段階に合わせて更新する。
+   * ヒントは 0〜3 の段階制（window.hintLevel）。
    */
   function refreshMenuState() {
-    const guideBtn = document.getElementById('btn-overwrite-permission');
-    const isGuideOn = !!(guideBtn && guideBtn.classList.contains('on'));
-    const isHintOn = !!window.goalHintActive;
-
-    const guideItem = document.querySelector('.character-mascot-menu-item[data-key="guide"]');
-    if (guideItem) {
-      guideItem.classList.toggle('is-active', isGuideOn);
-      const sub = guideItem.querySelector('.character-mascot-menu-sublabel');
-      if (sub) sub.textContent = isGuideOn ? 'ON' : 'OFF';
-    }
+    const level = window.hintLevel || 0;
+    const max = window.HINT_MAX_LEVEL || 3;
 
     const hintItem = document.querySelector('.character-mascot-menu-item[data-key="hint"]');
     if (hintItem) {
-      hintItem.classList.toggle('is-active', isHintOn);
+      hintItem.classList.toggle('is-active', level > 0);
       const sub = hintItem.querySelector('.character-mascot-menu-sublabel');
-      if (sub) sub.textContent = isHintOn ? '表示中' : '表示する';
+      if (sub) sub.textContent = level > 0 ? `${level}/${max}` : 'OFF';
     }
   }
   // 他所からも呼べるように公開しておく (ヘッダートグルの直接操作など)
@@ -157,11 +137,9 @@
       window.toggleCharacterMascotMenu(false);
     });
 
-    // 既存のガイドボタン/ヒントボタンが radial menu を介さず直接クリックされた場合も
+    // 下のボタン列のヒントボタンが radial menu を介さず直接押された場合も
     // menu 側の状態表示を更新する
-    const guideBtn = document.getElementById('btn-overwrite-permission');
     const hintBtn = document.getElementById('btn-hint');
-    if (guideBtn) guideBtn.addEventListener('click', () => setTimeout(refreshMenuState, 0));
     if (hintBtn) hintBtn.addEventListener('click', () => setTimeout(refreshMenuState, 0));
 
     return host;
@@ -231,6 +209,8 @@
   const SUBMENU_ID = 'character-mascot-submenu';
 
   // 解説項目の一覧。entryId は explanations.js のタブ ID (basics_XX / formula_N)
+  // requiresFormulaId が付いている項目は、その公式が解放されるまで出さない
+  // （まだ習っていない公式の解説が最初から並んでいると迷うため）。
   const EXPLANATION_ENTRIES = [
     { entryId: 'basics_intro',           label: '基礎①', title: '三角関数とは' },
     { entryId: 'basics_unit_circle',     label: '基礎②', title: '単位円で理解する' },
@@ -238,7 +218,38 @@
     { entryId: 'formula_1',              label: '公式①', title: '三平方の関係' },
     { entryId: 'formula_2',              label: '公式②', title: 'tan の定義' },
     { entryId: 'formula_3',              label: '公式③', title: 'tan の三平方関係' },
+    { entryId: 'formula_addition_sin',   label: '加法 sin', title: 'sin の加法公式', requiresFormulaId: 'formula_addition_sin' },
+    { entryId: 'formula_addition_cos',   label: '加法 cos', title: 'cos の加法公式', requiresFormulaId: 'formula_addition_cos' },
+    { entryId: 'formula_addition_tan',   label: '加法 tan', title: 'tan の加法公式', requiresFormulaId: 'formula_addition_tan' },
   ];
+
+  // いま出していい項目だけを返す
+  function visibleExplanationEntries() {
+    const unlocked = typeof window.getUnlockedFormulaIds === 'function' ? window.getUnlockedFormulaIds() : [];
+    return EXPLANATION_ENTRIES.filter((e) => !e.requiresFormulaId || unlocked.includes(e.requiresFormulaId));
+  }
+
+  // 項目のボタンを作り直す（開くたびに呼ぶ。解放状況が変わるため）
+  function renderSubmenuBody(panel) {
+    const body = panel.querySelector('.character-mascot-submenu-body');
+    if (!body) return;
+    body.innerHTML = visibleExplanationEntries().map((e) => `
+      <button class="character-mascot-submenu-item" type="button" data-entry-id="${e.entryId}">
+        <div class="character-mascot-submenu-item-label">${e.label}</div>
+        <div class="character-mascot-submenu-item-title">${e.title}</div>
+      </button>
+    `).join('');
+    body.querySelectorAll('.character-mascot-submenu-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const entryId = btn.dataset.entryId;
+        closeSubmenu();
+        // 既存の公式解説モーダル (explanations.js/app.js のロジック) を再利用。
+        if (typeof window.openFormulaReferenceModal === 'function') {
+          window.openFormulaReferenceModal(entryId);
+        }
+      });
+    });
+  }
 
   function ensureSubmenu() {
     let panel = document.getElementById(SUBMENU_ID);
@@ -253,14 +264,7 @@
           <div class="character-mascot-submenu-title">📘 三角関数の解説</div>
           <button class="character-mascot-submenu-close" type="button" aria-label="閉じる">×</button>
         </div>
-        <div class="character-mascot-submenu-body">
-          ${EXPLANATION_ENTRIES.map((e) => `
-            <button class="character-mascot-submenu-item" type="button" data-entry-id="${e.entryId}">
-              <div class="character-mascot-submenu-item-label">${e.label}</div>
-              <div class="character-mascot-submenu-item-title">${e.title}</div>
-            </button>
-          `).join('')}
-        </div>
+        <div class="character-mascot-submenu-body"></div>
       </div>
     `;
     document.body.appendChild(panel);
@@ -271,23 +275,13 @@
     panel.addEventListener('click', (e) => {
       if (e.target === panel) closeSubmenu();
     });
-    // 各項目を選択 → 既存の公式解説モーダルを開いてそのタブを表示
-    panel.querySelectorAll('.character-mascot-submenu-item').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const entryId = btn.dataset.entryId;
-        closeSubmenu();
-        // 既存の公式解説モーダル (explanations.js/app.js のロジック) を再利用。
-        // Step 5 で完全に置き換える予定だが、ここでは既存のモーダルを流用する。
-        if (typeof window.openFormulaReferenceModal === 'function') {
-          window.openFormulaReferenceModal(entryId);
-        }
-      });
-    });
+    // 各項目のボタンは renderSubmenuBody が作る（開くたびに作り直す）
     return panel;
   }
 
   function openSubmenu() {
     const panel = ensureSubmenu();
+    renderSubmenuBody(panel);
     panel.classList.remove('hidden');
     requestAnimationFrame(() => panel.classList.add('show'));
     window.toggleCharacterMascotMenu(false); // 元 radial menu は閉じる
