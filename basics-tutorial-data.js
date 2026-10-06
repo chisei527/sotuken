@@ -16,7 +16,7 @@ window.BASICS_TUTORIAL_STEPS = [
     id: 'step_pull_number_1',
     introLines: [
       'まずはブロックの引き出し方だよ！',
-      `左側の「基本」カテゴリから、白い「1」のブロック ${window.BlockSvg.number('1')} を掴んで真ん中の作業エリアにドラッグしてみて！`,
+      `左の「基本」カテゴリを開いて、「1」のブロック ${window.BlockSvg.number('1')} を真ん中の作業エリアまでドラッグしてみて！`,
     ],
     completeLines: [
       'ばっちり！ブロックが作業エリアに置けたね！',
@@ -30,11 +30,11 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_pull_number_2',
     introLines: [
-      `よくできたね！もう一回、同じ「1」のブロック ${window.BlockSvg.number('1')} を引き出してみよう。`,
-      '同じ操作を繰り返せば、ブロックはいくつでも作業エリアに置けるよ！',
+      `その調子！もう一度、「1」のブロック ${window.BlockSvg.number('1')} を出してみよう。`,
+      '同じブロックは、何個でも出せるよ。',
     ],
     completeLines: [
-      '完璧！これで2つのブロックが並んだね！',
+      '完璧！ブロックが2つ並んだね。',
     ],
     check: (event, workspace) => {
       if (event.type !== Blockly.Events.BLOCK_CREATE) return false;
@@ -46,11 +46,11 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_pull_add',
     introLines: [
-      '次は、ブロック同士をつなぐ練習をするよ。',
-      `左側の「基本」から、今度は「+」の書かれた足し算ブロック ${window.BlockSvg.add()} を引き出してみて！`,
+      '次は、ブロック同士をつなげる練習だよ。',
+      `「基本」から、今度は「+」の足し算ブロック ${window.BlockSvg.add()} を出してみて！`,
     ],
     completeLines: [
-      'いい調子！足し算のブロックが出せたね！',
+      'いいね！足し算のブロックが出せたね。',
     ],
     check: (event) => {
       if (event.type !== Blockly.Events.BLOCK_CREATE) return false;
@@ -60,11 +60,11 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_connect_blocks',
     introLines: [
-      `それじゃあ、さっきの「1」のブロック ${window.BlockSvg.number('1')} を足し算ブロック ${window.BlockSvg.add()} の穴にはめてみよう！`,
-      'ブロックを掴んで、足し算ブロックの丸い穴に近づけると自動でハマるよ。',
+      `じゃあ、さっきの「1」のブロック ${window.BlockSvg.number('1')} を、足し算ブロック ${window.BlockSvg.add()} の穴にはめてみよう！`,
+      'ブロックをつかんで穴に近づけると、パチッとはまるよ。',
     ],
     completeLines: [
-      'やった！ブロックをつなげたね！こうやって式を組み立てていくんだよ！',
+      'やった！こうやってブロックをつなげて、式を組み立てていくんだ。',
     ],
     check: (event, workspace) => {
       // BLOCK_MOVE で newParentId があり、custom_number が math_add にくっついた
@@ -79,13 +79,13 @@ window.BASICS_TUTORIAL_STEPS = [
   {
     id: 'step_delete_block',
     introLines: [
-      '最後に、間違えて置いたブロックの消し方を覚えよう！',
-      'どれでもいいから、ブロックを右下のゴミ箱にドラッグしてみて！',
-      '（右クリックして「ブロックを削除」でも消せるよ！）',
+      '最後に、いらないブロックの消し方を覚えよう。',
+      'どれでもいいから、ブロックを右下のゴミ箱までドラッグしてみて！',
+      '（ブロックを右クリックして「削除」を選んでも消せるよ）',
     ],
     completeLines: [
-      'ばっちり！これで基本操作は全部覚えたね！',
-      'それじゃあ、次から本番のチュートリアルを始めよう！',
+      'ばっちり！これで基本操作はおしまい。',
+      'ここからは、パルと一緒に実際の問題を解いてみよう！',
     ],
     check: (event) => {
       return event.type === Blockly.Events.BLOCK_DELETE;
@@ -95,11 +95,11 @@ window.BASICS_TUTORIAL_STEPS = [
 
 // ステップ全体の開始・終了時のセリフ
 window.BASICS_TUTORIAL_INTRO_LINES = [
-  '最初にブロックの動かし方を覚えていこう！',
-  'これができれば、あとの問題もスムーズに進められるようになるよ！',
+  'まずは、ブロックの動かし方を覚えよう！',
+  'ここで慣れておくと、このあとの問題がぐっと楽になるよ。',
 ];
 window.BASICS_TUTORIAL_OUTRO_LINES = [
-  'これで基本操作はマスター！次は実際の問題に挑戦しよう！',
+  '基本操作はばっちりだね！次は実際の問題に挑戦しよう！',
 ];
 
 // ヘルパ: BLOCK_CREATE イベントで指定タイプのブロックが含まれるか判定
