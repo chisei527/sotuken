@@ -391,7 +391,7 @@
     // 同じステージの読み直し（リセット・もう一度）は「続き」として扱い、回数と経過時間を引き継ぐ
     stageStart(stageId) {
       const restart = stage.id != null && String(stage.id) === String(stageId);
-      if (!restart) { stage.id = stageId; stage.startedAt = Date.now(); stage.attempts = 0; stage.hints = 0; }
+      if (!restart) { stage.id = stageId; stage.startedAt = Date.now(); stage.attempts = 0; stage.hints = 0; stage.maxHintLevel = 0; }
       enqueue('stage_start', { tutorial: !!window.isTutorialStageId?.(stageId), restart, elapsed_ms: restart ? elapsedMs() : 0 });
     },
     submit(validation) {
@@ -402,16 +402,26 @@
         error_step: validation?.errorStepIndex ?? null,
         attempt: stage.attempts,
         hints_used: stage.hints,
+        hint_level: window.hintLevel || 0,          // 提出した時点で出していたヒントの段階
+        max_hint_level: stage.maxHintLevel || 0,    // そのステージで一番深く見た段階
         elapsed_ms: elapsedMs(),
         blocks: snapshotBlocks(),
       });
     },
-    hint(isOn) {
+    // level … 段階的ヒントの段階 (0=消した / 1=ヒント文 / 2=＋穴を光らせる / 3=＋ブロックを置く)
+    hint(isOn, level) {
       if (isOn) stage.hints += 1;
-      enqueue('hint', { on: !!isOn, count: stage.hints, elapsed_ms: elapsedMs() });
+      if (Number.isFinite(level)) stage.maxHintLevel = Math.max(stage.maxHintLevel || 0, level);
+      enqueue('hint', {
+        on: !!isOn,
+        level: Number.isFinite(level) ? level : null,
+        max_level: stage.maxHintLevel || 0,
+        count: stage.hints,
+        elapsed_ms: elapsedMs(),
+      });
     },
     giveup() {
-      enqueue('giveup', { attempts: stage.attempts, hints_used: stage.hints, elapsed_ms: elapsedMs(), blocks: snapshotBlocks() });
+      enqueue('giveup', { attempts: stage.attempts, hints_used: stage.hints, max_hint_level: stage.maxHintLevel || 0, elapsed_ms: elapsedMs(), blocks: snapshotBlocks() });
     },
     reset() {
       enqueue('reset', { attempts: stage.attempts, elapsed_ms: elapsedMs() });

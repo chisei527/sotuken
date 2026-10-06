@@ -17,21 +17,11 @@
   //   position は 'up' (真上) / 'up-left' (左上) / 'left' (真左) / 'right' (右上)
   const MENU_ITEMS = [
     {
-      key: 'guide',
-      label: 'ガイド',
-      subLabel: 'ON/OFF',
-      position: 'up-left',
-      onSelect: () => {
-        const btn = document.getElementById('btn-overwrite-permission');
-        if (btn) btn.click();
-        refreshMenuState();
-      },
-    },
-    {
+      // 旧「ガイド」はヒントのレベル3に統合したので、項目は1つだけにした。
       key: 'hint',
       label: 'ヒント',
-      subLabel: '表示切替',
-      position: 'left',
+      subLabel: 'OFF',
+      position: 'up-left',
       onSelect: () => {
         const btn = document.getElementById('btn-hint');
         if (btn) btn.click();
@@ -64,28 +54,18 @@
   ];
 
   /**
-   * radial menu の各項目の状態表示 (ON/OFF や選択中マーク) を、
-   * 既存機能の現在の状態に合わせて更新する。
-   * ガイド機能: btn-overwrite-permission の on/off クラスから読む
-   * ヒント: window.goalHintActive を見る
+   * radial menu の各項目の状態表示を、いまのヒントの段階に合わせて更新する。
+   * ヒントは 0〜3 の段階制（window.hintLevel）。
    */
   function refreshMenuState() {
-    const guideBtn = document.getElementById('btn-overwrite-permission');
-    const isGuideOn = !!(guideBtn && guideBtn.classList.contains('on'));
-    const isHintOn = !!window.goalHintActive;
-
-    const guideItem = document.querySelector('.character-mascot-menu-item[data-key="guide"]');
-    if (guideItem) {
-      guideItem.classList.toggle('is-active', isGuideOn);
-      const sub = guideItem.querySelector('.character-mascot-menu-sublabel');
-      if (sub) sub.textContent = isGuideOn ? 'ON' : 'OFF';
-    }
+    const level = window.hintLevel || 0;
+    const max = window.HINT_MAX_LEVEL || 3;
 
     const hintItem = document.querySelector('.character-mascot-menu-item[data-key="hint"]');
     if (hintItem) {
-      hintItem.classList.toggle('is-active', isHintOn);
+      hintItem.classList.toggle('is-active', level > 0);
       const sub = hintItem.querySelector('.character-mascot-menu-sublabel');
-      if (sub) sub.textContent = isHintOn ? '表示中' : '表示する';
+      if (sub) sub.textContent = level > 0 ? `${level}/${max}` : 'OFF';
     }
   }
   // 他所からも呼べるように公開しておく (ヘッダートグルの直接操作など)
@@ -157,11 +137,9 @@
       window.toggleCharacterMascotMenu(false);
     });
 
-    // 既存のガイドボタン/ヒントボタンが radial menu を介さず直接クリックされた場合も
+    // 下のボタン列のヒントボタンが radial menu を介さず直接押された場合も
     // menu 側の状態表示を更新する
-    const guideBtn = document.getElementById('btn-overwrite-permission');
     const hintBtn = document.getElementById('btn-hint');
-    if (guideBtn) guideBtn.addEventListener('click', () => setTimeout(refreshMenuState, 0));
     if (hintBtn) hintBtn.addEventListener('click', () => setTimeout(refreshMenuState, 0));
 
     return host;

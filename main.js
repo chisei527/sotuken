@@ -461,6 +461,9 @@ window.loadStage = async function(stageNumber) {
         window.updateTutorialProgressBar(stageNumber);
       }
 
+      // ヒントの段階は問題ごとにリセットする（前の問題のヒントが残らないように）
+      if (typeof window.resetHintLevel === 'function') window.resetHintLevel();
+
       if (isTutorialStage) {
           requestAnimationFrame(() => { if (typeof applyTutorialBlockRestrictions === 'function') applyTutorialBlockRestrictions(); });
           window.tutorialModeActive = true;

@@ -38,6 +38,21 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   - `STRICT_FORMULA_MODES` に無い公式（④以降）は、従来のゆるい判定にフォールバックする。厳密にしたい公式を増やすときはここにモードを足す。
 - 解説（`explanations.js` の `FORMULA_EXPLANATIONS`）は、解放済みの公式だけタブに出る。
 
+## ヒント（段階制）
+- ヒントは `window.hintLevel`（0〜3）の1本だけ。旧「ガイド機能」ボタンは段階3に統合した。
+  - 1 … 問題ごとのヒント文（`problems/*.json` の `hints`。全ステージ3本ずつ用意してある）
+  - 2 … ＋ 次に埋める穴を光らせる／【目標】を出す
+  - 3 … ＋ 「置き換え」ブロックを証明の中に置く（`applyHintScaffold`）
+- 文章は作業エリアの右上に浮かぶカード（`#hint-card`）に出す。`position: fixed` なので盤面がずれない。
+  位置は `positionHintCard()` が `#l` と下のボタン列から計算する（ゴミ箱のぶん右端を84px空ける）。
+- `goalHintActive` は「ヒントが出ているか」= `hintLevel > 0`。古いコードが見ているので残してある。
+- `applyHintScaffold` は盤面を消さずに足すだけ。すでに操作ブロックを置いていたら何もしない
+  （旧ガイドは盤面を作り直していたので、組みかけが消えていた）。
+- ヒント文を足すときは、`公式②` のような書き方に注意。`extractRequiredFormulaIdsFromHints`
+  がヒント文から公式IDを拾うので、`requiredFormulas` に無い公式を書かないこと。
+- ログは `AppLog.hint(on, level)`。`submit` にも `hint_level` / `max_hint_level` が入る。
+  分析用ビューの列追加は `supabase/migrations/20261006120000_hint_level_columns.sql`（公開後に適用する）。
+
 ## パルのチュートリアル
 - `PAL_TUTORIAL_SCRIPTS[ステージID]` に台本があれば、そのステージに初めて入ったときに流れる。チュートリアル(`0-*`)だけでなく本編ステージでも動く（例: `'23'` で加法定理の導入）。
 - 「もう見た」の記録は、チュートリアルはメモリだけ、本編は `AppStorage.KEYS.DEVICE.PAL_TUTORIAL_SEEN`（端末だけ）。
