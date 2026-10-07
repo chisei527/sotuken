@@ -137,6 +137,10 @@ const BLOCK_COLORS = {
                         // 不正解の赤（明るい珊瑚色）とも離してある。
 };
 
+// セリフの中に差し込むブロックの絵（block-svg.js）も同じ色を使う。
+// 色を変えるときはここ1か所だけ直せば、盤面と絵の両方が追従する。
+window.BLOCK_COLORS = BLOCK_COLORS;
+
 function defineMathBlocks() {
   Blockly.Blocks.custom_number = {
     init() {

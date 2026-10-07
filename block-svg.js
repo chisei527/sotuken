@@ -25,6 +25,31 @@
   // 共通の SVG 属性
   const SVG_CLASS = 'basics-tutorial-hint-block';
 
+  // ===== 色 =====
+  // 盤面のブロックと同じ色を使う。定義元は blocks.js の BLOCK_COLORS 1か所だけ。
+  // （blocks.js → block-svg.js の順に読み込まれる。読めなかったときのために同じ値を控えに置く）
+  const C = window.BLOCK_COLORS || {
+    term: '#4A7BB7', number: '#5B8CC8', operator: '#6B4A32', formula: '#6D3FBF',
+    proof: '#17304F', replace: '#17514A', simplify: '#1C4D35', common: '#24547A',
+    conclusion: '#55304F',
+  };
+
+  // 16進の色を明るく/暗くする。ratio>0 で白寄り、<0 で黒寄り。
+  function _shade(hex, ratio) {
+    const n = parseInt(String(hex).replace('#', ''), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+      const t = ratio > 0 ? 255 : 0;
+      return Math.round(v + (t - v) * Math.abs(ratio));
+    });
+    return '#' + ch.map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  // セリフの吹き出しは暗い背景なので、枠線は中の色より「明るく」して輪郭を出す。
+  // 盤面では枠線を暗くしているが、ここは下地が違うので逆にする。
+  const _edge = (hex) => _shade(hex, 0.3);
+  // 空いている穴。ブロックの色を暗くして「へこみ」に見せる。
+  const _hole = (hex) => _shade(hex, -0.42);
+
   // 内部ユーティリティ: 中身のスロット (楕円) を作る
   // socketFill: 中の色 (typically 薄めの色や #d0c4b0)
   function _slot(x, y, w, h, socketFill, socketStroke) {
@@ -56,14 +81,14 @@
       </svg>`;
     },
 
-    // math_add: 茶色の角丸長方形、左右にスロットと中央に "+"
+    // math_add: 演算子の茶色。左右に穴と中央に "+"
     add: function() {
       return `<svg class="${SVG_CLASS}" viewBox="0 0 130 34" xmlns="http://www.w3.org/2000/svg" aria-label="足し算のブロック">
         <rect x="1" y="1" width="128" height="32" rx="8" ry="8"
-          fill="#a97a4b" stroke="#7a5030" stroke-width="1.5"/>
-        ${_slot(8, 8, 42, 18, '#e6d3b8', '#7a5030')}
-        ${_label(65, 23, '+', { fontWeight: 900, fontSize: 18, fill: '#ffffff' })}
-        ${_slot(80, 8, 42, 18, '#e6d3b8', '#7a5030')}
+          fill="${C.operator}" stroke="${_edge(C.operator)}" stroke-width="1.5"/>
+        ${_slot(8, 8, 42, 18, _hole(C.operator), _edge(C.operator))}
+        ${_label(65, 23, '+', { fontWeight: 700, fontSize: 18, fill: '#ffffff' })}
+        ${_slot(80, 8, 42, 18, _hole(C.operator), _edge(C.operator))}
       </svg>`;
     },
 
@@ -71,16 +96,16 @@
     replaceOperation: function() {
       return `<svg class="${SVG_CLASS}" viewBox="0 0 280 34" xmlns="http://www.w3.org/2000/svg" aria-label="置き換えブロック">
         <rect x="1" y="1" width="278" height="32" rx="8" ry="8"
-          fill="#5ba05b" stroke="#3d7d3d" stroke-width="1.5"/>
+          fill="${C.replace}" stroke="${_edge(C.replace)}" stroke-width="1.5"/>
         ${_label(30, 22, '置き換え', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
         ${_label(59, 22, '式', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
-        ${_slot(70, 10, 32, 14, '#c8e6c8', '#3d7d3d')}
+        ${_slot(70, 10, 32, 14, _hole(C.replace), _edge(C.replace))}
         ${_label(115, 22, '【', { fontSize: 12, fontWeight: 800, fill: '#ffffff' })}
         ${_label(133, 22, '公式', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
-        ${_slot(154, 10, 32, 14, '#c8e6c8', '#3d7d3d')}
+        ${_slot(154, 10, 32, 14, _hole(C.formula), _edge(C.formula))}
         ${_label(196, 22, '】', { fontSize: 12, fontWeight: 800, fill: '#ffffff' })}
         ${_label(213, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
-        ${_slot(230, 10, 42, 14, '#c8e6c8', '#3d7d3d')}
+        ${_slot(230, 10, 42, 14, _hole(C.replace), _edge(C.replace))}
       </svg>`;
     },
 
@@ -88,11 +113,11 @@
     simplifyOperation: function() {
       return `<svg class="${SVG_CLASS}" viewBox="0 0 200 34" xmlns="http://www.w3.org/2000/svg" aria-label="計算式ブロック">
         <rect x="1" y="1" width="198" height="32" rx="8" ry="8"
-          fill="#5ba05b" stroke="#3d7d3d" stroke-width="1.5"/>
+          fill="${C.simplify}" stroke="${_edge(C.simplify)}" stroke-width="1.5"/>
         ${_label(32, 22, '計算式', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
-        ${_slot(60, 10, 52, 14, '#c8e6c8', '#3d7d3d')}
+        ${_slot(60, 10, 52, 14, _hole(C.simplify), _edge(C.simplify))}
         ${_label(126, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
-        ${_slot(142, 10, 52, 14, '#c8e6c8', '#3d7d3d')}
+        ${_slot(142, 10, 52, 14, _hole(C.simplify), _edge(C.simplify))}
       </svg>`;
     },
 
@@ -100,26 +125,25 @@
     commonDenominatorOperation: function() {
       return `<svg class="${SVG_CLASS}" viewBox="0 0 240 34" xmlns="http://www.w3.org/2000/svg" aria-label="通分ブロック">
         <rect x="1" y="1" width="238" height="32" rx="8" ry="8"
-          fill="#3b82f6" stroke="#1e40af" stroke-width="1.5"/>
+          fill="${C.common}" stroke="${_edge(C.common)}" stroke-width="1.5"/>
         ${_label(24, 22, '通分', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
-        ${_slot(46, 10, 48, 14, '#c8dbf6', '#1e40af')}
+        ${_slot(46, 10, 48, 14, _hole(C.common), _edge(C.common))}
         <rect x="100" y="8" width="56" height="18" rx="4" ry="4"
-          fill="#ffffff" stroke="#1e40af" stroke-width="1"/>
+          fill="#cfe4fb" stroke="${_edge(C.common)}" stroke-width="1"/>
         ${_label(128, 22, '通分する', { fontSize: 9, fontWeight: 700, fill: '#1e293b' })}
         ${_label(168, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
-        ${_slot(184, 10, 48, 14, '#c8dbf6', '#1e40af')}
+        ${_slot(184, 10, 48, 14, _hole(C.common), _edge(C.common))}
       </svg>`;
     },
 
-    // proof_step: 茶色〜紫のC字型ブロック 「証明 / 操作 / よって [_] となる」
-    // 簡略化して 「よって [_] となる」 のヘッダだけ描く
+    // conclusion_operation: 「よって [_] となる」。盤面と同じ梅色。
     proofStep: function() {
       return `<svg class="${SVG_CLASS}" viewBox="0 0 160 34" xmlns="http://www.w3.org/2000/svg" aria-label="よって〜となるブロック">
         <rect x="1" y="1" width="158" height="32" rx="8" ry="8"
-          fill="#a97a4b" stroke="#7a5030" stroke-width="1.5"/>
-        ${_label(24, 22, 'よって', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
-        ${_slot(52, 10, 36, 14, '#ffffff', '#7a5030')}
-        ${_label(120, 22, 'となる', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
+          fill="${C.conclusion}" stroke="${_edge(C.conclusion)}" stroke-width="1.5"/>
+        ${_label(24, 22, 'よって', { fontSize: 11, fontWeight: 700, fill: '#ffffff' })}
+        ${_slot(52, 10, 36, 14, _hole(C.conclusion), _edge(C.conclusion))}
+        ${_label(120, 22, 'となる', { fontSize: 11, fontWeight: 700, fill: '#ffffff' })}
       </svg>`;
     },
 
@@ -155,7 +179,7 @@
       // 幅は中身の長さで自動 (最大 240 くらい想定)
       return `<svg class="${SVG_CLASS}" viewBox="0 0 250 34" xmlns="http://www.w3.org/2000/svg" aria-label="${mark === '加法' ? '加法公式' : '公式' + mark}ブロック">
         <rect x="1" y="1" width="248" height="32" rx="16" ry="16"
-          fill="#9333ea" stroke="#6b21a8" stroke-width="1.5"/>
+          fill="${C.formula}" stroke="${_edge(C.formula)}" stroke-width="1.5"/>
         ${_label(markX, 23, mark, { fontSize: markSize, fontWeight: 900, fill: '#ffffff' })}
         ${_label(textX, 22, label, { fontSize: textSize, fontWeight: 700, fill: '#ffffff', fontFamily: 'serif' })}
       </svg>`;
@@ -167,7 +191,7 @@
       const width = Math.max(44, 18 + text.length * 11);
       return `<svg class="${SVG_CLASS}" viewBox="0 0 ${width} 34" xmlns="http://www.w3.org/2000/svg" aria-label="${text}のブロック">
         <rect x="1" y="1" width="${width - 2}" height="32" rx="16" ry="16"
-          fill="#4a90d9" stroke="#2c5f8d" stroke-width="1.5"/>
+          fill="${C.term}" stroke="${_edge(C.term)}" stroke-width="1.5"/>
         ${_label(width / 2, 23, text, { fontSize: 14, fontWeight: 800, fill: '#ffffff', fontFamily: 'serif' })}
       </svg>`;
     },

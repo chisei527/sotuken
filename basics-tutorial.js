@@ -204,41 +204,22 @@
   }
 
   // ============================================
-  // ブロックの見た目をSVGで擬似再現するヘルパ
-  // Blocklyのブロックそっくりの見た目 (角丸の色付き矩形にラベル) を、
-  // ヒントテキスト内にインラインで埋め込むための SVG を返す。
+  // セリフの中に差し込むブロックの絵
+  // 定義元は block-svg.js の window.BlockSvg（色は blocks.js の BLOCK_COLORS を見ている）。
+  // ここで作り直すと盤面と色がずれるので、必ず BlockSvg を呼ぶ。
   // ============================================
-  function _svgBlockNumber() {
-    // custom_number: 白い楕円っぽい形に "1"
-    return `
-<svg class="basics-tutorial-hint-block" viewBox="0 0 58 34" xmlns="http://www.w3.org/2000/svg" aria-label="1のブロック">
-  <rect x="1" y="1" width="56" height="32" rx="16" ry="16"
-    fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="29" y="23" text-anchor="middle" font-family="serif" font-style="italic"
-    font-size="18" font-weight="700" fill="#0f172a">1</text>
-</svg>`;
-  }
-  function _svgBlockAdd() {
-    // math_add: 茶色の角丸長方形、左右にスロット (楕円) と中央に "+"
-    return `
-<svg class="basics-tutorial-hint-block" viewBox="0 0 130 34" xmlns="http://www.w3.org/2000/svg" aria-label="足し算のブロック">
-  <rect x="1" y="1" width="128" height="32" rx="8" ry="8"
-    fill="#a97a4b" stroke="#7a5030" stroke-width="1.5"/>
-  <rect x="8" y="8" width="42" height="18" rx="9" ry="9"
-    fill="#e6d3b8" stroke="#7a5030" stroke-width="1"/>
-  <text x="65" y="23" text-anchor="middle" font-family="sans-serif"
-    font-size="18" font-weight="900" fill="#ffffff">+</text>
-  <rect x="80" y="8" width="42" height="18" rx="9" ry="9"
-    fill="#e6d3b8" stroke="#7a5030" stroke-width="1"/>
-</svg>`;
+  function _blockSvg(kind, ...args) {
+    const api = window.BlockSvg;
+    if (!api || typeof api[kind] !== 'function') return '';
+    return api[kind](...args);
   }
 
   // ステップごとの短いヒント (待機中の上部バナーに表示)
   // ブロック名の位置に SVG を差し込んでビジュアル的に理解しやすくする。
   function _shortHintForStep(step) {
     if (!step) return { html: '↑ 操作してみて！' };
-    const B_NUM = _svgBlockNumber();
-    const B_ADD = _svgBlockAdd();
+    const B_NUM = _blockSvg('number', '1');
+    const B_ADD = _blockSvg('add');
     const map = {
       'step_pull_number_1':  `左側の基本から${B_NUM} のブロックを引き出してみよう！`,
       'step_pull_number_2':  `もう1つ基本から ${B_NUM} のブロックを引き出そう！`,
