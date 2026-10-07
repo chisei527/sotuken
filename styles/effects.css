@@ -26,11 +26,17 @@
           100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
         }
 
-        /* ==== 「解説を聞く」ボタン (答え表示後にユーザーが押してパル解説を呼ぶ) ==== */
+        /* ==== 「解説を聞く」ボタン (答え表示後にユーザーが押してパル解説を呼ぶ) ====
+           答えを表示している間は、下のボタン列（リセット・あきらめる・正解をチェック）が
+           すべて押せない状態になっている。押せないボタンを並べておく意味がないので隠し、
+           その場所に「解説を聞く」を置く。
+           以前はボタン列の上に浮いていて、読ませたい答えのブロックに重なっていた。 */
+        body.answer-reveal-locked .action-bar-container { display: none; }
+
         .listen-explain-btn {
           position: fixed;
           left: 50%;
-          bottom: 110px;
+          bottom: 22px;
           transform: translate(-50%, 20px);
           padding: 16px 36px;
           font-family: inherit;
@@ -44,7 +50,7 @@
           cursor: pointer;
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5);
           opacity: 0;
-          z-index: 3200;
+          z-index: 1700; /* モーダル(2000)より下。以前は公式解説の上に乗っていた */
           transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
           pointer-events: none;
           animation: listenExplainPulse 1.8s ease-in-out infinite;
@@ -89,26 +95,28 @@
         /* 「次のステージへ」独立ボタン (パル解説モード中に表示)
            listen-explain-btn と同じ丸型スタイルだが、位置を右下寄せに変えて
            下部アクションバー (リセット/あきらめる) と競合しないようにする */
+        /* 解説を読んでいる間、いちばん押してほしいのは「次へ」（解説を進める）。
+           「もう一度」「次の問題へ」は、そこから抜ける行き先なので静かにする。
+           以前は「次の問題へ」が紫で光っていて、解説を読み切る前に目を引いていた。
+           紫はこのアプリでは「公式」の色なので、別の意味で使わない。 */
         .listen-explain-btn.next-stage-btn {
           bottom: 40px;
           left: auto;
           right: 40px;
           transform: translate(20px, 0);
-          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
-          border-color: rgba(196, 181, 253, 0.7);
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
-          animation: nextStagePulse 1.8s ease-in-out infinite;
+          background: transparent;
+          border-color: var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          animation: none;
         }
         .listen-explain-btn.next-stage-btn.show {
           transform: translate(0, 0);
         }
         .listen-explain-btn.next-stage-btn:hover {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
-          border-color: rgba(255, 255, 255, 0.9);
-        }
-        @keyframes nextStagePulse {
-          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
-          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
         }
         /* ==== パル解説モード後の独立ボタングループ (もう一度 / 次の問題へ) ==== */
         .post-explain-button-group {
@@ -118,7 +126,7 @@
           transform: translate(-50%, 20px);
           display: flex;
           gap: 20px;
-          z-index: 3200;
+          z-index: 1700; /* モーダル(2000)より下。以前は公式解説の上に乗っていた */
           opacity: 0;
           transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
           pointer-events: none;
@@ -227,23 +235,24 @@
           transform: rotate(-45deg);
         }
 
-        /* 次の問題へ (右、デフォルト): 紫グラデーション、パルス発光で目立たせる */
+        /* 「次の問題へ」。
+           解説を読んでいる間にいちばん押してほしいのは「次へ」（解説を進める）なので、
+           こちらは静かにする。以前は紫で光りながら脈打っていて、解説を読み切る前に
+           目を引いていた。紫はこのアプリでは「公式」の色なので、別の意味で使わない。 */
         .post-explain-btn.next-stage-btn {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
-          border: 2px solid rgba(196, 181, 253, 0.7);
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
-          animation: postExplainNextPulse 1.8s ease-in-out infinite;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          animation: none;
         }
         .post-explain-btn.next-stage-btn:hover {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
-          border-color: rgba(255, 255, 255, 0.9);
+          background: rgba(56, 189, 248, 0.14);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
         }
         .post-explain-btn.next-stage-btn:hover .post-explain-arrow {
           transform: translateX(4px);
-        }
-        @keyframes postExplainNextPulse {
-          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
-          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
         }
 
         /* 最終ステージ (「マップへ」): 水色系 */

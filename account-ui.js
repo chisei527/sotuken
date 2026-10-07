@@ -33,8 +33,10 @@
           </ul>
           <p class="account-note"><a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
           <div class="account-actions">
-            <button id="btn-consent-no" class="action-btn btn-secondary" type="button">協力しない</button>
-            <button id="btn-consent-yes" class="action-btn btn-primary" type="button">協力する</button>
+            <!-- 2つのボタンは同じ見た目にする。
+                 同意を取る場面で片方だけを目立たせると、選択を誘導することになるため。 -->
+            <button id="btn-consent-no" class="action-btn btn-consent-choice" type="button">協力しない</button>
+            <button id="btn-consent-yes" class="action-btn btn-consent-choice" type="button">協力する</button>
           </div>
         </div>
       </div>`);

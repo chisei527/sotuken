@@ -37,45 +37,60 @@
         .formula-ref-tabs {
           display: flex;
           gap: 8px;
-          margin-bottom: 16px;
+          margin-bottom: 22px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--hairline);
           flex-wrap: wrap;
         }
         .formula-ref-tab {
-          padding: 8px 16px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid var(--glass-border);
-          border-radius: 10px;
+          padding: 8px 14px;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          border-radius: 999px;
           color: var(--cyber-muted);
-          font-weight: 700;
+          font-size: 0.88rem;
+          font-weight: 500;
           cursor: pointer;
-          transition: background 0.15s, color 0.15s;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
         .formula-ref-tab:hover { background: rgba(56, 189, 248, 0.15); color: #fff; }
         .formula-ref-tab.active {
-          background: rgba(56, 189, 248, 0.3);
-          border-color: rgba(56, 189, 248, 0.6);
-          color: #fff;
+          background: rgba(56, 189, 248, 0.22);
+          border-color: rgba(56, 189, 248, 0.55);
+          color: #eaf6ff;
+          font-weight: 700;
         }
         .formula-ref-body {
           display: grid;
           grid-template-columns: minmax(0, 1fr) 280px;
-          gap: 20px;
+          gap: 24px;
+          align-items: start;
         }
+        /* 図が無い項目では、右の列を畳んで本文を広く使う。
+           日本語の読みやすい行長（40〜50字）を超えないよう、本文側に上限を置く。 */
+        .formula-ref-body.no-figure { grid-template-columns: minmax(0, 1fr); }
+        .formula-ref-body.no-figure .formula-ref-image { display: none; }
+        .formula-ref-body.no-figure .formula-text-area { max-width: 46em; }
         .formula-ref-body .formula-text-area h3 {
           color: #7dd3fc;
-          font-size: 1rem;
-          margin: 14px 0 6px 0;
-          font-weight: 800;
-          letter-spacing: 0.05em;
+          font-size: 0.95rem;
+          margin: 20px 0 6px 0;
+          font-weight: 700;
+          letter-spacing: 0.03em;
         }
+        .formula-ref-body .formula-text-area h3:first-child { margin-top: 0; }
         .formula-ref-body .formula-text-area p {
-          line-height: 1.7;
+          line-height: 1.9;
           margin: 4px 0 12px 0;
-          color: #cbd5e1;
+          color: #c5d6e8;
         }
+        /* MathJax の display 数式は上下に自前の余白を持つ。箱の padding と重なって
+           中身がぽつんと浮いて見えるので、ここで打ち消す。 */
+        .formula-display mjx-container[display="true"],
+        .formula-variants mjx-container[display="true"] { margin: 0 !important; }
         .formula-display {
-          font-size: 1.4rem;
-          padding: 12px 16px;
+          font-size: 1.35rem;
+          padding: 18px 16px;
           background: rgba(0, 0, 0, 0.35);
           border: 1px solid var(--glass-border);
           border-radius: 10px;

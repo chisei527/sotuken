@@ -166,7 +166,7 @@
         .character-mascot-submenu {
           position: fixed;
           inset: 0;
-          z-index: 3100;
+          z-index: 1500; /* パル本体と同じ段。モーダル(2000)より下 */
           display: flex;
           align-items: center;
           justify-content: center;

@@ -796,13 +796,14 @@ window.renderFormulaReference = function(entryId) {
   const textArea = document.getElementById('formula-ref-text');
   if (textArea) textArea.innerHTML = textHtml;
 
-  // SVG 図
+  // 図。無い項目のほうが多いので、無いときは列ごと畳んで本文を広く使う。
+  // 以前は「この項目には図はありません」とだけ書かれた大きな空き箱が
+  // 画面の4割を占めていた。
   const imageArea = document.getElementById('formula-ref-image');
-  if (imageArea) {
-    const svg = svgKey ? window.getFormulaReferenceSvg(svgKey) : '';
-    imageArea.innerHTML = svg
-      || '<div style="color: var(--cyber-muted); font-size: 0.85rem; text-align:center;">この項目には図はありません</div>';
-  }
+  const bodyArea = document.querySelector('.formula-ref-body');
+  const svg = svgKey ? window.getFormulaReferenceSvg(svgKey) : '';
+  if (imageArea) imageArea.innerHTML = svg || '';
+  if (bodyArea) bodyArea.classList.toggle('no-figure', !svg);
 
   // MathJax で数式を組版し直す
   // 初回はここで MathJax(約1MB) を読み込む。以降はキャッシュされた Promise を使う
@@ -825,8 +826,10 @@ window.openFormulaReferenceModal = function(initialEntryId) {
     .filter((id) => registry[id].explanation)
     .filter((id) => !Array.isArray(unlocked) || unlocked.length === 0 || unlocked.includes(id));
 
+  // タブの名前。基礎は「基礎①」では何のことか分からないので、中身の見出しを出す。
+  // 公式はアプリ内で「公式①」と呼んでいるので、その呼び名のままにする。
   const tabs = [];
-  basics.forEach((b) => tabs.push({ id: b.id, label: b.label }));
+  basics.forEach((b) => tabs.push({ id: b.id, label: b.tabTitle || b.label }));
   formulaIds.forEach((id) => tabs.push({ id, label: registry[id].label }));
 
   tabsArea.innerHTML = tabs.map((t) =>
