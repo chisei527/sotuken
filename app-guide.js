@@ -596,6 +596,190 @@ window.setupGuideButton = function () {
   });
 };
 
+// ====== 5.5 パルの「いまの式を見て」（途中チェック） ======
+// 答えは言わず、「どこまで合っているか」「どこで止まっているか」だけを伝える。
+// ヒント（次の一手を教える）とは役割を分けている。
+//   ヒント    … 次に何をすればいいか
+//   このチェック … いま組んである式が、どこまで正しいか
+// 判定は提出と同じ validateProof をそのまま使うので、採点と食い違わない。
+
+window.PAL_CHECK_BUBBLE_ID = 'pal-speech';
+
+// 途中チェックの結果を文章にする。
+// 戻り値 { tone: 'done'|'ok'|'warn'|'info', text: string }
+window.buildProgressCheckReport = function () {
+  if (!window.workspace
+      || typeof window.parseBlocksToAST !== 'function'
+      || typeof window.validateProof !== 'function') {
+    return { tone: 'info', text: 'ごめん、いまは式を読み取れなかったよ。' };
+  }
+
+  const ast = window.parseBlocksToAST(window.workspace) || [];
+  const ops = ast.filter((s) => s && s.type && s.type !== 'conclusion_operation');
+  const v = window.validateProof(ast, window.currentProblemData) || {};
+
+  if (v.isValid) {
+    return { tone: 'done', text: 'ぜんぶ合っているよ！　下の「正解をチェック」を押してみて。' };
+  }
+
+  // 止まっている手の「ひとつ前」までは確認できた、という言い方にする。
+  const step = Number.isFinite(v.errorStepIndex) ? v.errorStepIndex : null;
+  const okCount = step == null ? 0 : Math.max(0, Math.min(step - 1, ops.length));
+  const ok = okCount >= 1 ? `${okCount}手目までは合っているよ。` : '';
+  const here = step == null ? 'そこ' : `${step}手目`;
+
+  switch (v.errorCode) {
+    case 'ERROR_NO_PROOF_BLOCK':
+      return { tone: 'info', text: '「証明」ブロックが見つからないよ。左のメニューから出して、その中に式を組んでいこう。' };
+    case 'ERROR_PROBLEM_DATA_MISSING':
+      return { tone: 'info', text: 'ごめん、この問題のデータが読めなかったよ。' };
+    case 'ERROR_NO_TRANSFORM':
+      return { tone: 'info', text: 'まだ変形が1つも入っていないね。問題の左辺をよく見て、「操作」から最初の一手を選んでみよう。' };
+    case 'ERROR_INITIAL_LEFT_MISMATCH':
+      return { tone: 'warn', text: '出だしの式が、問題の左辺とそろっていないみたい。1手目の「式」の穴を見直してみて。' };
+
+    case 'ERROR_EMPTY_INPUT':
+      return { tone: 'ok', text: `${ok}${here}に、まだ空いている穴があるよ。` };
+    case 'ERROR_FORMULA_REQUIRED':
+      return { tone: 'ok', text: `${ok}${here}の「公式」の穴が、まだ紫の見本のままだよ。使う公式を入れてみて。` };
+    case 'ERROR_CHAIN_EMPTY_INPUT':
+      return { tone: 'ok', text: `${ok}${here}の出発点の式が空だよ。ひとつ前の「→」の右側を、そのまま置こう。` };
+    case 'ERROR_FINAL_EMPTY':
+      return { tone: 'ok', text: `${ok}「よって〜となる」の中の式が空だよ。` };
+
+    case 'ERROR_EQUATION_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}の「→」の前と後ろが、同じ式になっていないみたい。そこだけ見直してみて。` };
+    case 'ERROR_NO_CHANGE':
+      return { tone: 'warn', text: `${ok}${here}は、変形の前と後ろが同じ式だよ。まだ何も変わっていないね。` };
+    case 'ERROR_FORMULA_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}で使った公式と、式の変わり方が合っていないよ。公式が式のどこに当たるのかを確かめてみて。` };
+    case 'ERROR_FORMULA_NOT_USED':
+      return { tone: 'warn', text: `${ok}${here}は、公式を使わない書き換えになっているよ。ふつうの計算なら「計算」ブロックのほうだね。` };
+    case 'ERROR_UNSUPPORTED_FORMULA':
+      return { tone: 'warn', text: `${ok}${here}で入れた公式は、この問題では使えないよ。` };
+    case 'ERROR_SIMPLIFY_NEEDS_FORMULA':
+      return { tone: 'warn', text: `${ok}${here}は「計算」や「通分」のブロックだけど、中身は公式を使う書き換えになっているよ。公式を使うところは「置き換え」ブロックだね。` };
+    case 'ERROR_COMMON_DENOMINATOR_RULE':
+      return { tone: 'warn', text: `${ok}${here}の「通分」では公式は使えないよ。公式を使うなら「置き換え」ブロックにしよう。` };
+    case 'ERROR_CHAIN_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}の出発点が、ひとつ前の結果とつながっていないよ。前の「→」の右側をそのまま写してみて。` };
+
+    case 'ERROR_EVALUATION':
+    case 'ERROR_CHAIN_EVALUATION':
+      return { tone: 'warn', text: `${ok}${here}に、どこにもつながっていないブロックがあるみたい。` };
+    case 'ERROR_FINAL_EVALUATION':
+      return { tone: 'warn', text: '「よって〜となる」の中の式が読み取れなかったよ。ブロックがつながっているか見てみて。' };
+    case 'ERROR_DIVISION_BY_ZERO':
+    case 'ERROR_CHAIN_DIVISION_BY_ZERO':
+    case 'ERROR_FINAL_DIVISION_BY_ZERO':
+      return { tone: 'warn', text: `${ok}${here}で分母が0になってしまっているよ。式を見直してみて。` };
+
+    case 'ERROR_NO_CONCLUSION':
+      return { tone: 'ok', text: `${ok}あとは最後を「よって〜となる」で締めるだけだね。` };
+    case 'ERROR_FINAL_MISMATCH':
+      return { tone: 'ok', text: '変形じたいは合っているよ。あとは最後の式を、問題の右辺と同じ形にそろえるだけ！' };
+    case 'ERROR_CONCLUSION_NOT_GOAL':
+      return { tone: 'warn', text: '「よって」の中の式が、問題の右辺とそろっていないよ。ゴールの式をそのまま入れてね。' };
+    case 'ERROR_CONCLUSION_NOT_LAST_RESULT':
+      return { tone: 'warn', text: '「よって」の中の式が、最後の変形の結果とそろっていないよ。' };
+
+    default:
+      return { tone: 'warn', text: `${ok}${here}で止まっているみたい。もう一度、ブロックのつながりを見てみよう。` };
+  }
+};
+
+// パルの吹き出し。作業エリアの上の補助なので z-index は 1700 の帯に入れる。
+function ensurePalSpeech() {
+  let el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = window.PAL_CHECK_BUBBLE_ID;
+  el.className = 'pal-speech hidden';
+  el.innerHTML = `
+    <button class="pal-speech-close" type="button" aria-label="閉じる">×</button>
+    <div class="pal-speech-head"></div>
+    <div class="pal-speech-body"></div>
+  `;
+  document.body.appendChild(el);
+  el.querySelector('.pal-speech-close').addEventListener('click', () => window.hidePalSpeech());
+  window.addEventListener('resize', () => window.positionPalSpeech());
+  return el;
+}
+
+// パルの立ち絵の真上に置く。パルが画面のどこにいても追従するよう実測する。
+window.positionPalSpeech = function () {
+  const el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (!el || el.classList.contains('hidden')) return;
+  const host = document.getElementById('character-mascot-host');
+  const rect = host ? host.getBoundingClientRect() : null;
+  const margin = 12;
+  const width = el.offsetWidth || 320;
+  if (rect && rect.width) {
+    // 吹き出しは盤面の右下に重なる位置に出る。ゴミ箱は読んでいる間も使いたいので、
+    // ヒントカードと同じだけ（84px）右端を空けて、その左に置く。
+    const trashGutter = 84;
+    const right = Math.max(margin, window.innerWidth - rect.right - 4) + trashGutter;
+    el.style.right = `${Math.min(right, Math.max(margin, window.innerWidth - width - margin))}px`;
+    el.style.bottom = `${Math.max(margin, window.innerHeight - rect.top + 10)}px`;
+  } else {
+    el.style.right = `${margin}px`;
+    el.style.bottom = '96px';
+  }
+};
+
+window.showPalSpeech = function (text, tone, head) {
+  const el = ensurePalSpeech();
+  el.classList.remove('tone-done', 'tone-ok', 'tone-warn', 'tone-info');
+  el.classList.add(`tone-${tone || 'info'}`);
+  el.querySelector('.pal-speech-head').textContent = head || 'パル';
+  el.querySelector('.pal-speech-body').textContent = text || '';
+  el.classList.remove('hidden');
+  window.positionPalSpeech();
+  requestAnimationFrame(() => {
+    el.classList.add('show');
+    window.positionPalSpeech();
+  });
+};
+
+window.hidePalSpeech = function () {
+  const el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (!el) return;
+  el.classList.remove('show');
+  setTimeout(() => el.classList.add('hidden'), 200);
+};
+
+// 盤面を動かしたら、その返事はもう古い。次の変更が来たら畳む。
+let _palSpeechStaleListener = null;
+function watchForStaleSpeech() {
+  if (!window.workspace || typeof window.workspace.addChangeListener !== 'function') return;
+  if (_palSpeechStaleListener) {
+    window.workspace.removeChangeListener(_palSpeechStaleListener);
+    _palSpeechStaleListener = null;
+  }
+  _palSpeechStaleListener = (event) => {
+    if (!event || event.isUiEvent) return;
+    window.hidePalSpeech();
+    if (_palSpeechStaleListener && window.workspace) {
+      window.workspace.removeChangeListener(_palSpeechStaleListener);
+      _palSpeechStaleListener = null;
+    }
+  };
+  window.workspace.addChangeListener(_palSpeechStaleListener);
+}
+
+// パルのメニュー「いまの式を見て」から呼ばれる。
+window.runPalProgressCheck = function () {
+  // パルのチュートリアル(0-2)が「使ってみた？」を見るための印
+  window._palCheckUsedOnce = true;
+  window._palCheckUsedAt = Date.now();
+  const report = window.buildProgressCheckReport();
+  window.showPalSpeech(report.text, report.tone, 'いまの式を見たよ');
+  watchForStaleSpeech();
+  if (window.AppLog && typeof window.AppLog.progressCheck === 'function') {
+    window.AppLog.progressCheck(report.tone);
+  }
+};
+
 // ====== 6. 初期化 ======
 // ワークスペース監視 + ヒントボタンのバインドをまとめて行う。
 // 定義はここ1箇所だけ（以前は同名関数を2回定義して片方を握り潰していた）。

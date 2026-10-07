@@ -142,6 +142,9 @@
       return;
     }
 
+    // パルの吹き出し（「いまの式を見て」の返事）と会話パネルが重ならないようにする
+    if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
+
     const host = ensureDialogHost();
     // assetUrl() で .webp があればそちらを使う（立ち絵は1枚2〜4MBあったため効果が大きい）
     const rawPortrait = character.portraits[scene.portrait] || character.portraits.default;

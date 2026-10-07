@@ -1,27 +1,42 @@
 // ============================================
 // character-mascot.js
-// パル (ヒッパルコス) を作業画面の右下に常駐させ、
-// クリックすると周囲に radial menu を展開する。
+// パル (ヒッパルコス) を下のボタン列の右端に座らせ、
+// クリックすると上にメニューを開く。
+//
+// 置き場所について:
+//   以前は画面の右下に大きく浮かせていたので、ゴミ箱・ズームボタン・
+//   盤面の横スクロールバーに重なっていた。
+//   いまは下のボタン列(.action-bar-container)の中に入れてあるので、
+//   作業エリアには一切かぶらない。開いたメニューだけが一時的に盤面に重なる。
 //
 // 主な API:
 //   window.showCharacterMascot()    パルを表示する (プレイ画面遷移時に呼ぶ)
 //   window.hideCharacterMascot()    パルを非表示にする (画面離脱時に呼ぶ)
-//   window.toggleCharacterMascotMenu()  radial menu を開閉する
+//   window.toggleCharacterMascotMenu()  メニューを開閉する
 // ============================================
 
 (function characterMascotModule() {
   const HOST_ID = 'character-mascot-host';
 
-  // radial menu の項目定義
-  // key: 内部識別子、label: 表示名、onSelect: クリック時の関数、position: menu 上の配置
-  //   position は 'up' (真上) / 'up-left' (左上) / 'left' (真左) / 'right' (右上)
+  // メニューの項目定義
+  // key: 内部識別子、label: 表示名、onSelect: クリック時の関数
+  // 並び順がそのまま上からの並びになる。いちばん下＝パルに近いものが押しやすい。
   const MENU_ITEMS = [
     {
-      // 旧「ガイド」はヒントのレベル3に統合したので、項目は1つだけにした。
+      // パルにしかできない仕事。答えは言わず「どこまで合っているか」だけを返す。
+      // ヒント（次の一手を教える）とは役割が違う。
+      key: 'check',
+      label: 'いまの式を見て',
+      subLabel: 'どこまで合ってる？',
+      primary: true,
+      onSelect: () => {
+        if (typeof window.runPalProgressCheck === 'function') window.runPalProgressCheck();
+      },
+    },
+    {
       key: 'hint',
       label: 'ヒント',
       subLabel: 'OFF',
-      position: 'up-left',
       onSelect: () => {
         const btn = document.getElementById('btn-hint');
         if (btn) btn.click();
@@ -32,7 +47,6 @@
       key: 'explanation',
       label: '三角関数の解説',
       subLabel: '基礎と公式',
-      position: 'up',
       onSelect: () => {
         if (typeof window.openMascotExplanationSubmenu === 'function') {
           window.openMascotExplanationSubmenu();
@@ -41,11 +55,9 @@
     },
     {
       key: 'minimize',
-      label: '隠す',
-      subLabel: '小さくする',
-      position: 'up-right',
+      label: '小さくする',
+      subLabel: 'パルを控えめに',
       onSelect: () => {
-        // パルを縮小アイコン化する。localStorage に選択を保存 (次回起動時に反映)
         if (typeof window.minimizeCharacterMascot === 'function') {
           window.minimizeCharacterMascot(true);
         }
@@ -107,13 +119,13 @@
     });
     host.appendChild(palButton);
 
-    // radial menu (パルの周囲に扇状に配置)
+    // メニュー (パルの上に開く縦のカード)
     const menu = document.createElement('div');
     menu.className = 'character-mascot-menu';
     MENU_ITEMS.forEach((item) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `character-mascot-menu-item pos-${item.position}`;
+      btn.className = `character-mascot-menu-item${item.primary ? ' is-primary' : ''}`;
       btn.dataset.key = item.key;
       btn.innerHTML = `
         <div class="character-mascot-menu-label">${item.label}</div>
@@ -128,9 +140,12 @@
     });
     host.appendChild(menu);
 
-    document.body.appendChild(host);
+    // 下のボタン列の中に座らせる。無ければ body に置く（画面構成が変わっても壊れないように）。
+    const bar = document.querySelector('.action-bar-container');
+    (bar || document.body).appendChild(host);
+    host.classList.toggle('in-action-bar', !!bar);
 
-    // radial menu を開いているときに host 外側をクリックしたら閉じる
+    // メニューを開いているときに host 外側をクリックしたら閉じる
     document.addEventListener('click', (e) => {
       if (!host.classList.contains('menu-open')) return;
       if (host.contains(e.target)) return;
@@ -149,18 +164,15 @@
   const PAL_MINI_KEY = 'pal_mini';
 
   /**
-   * 画面幅が狭い時 (< 1024px) 、または前回選択で縮小指定されていた時に true を返す。
-   * localStorage の 'pal_mini' が優先される。
-   *   'true'  → 常に縮小 (ユーザー明示選択)
-   *   'false' → 常に通常 (ユーザー明示選択)
-   *   null    → 画面幅で自動判定
+   * 「小さくする」を選んだことがあるかどうか。
+   *   'true'  → 縮小 (ユーザー明示選択)
+   *   それ以外 → 通常
+   * 以前は幅が 1024px 未満なら自動で縮小していたが、パルを下のボタン列へ
+   * 移してもともと小さくなったうえ、「いまの式を見て」の入口でもあるので、
+   * 勝手に縮めない。狭い画面での縮小は CSS のメディアクエリが受け持つ。
    */
   function shouldStartInMini() {
-    const stored = window.AppStorage.getRaw(PAL_MINI_KEY);
-    if (stored === 'true') return true;
-    if (stored === 'false') return false;
-    // ユーザー選択未設定 → 画面幅で自動判定
-    return window.innerWidth < 1024;
+    return window.AppStorage.getRaw(PAL_MINI_KEY) === 'true';
   }
 
   /**
@@ -298,6 +310,7 @@
   window.closeMascotExplanationSubmenu = closeSubmenu;
 
   window.hideCharacterMascot = function() {
+    if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
     const host = document.getElementById(HOST_ID);
     if (!host) return;
     host.classList.add('hidden');

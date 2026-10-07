@@ -390,6 +390,7 @@ window.loadStage = async function(stageNumber) {
       // これをやらないと、次のステージが「盤面に触れない」状態のまま始まってしまう。
       window._clearReviewMode = false;
       if (typeof window.hideClearReviewButtons === 'function') window.hideClearReviewButtons();
+      if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
       if (typeof window.hideListenExplainButton === 'function') window.hideListenExplainButton();
       if (typeof window.hideNextStageButton === 'function') window.hideNextStageButton();
       document.body.classList.remove('answer-reveal-locked');

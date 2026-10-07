@@ -335,7 +335,7 @@
       const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
   const MAX_QUEUE = 500;
-  const stage = { id: null, startedAt: 0, attempts: 0, hints: 0 };
+  const stage = { id: null, startedAt: 0, attempts: 0, hints: 0, checks: 0 };
 
   function consented() { return S.getRaw(K.DEVICE.RESEARCH_CONSENT) === 'true'; }
 
@@ -391,7 +391,7 @@
     // 同じステージの読み直し（リセット・もう一度）は「続き」として扱い、回数と経過時間を引き継ぐ
     stageStart(stageId) {
       const restart = stage.id != null && String(stage.id) === String(stageId);
-      if (!restart) { stage.id = stageId; stage.startedAt = Date.now(); stage.attempts = 0; stage.hints = 0; stage.maxHintLevel = 0; }
+      if (!restart) { stage.id = stageId; stage.startedAt = Date.now(); stage.attempts = 0; stage.hints = 0; stage.maxHintLevel = 0; stage.checks = 0; }
       enqueue('stage_start', { tutorial: !!window.isTutorialStageId?.(stageId), restart, elapsed_ms: restart ? elapsedMs() : 0 });
     },
     submit(validation) {
@@ -404,6 +404,7 @@
         hints_used: stage.hints,
         hint_level: window.hintLevel || 0,          // 提出した時点で出していたヒントの段階
         max_hint_level: stage.maxHintLevel || 0,    // そのステージで一番深く見た段階
+        checks_used: stage.checks || 0,             // パルに「いまの式を見て」を頼んだ回数
         elapsed_ms: elapsedMs(),
         blocks: snapshotBlocks(),
       });
@@ -421,10 +422,16 @@
       });
     },
     giveup() {
-      enqueue('giveup', { attempts: stage.attempts, hints_used: stage.hints, max_hint_level: stage.maxHintLevel || 0, elapsed_ms: elapsedMs(), blocks: snapshotBlocks() });
+      enqueue('giveup', { attempts: stage.attempts, hints_used: stage.hints, max_hint_level: stage.maxHintLevel || 0, checks_used: stage.checks || 0, elapsed_ms: elapsedMs(), blocks: snapshotBlocks() });
     },
     reset() {
       enqueue('reset', { attempts: stage.attempts, elapsed_ms: elapsedMs() });
+    },
+    // パルの「いまの式を見て」。回数だけ数えて、submit / giveup の payload に相乗りさせる。
+    // 新しい event_type を足すと event_logs の check 制約に引っかかって
+    // ログ送信がまるごと止まるので、ここでは専用の行を作らない。
+    progressCheck() {
+      stage.checks = (stage.checks || 0) + 1;
     },
   };
 

@@ -1,31 +1,38 @@
 /* ========================================
-           パル (ヒッパルコス) 常駐マスコット + radial menu
+           パル (ヒッパルコス) 常駐マスコット + メニュー + 吹き出し
            character-mascot.js が制御する。
-           サイズは --pal-size 変数で段階的に制御 (メディアクエリで切替)。
-           radial menu の位置は --pal-size に対する割合で計算される。
            ======================================== */
-        /* 以前は画面の「幅」で 300〜800px に切り替えていたため、横長のモニターでは
-           パルが画面の高さの大半を占めていた。画面の「高さ」に合わせ、上限も下げる。 */
-        /* 作業エリアを方眼にしてブロックを主役にしたので、パルも控えめにする。
-           以前は画面の高さの半分近くを占め、盤面の右下を隠していた。 */
+        /* 置き場所は下のボタン列(.action-bar-container)の中。
+           作業エリア（方眼・ゴミ箱・ズーム・スクロールバー）には一切かぶらない。
+           メニューだけが、開いている間ボタン列の上に重なる。 */
         :root {
-          --pal-size: clamp(180px, 30vh, 320px);
-          --pal-menu-item-size: clamp(74px, 10vh, 104px);
-          --pal-menu-label-size: clamp(0.68rem, 1.3vh, 0.9rem);
-          --pal-menu-sublabel-size: clamp(0.56rem, 1vh, 0.7rem);
-          --pal-menu-item-padding: clamp(5px, 0.8vh, 9px);
+          --pal-seat-size: 76px;   /* ボタン列に座っているときの大きさ */
+          --pal-seat-mini: 42px;   /* 「小さくする」を選んだとき */
+        }
+
+        /* パルを収めるぶん、ボタン列に高さを持たせる。
+           ボタン自体は中央寄せのままなので、並びはずれない。 */
+        .action-bar-container {
+          position: relative;
+          align-items: center;
+          box-sizing: border-box;   /* padding を含めた高さにする（足すと帯が厚くなりすぎる） */
+          min-height: calc(var(--pal-seat-size) + 8px);
         }
 
         .character-mascot-host {
-          position: fixed;
-          right: 0;
-          bottom: 0;
-          width: var(--pal-size);
-          height: var(--pal-size);
-          /* モーダル(.overlay-screen = 2000)より下。
-             以前は 2900 で、公式解説やアカウント画面の上にパルが乗っていた。 */
+          position: fixed;   /* ボタン列が無い画面（保険）用。下で上書きする */
+          right: 12px;
+          bottom: 12px;
+          width: var(--pal-seat-size);
+          height: var(--pal-seat-size);
+          /* モーダル(.overlay-screen = 2000)より下。 */
           z-index: 1500;
           pointer-events: none;
+        }
+        .character-mascot-host.in-action-bar {
+          position: absolute;
+          right: clamp(10px, 1.4vw, 22px);
+          bottom: 4px;
         }
         .character-mascot-host.hidden { display: none !important; }
 
@@ -33,133 +40,119 @@
           position: absolute;
           right: 0;
           bottom: 0;
-          width: var(--pal-size);
-          height: var(--pal-size);
+          width: 100%;
+          height: 100%;
           padding: 0;
           background: transparent;
           border: none;
           cursor: pointer;
           pointer-events: auto;
-          /* 影は固定にし、動かすのは transform だけにする。
-             大きな画像の影（filter）をアニメーションさせると毎フレーム描き直しになり、動きが重くなる */
-          filter: drop-shadow(0 6px 16px rgba(56, 189, 248, 0.45));
-          transition: transform 0.2s ease;
+          /* 影は固定にし、動かすのは transform だけにする（毎フレームの描き直しを避ける） */
+          filter: drop-shadow(0 4px 10px rgba(56, 189, 248, 0.35));
+          transition: transform 0.18s ease;
           will-change: transform;
         }
-        .character-mascot-pal:hover {
-          transform: translateY(-8px);
-        }
+        .character-mascot-pal:hover { transform: translateY(-5px); }
+        /* 元画像(900x491)は横長で、パル本体は真ん中あたりの 1/3 ほどしかない。
+           そのまま contain で入れると、小さい枠では本体が豆粒になる。
+           枠で切り抜いて、本体だけが枠いっぱいに見えるようにする。 */
+        .character-mascot-pal { overflow: hidden; }
         .character-mascot-pal img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: bottom right;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          height: 112%;
+          width: auto;
+          max-width: none;
+          transform: translate(-52%, -50%);
           user-select: none;
+          pointer-events: none;
         }
 
+        /* ==== メニュー: パルの上に開く縦のカード ====
+           以前は円を扇状に並べていたが、ラベルが円の中で折り返して読めず、
+           ゴミ箱やズームボタンの上にも乗っていた。 */
         .character-mascot-menu {
           position: absolute;
           right: 0;
-          bottom: 0;
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-        }
-
-        .character-mascot-menu-item {
-          position: absolute;
-          width: var(--pal-menu-item-size);
-          height: var(--pal-menu-item-size);
-          padding: var(--pal-menu-item-padding);
-          border-radius: 50%;
-          background: linear-gradient(145deg, rgba(29, 78, 216, 0.9), rgba(14, 165, 233, 0.85));
-          border: 2px solid rgba(56, 189, 248, 0.7);
-          color: #fff;
-          font-weight: 800;
-          cursor: pointer;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.4);
-          opacity: 0;
-          transform: scale(0.4);
-          transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.4, 1.2);
-          pointer-events: none;
+          bottom: calc(100% + 10px);
+          width: 232px;
           display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          flex-direction: column-reverse;  /* 先頭の項目をパルのすぐ上に置く */
+          gap: 4px;
+          padding: 8px;
+          background: linear-gradient(135deg, rgba(10, 24, 48, 0.98), rgba(6, 16, 34, 0.98));
+          border: 1px solid var(--hairline);
+          border-radius: 14px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+          opacity: 0;
+          transform: translateY(8px);
+          transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
         }
-        .character-mascot-menu-item:hover {
-          background: linear-gradient(145deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
-          transform: scale(1.08) !important;
-          border-color: rgba(255, 255, 255, 0.9);
-        }
-        .character-mascot-menu-item.is-active {
-          background: linear-gradient(145deg, rgba(21, 128, 61, 0.9), rgba(34, 197, 94, 0.85));
-          border-color: rgba(74, 222, 128, 0.9);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 30px rgba(74, 222, 128, 0.7);
-        }
-        .character-mascot-menu-item.is-active:hover {
-          background: linear-gradient(145deg, rgba(21, 128, 61, 1), rgba(34, 197, 94, 1));
-        }
-        .character-mascot-menu-label {
-          font-size: var(--pal-menu-label-size);
-          line-height: 1.2;
-          text-align: center;
-        }
-        .character-mascot-menu-sublabel {
-          font-size: var(--pal-menu-sublabel-size);
-          opacity: 0.85;
-          margin-top: 4px;
-        }
-
-        /* radial menu 展開時: パルサイズに対する割合で配置 */
-        .character-mascot-host.menu-open .character-mascot-menu-item {
+        .character-mascot-host.menu-open .character-mascot-menu {
           opacity: 1;
-          transform: scale(1);
+          transform: translateY(0);
           pointer-events: auto;
         }
-        /* 展開時の各アイテムの位置 (パル本体の中心から扇形に配置)
-           4項目を 左〜真上〜右上 の扇形に均等配置する */
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-left {
-          right: calc(var(--pal-size) * 0.72);
-          bottom: calc(var(--pal-size) * 0.28);
-        }
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up-left {
-          right: calc(var(--pal-size) * 0.62);
-          bottom: calc(var(--pal-size) * 0.62);
-        }
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up {
-          right: calc(var(--pal-size) * 0.36);
-          bottom: calc(var(--pal-size) * 0.78);
-        }
-        /* 「隠す」ボタンを右上寄りに配置 (ゴミ箱と被らないよう真右ではなく上寄り) */
-        .character-mascot-host.menu-open .character-mascot-menu-item.pos-up-right {
-          right: calc(var(--pal-size) * 0.08);
-          bottom: calc(var(--pal-size) * 0.72);
-        }
 
-        /* 展開前の初期位置 (割合ベース) */
         .character-mascot-menu-item {
-          right: calc(var(--pal-size) * 0.31);
-          bottom: calc(var(--pal-size) * 0.31);
+          display: block;
+          width: 100%;
+          padding: 9px 12px;
+          text-align: left;
+          border-radius: 10px;
+          background: transparent;
+          border: 1px solid transparent;
+          color: #dceaf7;
+          font-family: inherit;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+        }
+        .character-mascot-menu-item:hover {
+          background: rgba(255, 255, 255, 0.07);
+          border-color: var(--hairline);
+        }
+        /* 「いまの式を見て」はパルにしかできない仕事なので、ここだけ塗る。 */
+        .character-mascot-menu-item.is-primary {
+          background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
+          border-color: rgba(125, 211, 252, 0.65);
+          color: #fff;
+          font-weight: 700;
+        }
+        .character-mascot-menu-item.is-primary:hover {
+          background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
+          border-color: rgba(255, 255, 255, 0.85);
+        }
+        /* ヒントが出ているあいだの印 */
+        .character-mascot-menu-item.is-active .character-mascot-menu-sublabel {
+          color: #86efac;
+        }
+        .character-mascot-menu-label {
+          font-size: 0.92rem;
+          line-height: 1.35;
+        }
+        .character-mascot-menu-sublabel {
+          font-size: 0.74rem;
+          color: #8fb0cc;
+          margin-top: 2px;
         }
 
-        /* ==== 縮小モード (mini): パルを画面右下の小さなアイコンに変える ==== */
+        /* ==== 小さくした状態 ==== */
         .character-mascot-host.mini {
-          --pal-size: 100px !important;
-          right: 14px;
-          bottom: 14px;
-          transition: right 0.35s ease, bottom 0.35s ease;
+          width: var(--pal-seat-mini);
+          height: var(--pal-seat-mini);
         }
         .character-mascot-host.mini .character-mascot-pal {
-          filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.6));
+          filter: drop-shadow(0 2px 6px rgba(56, 189, 248, 0.5));
         }
-        .character-mascot-host.mini .character-mascot-pal:hover {
-          transform: translateY(-4px) scale(1.05);
-        }
-        /* 縮小時は radial menu を強制的に非表示にする (クリック時に展開される想定) */
-        .character-mascot-host.mini .character-mascot-menu,
-        .character-mascot-host.mini .character-mascot-menu-item {
-          display: none !important;
+        .character-mascot-host.mini .character-mascot-menu { display: none !important; }
+
+        /* 画面が狭いときはボタンと競らないよう、自動で小さい姿にする */
+        @media (max-width: 860px) {
+          :root { --pal-seat-size: 46px; }
+          .character-mascot-menu { width: 200px; }
         }
 
         /* ==== 三角関数の解説サブメニュー ==== */
@@ -249,3 +242,60 @@
           font-weight: 700;
           line-height: 1.3;
         }
+        /* ========================================
+           パルの吹き出し（「いまの式を見て」の返事）
+           位置は app-guide.js の positionPalSpeech() がパルの立ち絵から実測する。
+           重なりの順番は「作業エリアの上の補助」= 1700 の帯。
+           ======================================== */
+        .pal-speech {
+          position: fixed;
+          z-index: 1700;
+          box-sizing: border-box;
+          width: min(360px, calc(100vw - 24px));
+          padding: 14px 34px 14px 16px;
+          background: linear-gradient(135deg, rgba(10, 24, 48, 0.98), rgba(6, 16, 34, 0.98));
+          border: 1px solid var(--hairline);
+          border-left: 3px solid #7dd3fc;
+          border-radius: 14px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+          color: #dceaf7;
+          opacity: 0;
+          transform: translateY(8px);
+          transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        .pal-speech.show { opacity: 1; transform: translateY(0); }
+        .pal-speech.hidden { display: none !important; }
+        .pal-speech-head {
+          font-size: 0.74rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: #7dd3fc;
+          margin-bottom: 6px;
+        }
+        .pal-speech-body {
+          font-size: 0.95rem;
+          line-height: 1.85;
+        }
+        .pal-speech-close {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          border-radius: 50%;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          color: #8fb0cc;
+          font-size: 0.85rem;
+          line-height: 1;
+          cursor: pointer;
+        }
+        .pal-speech-close:hover { background: rgba(255, 255, 255, 0.08); color: #eaf4ff; }
+        /* 左の線で返事の種類を言う。文字色は変えない（読みやすさを落とさないため） */
+        .pal-speech.tone-done { border-left-color: #58cc02; }
+        .pal-speech.tone-done .pal-speech-head { color: #86efac; }
+        .pal-speech.tone-ok   { border-left-color: #7dd3fc; }
+        .pal-speech.tone-warn { border-left-color: #fbbf24; }
+        .pal-speech.tone-warn .pal-speech-head { color: #fcd34d; }
+        .pal-speech.tone-info { border-left-color: #64748b; }
