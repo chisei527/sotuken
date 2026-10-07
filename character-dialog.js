@@ -142,7 +142,9 @@
       return;
     }
 
-    // パルの吹き出し（「いまの式を見て」の返事）と会話パネルが重ならないようにする
+    // 呼び出し中のパルと吹き出しは引っ込める。
+    // 会話パネルにもパルの立ち絵が出るので、2人いるように見えてしまう。
+    if (typeof window.dismissPal === 'function') window.dismissPal();
     if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
 
     const host = ensureDialogHost();

@@ -1,84 +1,138 @@
 /* ========================================
-           パル (ヒッパルコス) 常駐マスコット + メニュー + 吹き出し
+           パル (ヒッパルコス) の呼び出しボタン + メニュー + 吹き出し
            character-mascot.js が制御する。
            ======================================== */
-        /* 置き場所は下のボタン列(.action-bar-container)の中。
-           作業エリア（方眼・ゴミ箱・ズーム・スクロールバー）には一切かぶらない。
-           メニューだけが、開いている間ボタン列の上に重なる。 */
+        /* 呼び出し式。
+           ふだんは下のボタン列の右端に小さな呼び出しボタン(#btn-pal)だけ。
+           押すと、そのすぐ上にパルが本来の大きさで立つ。用が済んだら消える。
+           常駐は「小さくすると棒人間、大きくすると盤面を隠す」の板挟みになるので、
+           呼ぶときだけ大きく出す形にした。 */
         :root {
-          --pal-seat-size: 76px;   /* ボタン列に座っているときの大きさ */
-          --pal-seat-mini: 42px;   /* 「小さくする」を選んだとき */
+          --pal-summon-h: clamp(190px, 28vh, 280px);  /* 呼んだときの高さ */
         }
 
-        /* パルを収めるぶん、ボタン列に高さを持たせる。
-           ボタン自体は中央寄せのままなので、並びはずれない。 */
-        .action-bar-container {
-          position: relative;
+        .action-bar-container { position: relative; }
+
+        /* ==== 呼び出しボタン ====
+           4つの操作ボタン（リセット〜正解をチェック）とは役割が違うので、
+           中央の並びには入れず、右端に絶対配置する。並びの中心はずらさない。 */
+        .pal-call-btn {
+          position: absolute;
+          right: clamp(10px, 1.4vw, 22px);
+          top: 50%;
+          transform: translateY(-50%);
+          display: inline-flex;
           align-items: center;
-          box-sizing: border-box;   /* padding を含めた高さにする（足すと帯が厚くなりすぎる） */
-          min-height: calc(var(--pal-seat-size) + 8px);
+          gap: 8px;
+          padding: 5px 14px 5px 5px;
+          border-radius: 999px;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          color: #b9cfe6;
+          font-family: inherit;
+          font-weight: 500;
+          font-size: 13px;
+          letter-spacing: 0.04em;
+          cursor: pointer;
+          transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
         }
-
-        .character-mascot-host {
-          position: fixed;   /* ボタン列が無い画面（保険）用。下で上書きする */
-          right: 12px;
-          bottom: 12px;
-          width: var(--pal-seat-size);
-          height: var(--pal-seat-size);
-          /* モーダル(.overlay-screen = 2000)より下。 */
-          z-index: 1500;
+        .pal-call-btn:hover {
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
+        }
+        .pal-call-btn.is-active {
+          background: rgba(56, 189, 248, 0.16);
+          border-color: rgba(125, 211, 252, 0.7);
+          color: #eaf4ff;
+        }
+        /* 丸の中に顔だけ見せる（元画像は横長で、本体は真ん中あたりだけ） */
+        .pal-call-face {
+          position: relative;
+          flex: 0 0 auto;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: rgba(56, 189, 248, 0.14);
+        }
+        /* 丸の中に出すのは顔だけ。元画像の縦 8%〜47% のあたりが頭。 */
+        .pal-call-face img {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          height: 210%;
+          width: auto;
+          max-width: none;
+          transform: translate(-50%, -32%);
           pointer-events: none;
         }
+        @media (max-width: 860px) {
+          .pal-call-label { display: none; }
+          .pal-call-btn { padding: 5px; }
+        }
+
+        /* ==== 呼ばれて出てきたパル ==== */
+        .character-mascot-host {
+          position: fixed;        /* ボタン列が無い画面（保険）用。下で上書きする */
+          right: 16px;
+          bottom: 90px;
+          height: var(--pal-summon-h);
+          width: calc(var(--pal-summon-h) * 0.9);
+          z-index: 1500;          /* モーダル(.overlay-screen = 2000)より下 */
+          pointer-events: none;
+          opacity: 0;
+          transform: translateY(18px);
+          transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        /* ボタン列の中に入れてあるので、bottom: 100% で「列のすぐ上」に立つ。
+           少しだけ列に重ねて、縁に腰かけているように見せる。 */
         .character-mascot-host.in-action-bar {
           position: absolute;
           right: clamp(10px, 1.4vw, 22px);
-          bottom: 4px;
+          bottom: calc(100% - 14px);
         }
+        .character-mascot-host.show { opacity: 1; transform: translateY(0); }
         .character-mascot-host.hidden { display: none !important; }
 
         .character-mascot-pal {
           position: absolute;
-          right: 0;
-          bottom: 0;
+          inset: 0;
           width: 100%;
           height: 100%;
           padding: 0;
           background: transparent;
           border: none;
+          overflow: hidden;       /* 元画像の余白を切り落とす */
           cursor: pointer;
           pointer-events: auto;
-          /* 影は固定にし、動かすのは transform だけにする（毎フレームの描き直しを避ける） */
-          filter: drop-shadow(0 4px 10px rgba(56, 189, 248, 0.35));
+          filter: drop-shadow(0 10px 24px rgba(56, 189, 248, 0.35));
           transition: transform 0.18s ease;
-          will-change: transform;
         }
-        .character-mascot-pal:hover { transform: translateY(-5px); }
-        /* 元画像(900x491)は横長で、パル本体は真ん中あたりの 1/3 ほどしかない。
-           そのまま contain で入れると、小さい枠では本体が豆粒になる。
-           枠で切り抜いて、本体だけが枠いっぱいに見えるようにする。 */
-        .character-mascot-pal { overflow: hidden; }
+        .character-mascot-pal:hover { transform: translateY(-4px); }
+        /* 元画像(900x491)は横長で、パル本体は真ん中の 45% ほどしかない。
+           本体だけが枠いっぱいに見えるよう、拡大して中央から少し右をのぞかせる。 */
         .character-mascot-pal img {
           position: absolute;
           left: 50%;
           top: 50%;
-          height: 112%;
+          height: 109%;
           width: auto;
           max-width: none;
-          transform: translate(-52%, -50%);
+          transform: translate(-52.5%, -50%);
           user-select: none;
           pointer-events: none;
         }
 
-        /* ==== メニュー: パルの上に開く縦のカード ====
-           以前は円を扇状に並べていたが、ラベルが円の中で折り返して読めず、
-           ゴミ箱やズームボタンの上にも乗っていた。 */
+        /* ==== メニュー: パルの左に開く ====
+           上に開くと画面からはみ出すし、パルの顔も隠してしまう。 */
         .character-mascot-menu {
           position: absolute;
-          right: 0;
-          bottom: calc(100% + 10px);
+          right: calc(100% + 10px);
+          bottom: 8px;
           width: 232px;
           display: flex;
-          flex-direction: column-reverse;  /* 先頭の項目をパルのすぐ上に置く */
+          flex-direction: column-reverse;  /* 先頭の項目を下（パルに近いほう）に置く */
           gap: 4px;
           padding: 8px;
           background: linear-gradient(135deg, rgba(10, 24, 48, 0.98), rgba(6, 16, 34, 0.98));
@@ -86,13 +140,13 @@
           border-radius: 14px;
           box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
           opacity: 0;
-          transform: translateY(8px);
-          transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+          transform: translateX(10px);
+          transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
           pointer-events: none;
         }
         .character-mascot-host.menu-open .character-mascot-menu {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateX(0);
           pointer-events: auto;
         }
 
@@ -126,33 +180,14 @@
           border-color: rgba(255, 255, 255, 0.85);
         }
         /* ヒントが出ているあいだの印 */
-        .character-mascot-menu-item.is-active .character-mascot-menu-sublabel {
-          color: #86efac;
-        }
-        .character-mascot-menu-label {
-          font-size: 0.92rem;
-          line-height: 1.35;
-        }
-        .character-mascot-menu-sublabel {
-          font-size: 0.74rem;
-          color: #8fb0cc;
-          margin-top: 2px;
-        }
+        .character-mascot-menu-item.is-active .character-mascot-menu-sublabel { color: #86efac; }
+        .character-mascot-menu-label { font-size: 0.92rem; line-height: 1.35; }
+        .character-mascot-menu-sublabel { font-size: 0.74rem; color: #8fb0cc; margin-top: 2px; }
 
-        /* ==== 小さくした状態 ==== */
-        .character-mascot-host.mini {
-          width: var(--pal-seat-mini);
-          height: var(--pal-seat-mini);
-        }
-        .character-mascot-host.mini .character-mascot-pal {
-          filter: drop-shadow(0 2px 6px rgba(56, 189, 248, 0.5));
-        }
-        .character-mascot-host.mini .character-mascot-menu { display: none !important; }
-
-        /* 画面が狭いときはボタンと競らないよう、自動で小さい姿にする */
+        /* 画面が狭いときは、パルもメニューも一回り小さく */
         @media (max-width: 860px) {
-          :root { --pal-seat-size: 46px; }
-          .character-mascot-menu { width: 200px; }
+          :root { --pal-summon-h: clamp(150px, 22vh, 200px); }
+          .character-mascot-menu { width: 196px; }
         }
 
         /* ==== 三角関数の解説サブメニュー ==== */

@@ -715,12 +715,10 @@ window.positionPalSpeech = function () {
   const margin = 12;
   const width = el.offsetWidth || 320;
   if (rect && rect.width) {
-    // 吹き出しは盤面の右下に重なる位置に出る。ゴミ箱は読んでいる間も使いたいので、
-    // ヒントカードと同じだけ（84px）右端を空けて、その左に置く。
-    const trashGutter = 84;
-    const right = Math.max(margin, window.innerWidth - rect.right - 4) + trashGutter;
+    // パルの左どなりに出す。パルの顔を隠さず、右端のゴミ箱にもかからない。
+    const right = Math.max(margin, window.innerWidth - rect.left + 10);
     el.style.right = `${Math.min(right, Math.max(margin, window.innerWidth - width - margin))}px`;
-    el.style.bottom = `${Math.max(margin, window.innerHeight - rect.top + 10)}px`;
+    el.style.bottom = `${Math.max(margin, window.innerHeight - rect.bottom + 24)}px`;
   } else {
     el.style.right = `${margin}px`;
     el.style.bottom = '96px';

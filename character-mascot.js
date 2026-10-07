@@ -1,17 +1,17 @@
 // ============================================
 // character-mascot.js
-// パル (ヒッパルコス) を下のボタン列の右端に座らせ、
-// クリックすると上にメニューを開く。
+// パル (ヒッパルコス) の呼び出し。
 //
-// 置き場所について:
-//   以前は画面の右下に大きく浮かせていたので、ゴミ箱・ズームボタン・
-//   盤面の横スクロールバーに重なっていた。
-//   いまは下のボタン列(.action-bar-container)の中に入れてあるので、
-//   作業エリアには一切かぶらない。開いたメニューだけが一時的に盤面に重なる。
+// 考え方（呼び出し式）:
+//   ふだんは画面に出さず、下のボタン列の右端に小さな呼び出しボタン(#btn-pal)だけ置く。
+//   押すと、パルが本来の大きさで盤面の右下に出てきてメニューを開く。
+//   用が済んだら消える。常駐させると、小さくすれば盤面は守れるがキャラクターに
+//   見えなくなり、大きくすれば盤面を隠す——その板挟みを「呼ぶときだけ大きく」で解いた。
 //
 // 主な API:
-//   window.showCharacterMascot()    パルを表示する (プレイ画面遷移時に呼ぶ)
-//   window.hideCharacterMascot()    パルを非表示にする (画面離脱時に呼ぶ)
+//   window.showCharacterMascot()    呼び出しボタンを使えるようにする (プレイ画面遷移時)
+//   window.hideCharacterMascot()    パルを引っ込める (画面離脱時)
+//   window.summonPal() / window.dismissPal()
 //   window.toggleCharacterMascotMenu()  メニューを開閉する
 // ============================================
 
@@ -54,14 +54,10 @@
       },
     },
     {
-      key: 'minimize',
-      label: '小さくする',
-      subLabel: 'パルを控えめに',
-      onSelect: () => {
-        if (typeof window.minimizeCharacterMascot === 'function') {
-          window.minimizeCharacterMascot(true);
-        }
-      },
+      key: 'close',
+      label: '閉じる',
+      subLabel: 'またね',
+      onSelect: () => window.dismissPal(),
     },
   ];
 
@@ -105,18 +101,7 @@
     palImg.src = 'asset/ヒッパルコス 通常.webp';
     palImg.draggable = false;
     palButton.appendChild(palImg);
-    palButton.addEventListener('click', () => {
-      // 縮小アイコン状態のときは、まず元サイズに戻してから radial menu を展開
-      if (host.classList.contains('mini')) {
-        if (typeof window.expandCharacterMascot === 'function') {
-          window.expandCharacterMascot(true);
-          // 展開後に radial menu を開く (少し遅延させて拡大アニメと重ならないように)
-          setTimeout(() => window.toggleCharacterMascotMenu(true), 250);
-        }
-        return;
-      }
-      window.toggleCharacterMascotMenu();
-    });
+    palButton.addEventListener('click', () => window.toggleCharacterMascotMenu());
     host.appendChild(palButton);
 
     // メニュー (パルの上に開く縦のカード)
@@ -140,16 +125,21 @@
     });
     host.appendChild(menu);
 
-    // 下のボタン列の中に座らせる。無ければ body に置く（画面構成が変わっても壊れないように）。
+    // 下のボタン列の中に入れる。こうすると「ボタン列のすぐ上」に立たせるのが
+    // bottom: 100% だけで決まり、ボタン列の高さが変わっても追従する。
     const bar = document.querySelector('.action-bar-container');
     (bar || document.body).appendChild(host);
     host.classList.toggle('in-action-bar', !!bar);
 
-    // メニューを開いているときに host 外側をクリックしたら閉じる
+    // パルが出ている間に外側をクリックしたら、引っ込める。
+    // 呼び出しボタン自身のクリックは、そのトグル処理に任せる。
     document.addEventListener('click', (e) => {
-      if (!host.classList.contains('menu-open')) return;
+      if (host.classList.contains('hidden')) return;
       if (host.contains(e.target)) return;
-      window.toggleCharacterMascotMenu(false);
+      if (e.target.closest && e.target.closest('#btn-pal')) return;
+      // 吹き出しを読んでいる最中に消さない
+      if (e.target.closest && e.target.closest('#pal-speech')) return;
+      window.dismissPal();
     });
 
     // 下のボタン列のヒントボタンが radial menu を介さず直接押された場合も
@@ -161,55 +151,52 @@
   }
 
   // パル縮小状態の localStorage キー
-  const PAL_MINI_KEY = 'pal_mini';
-
-  /**
-   * 「小さくする」を選んだことがあるかどうか。
-   *   'true'  → 縮小 (ユーザー明示選択)
-   *   それ以外 → 通常
-   * 以前は幅が 1024px 未満なら自動で縮小していたが、パルを下のボタン列へ
-   * 移してもともと小さくなったうえ、「いまの式を見て」の入口でもあるので、
-   * 勝手に縮めない。狭い画面での縮小は CSS のメディアクエリが受け持つ。
-   */
-  function shouldStartInMini() {
-    return window.AppStorage.getRaw(PAL_MINI_KEY) === 'true';
-  }
-
-  /**
-   * パルを縮小アイコン化する。radial menu が開いていたら閉じる。
-   * @param {boolean} persist  ユーザー明示選択なら true (localStorage に保存)
-   */
-  window.minimizeCharacterMascot = function(persist) {
-    const host = ensureMascotHost();
-    host.classList.remove('menu-open');
-    host.classList.add('mini');
-    if (persist) {
-      window.AppStorage.setRaw(PAL_MINI_KEY, 'true');
-    }
-  };
-
-  /**
-   * パルを通常サイズに戻す。
-   * @param {boolean} persist  ユーザー明示選択なら true (localStorage に保存)
-   */
-  window.expandCharacterMascot = function(persist) {
-    const host = ensureMascotHost();
-    host.classList.remove('mini');
-    if (persist) {
-      window.AppStorage.setRaw(PAL_MINI_KEY, 'false');
-    }
-  };
-
-  window.showCharacterMascot = function() {
+  // ============================================
+  // 呼び出し / 引っ込め
+  // ============================================
+  // 呼ぶとパルが盤面の右下に出てきて、同時にメニューが開く。
+  // わざわざ呼んだのだから、もう一度押させずに用件を出す。
+  window.summonPal = function () {
     const host = ensureMascotHost();
     host.classList.remove('hidden');
-    // 初回表示時: localStorage or 画面幅で初期状態を決定
-    if (shouldStartInMini()) {
-      host.classList.add('mini');
-    } else {
-      host.classList.remove('mini');
+    refreshMenuState();
+    // 出てくる動き（下から）を毎回見せるため、クラスの付け直しを1フレーム待つ
+    requestAnimationFrame(() => {
+      host.classList.add('show');
+      window.toggleCharacterMascotMenu(true);
+    });
+    const callBtn = document.getElementById('btn-pal');
+    if (callBtn) callBtn.classList.add('is-active');
+  };
+
+  window.dismissPal = function () {
+    const host = document.getElementById(HOST_ID);
+    if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
+    const callBtn = document.getElementById('btn-pal');
+    if (callBtn) callBtn.classList.remove('is-active');
+    if (!host) return;
+    host.classList.remove('menu-open', 'show');
+    setTimeout(() => host.classList.add('hidden'), 260);
+  };
+
+  window.togglePal = function (forceOn) {
+    const host = document.getElementById(HOST_ID);
+    const isOut = !!host && !host.classList.contains('hidden');
+    const shouldOpen = typeof forceOn === 'boolean' ? forceOn : !isOut;
+    if (shouldOpen) window.summonPal(); else window.dismissPal();
+  };
+
+  // プレイ画面に入ったとき。パルはまだ出さず、呼び出しボタンだけ使えるようにする。
+  window.showCharacterMascot = function() {
+    ensureMascotHost();
+    const callBtn = document.getElementById('btn-pal');
+    if (callBtn && !callBtn.dataset.bound) {
+      callBtn.dataset.bound = '1';
+      callBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.togglePal();
+      });
     }
-    // 表示のタイミングでガイド/ヒントの現状を menu に反映
     refreshMenuState();
   };
 
@@ -309,12 +296,15 @@
   window.openMascotExplanationSubmenu = openSubmenu;
   window.closeMascotExplanationSubmenu = closeSubmenu;
 
+  // プレイ画面から離れるとき。出ていたら引っ込める。
   window.hideCharacterMascot = function() {
     if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
+    const callBtn = document.getElementById('btn-pal');
+    if (callBtn) callBtn.classList.remove('is-active');
     const host = document.getElementById(HOST_ID);
     if (!host) return;
     host.classList.add('hidden');
-    host.classList.remove('menu-open');
+    host.classList.remove('menu-open', 'show');
   };
 
   /**
