@@ -6,9 +6,11 @@
            ======================================== */
         /* 以前は画面の「幅」で 300〜800px に切り替えていたため、横長のモニターでは
            パルが画面の高さの大半を占めていた。画面の「高さ」に合わせ、上限も下げる。 */
+        /* 作業エリアを方眼にしてブロックを主役にしたので、パルも控えめにする。
+           以前は画面の高さの半分近くを占め、盤面の右下を隠していた。 */
         :root {
-          --pal-size: clamp(260px, 48vh, 500px);
-          --pal-menu-item-size: clamp(80px, 12vh, 120px);
+          --pal-size: clamp(180px, 30vh, 320px);
+          --pal-menu-item-size: clamp(74px, 10vh, 104px);
           --pal-menu-label-size: clamp(0.68rem, 1.3vh, 0.9rem);
           --pal-menu-sublabel-size: clamp(0.56rem, 1vh, 0.7rem);
           --pal-menu-item-padding: clamp(5px, 0.8vh, 9px);
@@ -20,7 +22,9 @@
           bottom: 0;
           width: var(--pal-size);
           height: var(--pal-size);
-          z-index: 2900;
+          /* モーダル(.overlay-screen = 2000)より下。
+             以前は 2900 で、公式解説やアカウント画面の上にパルが乗っていた。 */
+          z-index: 1500;
           pointer-events: none;
         }
         .character-mascot-host.hidden { display: none !important; }
@@ -194,7 +198,7 @@
         }
         .character-mascot-submenu-title {
           font-size: var(--submenu-title-size, 1.3rem);
-          font-weight: 900;
+          font-weight: 700;
           color: #e0f2fe;
         }
         .character-mascot-submenu-close {

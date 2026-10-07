@@ -39,9 +39,21 @@
            重なっていて見えなかった。パルの高さぶん上へずらして、常に見えるようにする。
            transform ではなく translate を使うのは、Blockly 自身が transform 属性で
            位置を指定しているため（translate は後から足し算される）。 */
+        /* ゴミ箱。Blockly は作業エリアの右下に置くので、そのままだとパルと重なる。
+           パルの頭より上へ、必要なぶんだけ持ち上げる。
+           （以前はパルの全高ぶん＝400px近く持ち上げていたため、
+             作業エリアの真ん中あたりに宙づりになっていた） */
         .blocklyTrash {
-          translate: -8px calc(-1 * var(--pal-size, 400px) - 12px);
-          opacity: 1 !important;
-          /* 背景が明るい模様なので、影を付けて輪郭を見えるようにする */
-          filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.85));
+          translate: -10px calc(-1 * var(--pal-size, 280px) * 0.52);
+          opacity: 0.72;
+          transition: opacity 0.15s ease;
         }
+        .blocklyTrash:hover { opacity: 1; }
+
+        /* 拡大縮小ボタンもゴミ箱と同じだけ持ち上げて、横に並ばせる */
+        .blocklyZoom {
+          translate: -10px calc(-1 * var(--pal-size, 280px) * 0.52);
+          opacity: 0.55;
+          transition: opacity 0.15s ease;
+        }
+        .blocklyZoom:hover { opacity: 1; }

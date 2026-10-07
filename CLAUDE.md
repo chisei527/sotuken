@@ -38,6 +38,23 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   - `STRICT_FORMULA_MODES` に無い公式（④以降）は、従来のゆるい判定にフォールバックする。厳密にしたい公式を増やすときはここにモードを足す。
 - 解説（`explanations.js` の `FORMULA_EXPLANATIONS`）は、解放済みの公式だけタブに出る。
 
+## 見た目のルール
+- **見せ場と作業場を分ける**。タイトル・マップ・シャッター演出・キャラ会話は絵を使って派手に。
+  プレイ画面の作業エリア（`#l`）は方眼だけにして、画面でいちばん明るいものがブロックになるようにする。
+  `setAppBackgroundByKey('stage')` はプレイ画面では背景画像を敷かない（`app-ui.js`）。
+- トークンは `styles/base.css` の `:root`。面は3枚だけ（`--surface-0` 地 / `--surface-1` パネル / `--surface-2` その中）、
+  仕切りは `--hairline`、方眼は `--grid-line` と `--grid-line-strong`。新しい色を増やす前にここを見る。
+- 書体は `--font-ui`（Zen Kaku Gothic New・画面の文字）と `--font-math`（STIX Two Text・式）。
+  index.html で Google Fonts から読む。**`font-weight` は 400 / 500 / 700 だけ**（900 は無く、指定すると合成太字になって濁る）。
+- ブロックの色は `blocks.js` の `BLOCK_COLORS`。色が種類を語る:
+  青＝式／紫＝公式／緑青＝操作／金＝よって／濃紺＝証明。
+  **入れ物は中身より暗くする**（逆にすると中の式が沈む）。ツールボックスのカテゴリ色もここと合わせる。
+- ボタンの主従: 塗りつぶしは主ボタン1つだけ（`.btn-primary` = 正解をチェック）。
+  ヒントは線、リセットとあきらめるは静かに（あきらめるは触れたときだけ赤）。
+- 言葉は「押すと何が起きるか」で書く。`SECTOR 014` や `SYNCED` のような造語は使わない。
+- 重なりの順番: パル 1500 < モーダル(`.overlay-screen`) 2000 < キャラ会話 3000 < 同意/アカウント 5000 < シャッター 9999。
+- 動きは `prefers-reduced-motion` で止まる（base.css の末尾）。キーボードの focus は `:focus-visible` で見える。
+
 ## ヒント（段階制）
 - ヒントは `window.hintLevel`（0〜3）の1本だけ。旧「ガイド機能」ボタンは段階3に統合した。
   - 1 … 問題ごとのヒント文（`problems/*.json` の `hints`。全ステージ3本ずつ用意してある）

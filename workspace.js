@@ -2,6 +2,9 @@
 // ブロックを並べる「ワークスペース（机）」の環境設定と整列を担当
 
 // 1. パレット（ツールボックス）の中身を定義
+//
+// カテゴリの色は blocks.js の BLOCK_COLORS と合わせてある。
+// 「左のタブの色を見れば、出てくるブロックの色が分かる」状態にするため。
 window.buildToolboxConfig = function(problemData) {
   const unlockedFormulaIds = typeof window.getUnlockedFormulaIds === 'function'
     ? window.getUnlockedFormulaIds()
@@ -15,7 +18,7 @@ window.buildToolboxConfig = function(problemData) {
 
   const contents = [
       {
-        kind: 'category', name: '基本', colour: '200',
+        kind: 'category', name: '基本', colour: '#4A7BB7',
         contents: [
           { kind: 'block', type: 'custom_number' },
           { kind: 'block', type: 'term_sin' },
@@ -38,7 +41,7 @@ window.buildToolboxConfig = function(problemData) {
   // sin( ) の穴に α や α+β を入れて、sinα や sin(α+β) を自分で組み立てる。
   if (hasAdditionFormula) {
     contents.push({
-      kind: 'category', name: '角 α・β', colour: '180',
+      kind: 'category', name: '角 α・β', colour: '#2F8F86',
       contents: [
         { kind: 'block', type: 'term_alpha' },
         { kind: 'block', type: 'term_beta' },
@@ -51,11 +54,11 @@ window.buildToolboxConfig = function(problemData) {
 
   contents.push(
       {
-        kind: 'category', name: '公式', colour: '260',
+        kind: 'category', name: '公式', colour: '#6D3FBF',
         contents: unlockedFormulaIds.map((type) => ({ kind: 'block', type }))
       },
       {
-        kind: 'category', name: '操作', colour: '120',
+        kind: 'category', name: '操作', colour: '#1E6E63',
         contents: [
           { kind: 'block', type: 'replace_operation' },
           { kind: 'block', type: 'common_denominator_operation' },

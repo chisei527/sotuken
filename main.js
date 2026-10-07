@@ -282,20 +282,21 @@ window.renderStageMap = async function() {
       const node = document.createElement('button');
       node.className = `map-node ${isCleared ? 'cleared' : isUnlocked ? 'unlocked' : 'locked'}${isGaveUp && !isCleared ? ' gave-up' : ''}${isFocus ? ' current' : ''}`;
       node.dataset.stage = String(stage);
-      const world = Math.floor((stage - 1) / 10) + 1;
-      const subStage = ((stage - 1) % 10) + 1;
-      
-      let statusText = 'LOCKED';
-      if (isFocus) statusText = 'ACTIVE';
-      else if (isCleared) statusText = 'SYNCED';
-      else if (isGaveUp) statusText = 'REVIEWED';   // 解説だけ見た状態。再挑戦で SYNCED に昇格する
-      else if (isUnlocked) statusText = 'READY';
 
-      node.innerHTML = `
-        <div class="map-node-number">${world}-${subStage}</div>
-        <div class="map-node-label">SECTOR ${String(stage).padStart(3, '0')}</div>
-        <div class="node-status-tag">${statusText}</div>
-      `;
+      // 以前は「2-5」と「SECTOR 015」で同じステージを2通りの番号で書いていて、
+      // しかもヘッダーは通し番号だった。番号は通し番号1つに統一する。
+      // 状態も SYNCED / REVIEWED のような造語をやめ、日本語で書く。
+      let statusText = '';
+      if (isCleared) statusText = 'クリア';
+      else if (isGaveUp) statusText = '解説を見た';
+      else if (isFocus) statusText = 'ここから';
+      else if (isUnlocked) statusText = '挑戦できる';
+
+      node.innerHTML = statusText
+        ? `<div class="map-node-number">${stage}</div>
+           <div class="node-status-tag">${statusText}</div>`
+        : `<div class="map-node-number">${stage}</div>
+           <div class="map-node-lock" aria-label="まだ開いていません">🔒</div>`;
       
       if (isUnlocked) node.onclick = () => window.transitionToStage(stage);
       else node.disabled = true;
@@ -363,7 +364,7 @@ window.renderStageMap = async function() {
   }
 
   const clearCount = window.clearedStages ? window.clearedStages.filter(s => s >= 1 && s <= totalStages).length : 0;
-  if (progressLabel) progressLabel.textContent = `${clearCount} / ${totalStages} CLEAR`;
+  if (progressLabel) progressLabel.textContent = `全${totalStages}問のうち ${clearCount}問クリア`;
 
   if (typeof window.centerMapCameraOnCurrentStage === 'function') {
     requestAnimationFrame(() => window.centerMapCameraOnCurrentStage(false));
@@ -414,7 +415,22 @@ window.loadStage = async function(stageNumber) {
 
       const stageText = document.getElementById('r');
       const problemText = document.getElementById('s');
-      if (stageText) stageText.innerText = isTutorialStage ? `TUTORIAL ${window.getTutorialStageIndex(stageNumber) + 1}/${window.TUTORIAL_STAGE_IDS.length}` : `STAGE ${stageNumber}`;
+      // 「STAGE 15」だけでは全体のどこにいるか分からないので、総数まで出す。
+      const totalStages = window.MAIN_STAGE_TOTAL || 1;
+      const tutorialTotal = (window.TUTORIAL_STAGE_IDS || []).length;
+      const tutorialIndex = isTutorialStage ? window.getTutorialStageIndex(stageNumber) + 1 : 0;
+      if (stageText) {
+        stageText.innerText = isTutorialStage
+          ? `チュートリアル ${tutorialIndex} / ${tutorialTotal}`
+          : `ステージ ${stageNumber} / ${totalStages}`;
+      }
+      const progressFill = document.getElementById('stage-progress-fill');
+      if (progressFill) {
+        const ratio = isTutorialStage
+          ? (tutorialTotal ? tutorialIndex / tutorialTotal : 0)
+          : (totalStages ? Number(stageNumber) / totalStages : 0);
+        progressFill.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+      }
       if (problemText) problemText.innerText = window.currentProblemData?.mathText || '';
 
       // btn-back のラベルを状況に合わせて切り替える

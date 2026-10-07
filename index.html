@@ -5,6 +5,15 @@
     <title>MathBlock - 数式パズル</title>
     
     <!-- CDN への接続を先に張っておく（DNS + TLS のぶん初回が速くなる） -->
+    <!-- 書体。以前は 'M PLUS Rounded 1c' を指定していたのに読み込んでいなかったため、
+         全画面が OS 任せのゴシックで表示されていた。
+           Zen Kaku Gothic New … 画面の文字（かなが素直で、学習アプリの地の文に向く）
+           STIX Two Text       … ブロックの中や問題文の「式」。数式用のセリフで、
+                                 式が数学として見え、周りの UI 文言と役割が分かれる
+         等幅は演出（起動シーケンス）だけなので OS のものを使う（読み込みを増やさない）。 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -72,21 +81,31 @@
 <body>
     <div id="transition-curtain" class="curtain hidden"></div>
     
+    <!-- タイトル画面。
+         以前はアプリ名が背景の絵に「MATH TECH」として焼き込まれていて、
+         実際の名前（MathBlock）と違ううえ、文字も読めなかった。
+         絵は雰囲気として敷き、名前と説明は文字として置く。 -->
     <div id="game-entrance">
-      <div id="start-prompt-text">TAP TO START</div>
+      <div class="entrance-hero">
+        <h1 class="entrance-logo">MathBlock</h1>
+        <p class="entrance-tagline">三角関数の証明を、ブロックを組み立てて解くパズル</p>
+      </div>
+      <div id="start-prompt-text">画面をタップしてはじめる</div>
 
+      <!-- 選択肢の文章は「押すと何が起きるか」をそのまま書く。
+           以前は「数式領域への直接介入」のような言い回しで、
+           どちらを押せばよいか分からなかった。 -->
       <div class="entrance-card">
-        <p class="entrance-eyebrow">SYSTEM STATUS: OPERATIONAL</p>
-        <h1 class="entrance-title" style="font-size: 2.2rem; margin-bottom: 8px;">オペレーションモード選択</h1>
-        <p class="entrance-subtitle" style="margin-top: 0;">基礎プロトコルを走査するか、即座にメインステージへアクセスするかを選択せよ。</p>
+        <h2 class="entrance-title">どちらから始めますか？</h2>
+        <p class="entrance-subtitle">あとからどちらにも移れます。</p>
         <div class="entrance-choice-row">
           <button id="btn-entry-tutorial" class="entrance-choice" type="button">
-            <h3>基本論理の学習（推奨）</h3>
-            <p>ブロックデバイスの稼働、およびデータ変形論理を最短ステップでシミュレートする。</p>
+            <h3>使い方を覚えてから<span class="entrance-choice-badge">おすすめ</span></h3>
+            <p>短い8問で、ブロックの組み立て方と証明の進め方を練習します。</p>
           </button>
           <button id="btn-entry-map" class="entrance-choice" type="button">
-            <h3>数式領域への直接介入</h3>
-            <p>初期ブートシーケンスをスキップし、セクター001より完全な証明介入を開始する。</p>
+            <h3>すぐに問題を解く</h3>
+            <p>使い方の説明をとばして、本編の1問目から始めます。</p>
           </button>
         </div>
       </div>
@@ -108,13 +127,13 @@
     <div id="stage-map-screen" class="screen hidden a">
       <div class="map-topbar">
         <div class="map-title-wrap">
-          <h1>MathBlock Progression Map</h1>
-          <p class="map-subtitle">ステージ選択: チャレンジするノードを選択してください</p>
+          <h1>ステージを選ぶ</h1>
+          <p class="map-subtitle" id="map-progress">読み込み中…</p><!-- renderStageMap() が実問題数で上書きする -->
         </div>
+        <!-- 「データリセット」はここから外し、アカウント画面に移した。
+             実験中にうっかり押されると、その人の記録が消えてしまうため。 -->
         <div class="map-controls">
-          <span id="map-progress">読み込み中…</span><!-- renderStageMap() が実問題数で上書きする -->
           <button id="btn-unlock-all" class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
-          <button class="map-control-btn" onclick="resetSaveData()">データリセット</button>
         </div>
       </div>
       <div id="map-viewport" class="map-canvas">
@@ -133,22 +152,22 @@
               <button id="btn-next-stage" class="stage-nav-btn" title="次の問題へ">→</button>
             </div>
           </div>
+          <!-- 中央は「いま何問目か」。細いバーで全体のどこにいるかも見せる。
+               以前は右側が空で、中央の STAGE が左に寄って見えていた。 -->
           <div class="header-center">
             <div id="r">STAGE</div>
-            <!-- 連続正解カウンター。app-ui.js の updateStreakCounter() が更新する。
-                 以前は要素自体が存在せず、関数が毎回空振りしていた。 -->
-            <div id="streak-counter">🔥 0</div>
+            <div id="stage-progress-track"><div id="stage-progress-fill"></div></div>
           </div>
           <div class="header-right">
-            <button id="btn-formula-reference" class="header-tool-btn" type="button" title="公式を解説します">📘 公式解説</button>
+            <!-- 連続正解。中央から右へ移してヘッダーの左右を釣り合わせた。 -->
+            <div id="streak-counter" title="連続で正解した数">🔥 0</div>
+            <button id="btn-formula-reference" class="header-tool-btn" type="button" title="三角関数と公式の解説">公式解説</button>
           </div>
         </div>
         
-        <div id="tutorial-progress-shell">
-          <div id="tutorial-progress-meta"><span id="tutorial-progress-label">チュートリアル</span><span id="tutorial-progress-rate">0%</span></div>
-          <div id="tutorial-progress-track"><div id="tutorial-progress-fill"></div></div>
-        </div>
-        
+        <!-- チュートリアル専用の進捗バーは外した。
+             ヘッダーの中央に「チュートリアル 1 / 8」とバーが出るようになり、
+             同じことを2か所で言っていたため（縦の場所も取っていた）。 -->
         <div id="tutorial-banner"></div>
         <div id="i"><span id="s"></span></div>
         

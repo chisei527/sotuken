@@ -33,14 +33,20 @@ window.switchScreen = function(screenId) {
   window.setAppBackgroundByKey(screenId === 'p' ? 'stage' : (screenId === 'stage-map-screen' ? 'select' : 'title'));
 };
 
-// 2. 画面遷移の背景画像を制御する関数
+// 2. 画面ごとの背景を切り替える
+//
+// プレイ画面（key === 'stage'）だけは絵を敷かない。
+// 以前は作業エリアの後ろに SF のイラストを敷いていたため、
+// 学習者が見るべきブロックより背景のほうが明るく、図と地が反転していた。
+// プレイ中は styles/actions.css の方眼（#l の背景）だけにして、
+// 画面でいちばん明るいものがブロックになるようにする。
+// 絵はタイトルとマップ（＝見せ場）に残す。
 window.setAppBackgroundByKey = function(key) {
-  // ※アセットフォルダ内の画像ファイル名（bg_stage.png等）が異なる場合は、実際のファイル名に合わせて変更してください
-  let url = '';
-  // ※アセットフォルダ内の画像ファイル名（bg_stage.webp等）が異なる場合は、実際のファイル名に合わせて変更してください
-  if (key === 'stage') url = 'url("asset/bg_stage.webp")'; 
-  else if (key === 'select') url = 'url("asset/bg_select.webp")';
-  else url = 'url("asset/bg_title.webp")';
+  if (key === 'stage') {
+    document.body.style.backgroundImage = 'none';
+    return;
+  }
+  const url = key === 'select' ? 'url("asset/bg_select.webp")' : 'url("asset/bg_title.webp")';
   document.body.style.backgroundImage = url;
 };
 
@@ -64,7 +70,10 @@ window.showToast = function(htmlContent, isAutoClose = true) {
 window.updateStreakCounter = function(shouldAnimate = false) {
   const counter = document.getElementById('streak-counter');
   if (!counter) return;
-  counter.textContent = `🔥 ${window.currentStreak || 0}`;
+  const streak = window.currentStreak || 0;
+  counter.textContent = `🔥 ${streak}`;
+  // 0 のときは出さない（意味のない「0」でヘッダーがにぎやかになるのを防ぐ）
+  counter.classList.toggle('is-zero', streak <= 0);
   counter.classList.remove('streak-bounce');
   if (shouldAnimate) {
     requestAnimationFrame(() => requestAnimationFrame(() => counter.classList.add('streak-bounce')));

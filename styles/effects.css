@@ -12,8 +12,10 @@
         }
         .wrong-stamp-effect {
           position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          z-index: 9999; pointer-events: none; color: #ff4b4b; font-family: 'Arial Black', sans-serif;
-          font-size: clamp(56px, 9vw, 116px); font-weight: 900; letter-spacing: 0.08em;
+          /* 'Arial Black' は入っていない環境が多く、そこでは別の書体に化けていた。
+             画面の書体に合わせて、太さで見せる。 */
+          z-index: 9999; pointer-events: none; color: #ff6b6b; font-family: var(--font-ui);
+          font-size: clamp(56px, 9vw, 116px); font-weight: 700; letter-spacing: 0.08em;
           text-shadow: 0 0 12px rgba(255, 75, 75, 0.95), 0 0 32px rgba(239, 68, 68, 0.7);
           animation: wrongStampPop 0.6s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
         }
@@ -33,7 +35,7 @@
           padding: 16px 36px;
           font-family: inherit;
           font-size: 1.15rem;
-          font-weight: 900;
+          font-weight: 700;
           letter-spacing: 0.06em;
           color: #fff;
           background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
@@ -192,7 +194,7 @@
           padding: 14px 32px;
           font-family: inherit;
           font-size: 1.05rem;
-          font-weight: 900;
+          font-weight: 700;
           letter-spacing: 0.05em;
           color: #ffffff;
           border-radius: 999px;
@@ -205,7 +207,7 @@
         }
         .post-explain-arrow {
           display: inline-block;
-          font-weight: 900;
+          font-weight: 700;
           transition: transform 0.2s ease;
         }
 
@@ -292,9 +294,9 @@
   height: 120px;
   margin: -60px 0 0 -60px;
   border-radius: 50%;
-  border: 4px solid rgba(88, 204, 2, 0.9);
-  background: radial-gradient(circle, rgba(88, 204, 2, 0.28), rgba(88, 204, 2, 0) 70%);
-  box-shadow: 0 0 40px 10px rgba(88, 204, 2, 0.45);
+  border: 4px solid rgba(34, 197, 94, 0.9);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.26), rgba(34, 197, 94, 0) 70%);
+  box-shadow: 0 0 40px 10px rgba(34, 197, 94, 0.4);
   pointer-events: none;
   z-index: 12000;
   animation: successRippleExpand 1s ease-out forwards;
@@ -310,14 +312,15 @@
   top: 42%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.2) rotate(-16deg);
-  font-family: inherit;
-  font-weight: 900;
+  font-family: var(--font-ui);
+  /* Zen Kaku Gothic New には 900 が無い。指定すると合成太字になって輪郭が濁るので 700 にする */
+  font-weight: 700;
   font-size: clamp(48px, 11vw, 132px);
   letter-spacing: 0.06em;
   color: #eafff0;
   -webkit-text-stroke: 3px rgba(34, 197, 94, 0.95);
   text-shadow:
-    0 0 18px rgba(88, 204, 2, 0.9),
+    0 0 18px rgba(34, 197, 94, 0.9),
     0 0 46px rgba(34, 197, 94, 0.65),
     0 12px 30px rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -335,20 +338,22 @@
 }
 
 /* 連続正解カウンター（#streak-counter）。updateStreakCounter() が更新する。 */
+/* 連続正解が 0 のあいだは出さない。0 を見せても意味がなく、
+   ヘッダーに常時オレンジの光があるとブロックより目を引いてしまう。 */
 #streak-counter {
   display: inline-block;
-  min-width: 58px;
-  padding: 6px 12px;
+  min-width: 52px;
+  padding: 5px 11px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(180, 83, 9, 0.18));
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  color: #ffd79a;
-  font-weight: 900;
-  font-size: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f3c988;
+  font-weight: 700;
+  font-size: 13px;
   text-align: center;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
 }
+#streak-counter.is-zero { display: none; }
 #streak-counter.streak-bounce { animation: streakBounce 0.5s cubic-bezier(0.2, 1.4, 0.4, 1); }
 @keyframes streakBounce {
   0%   { transform: scale(1); }

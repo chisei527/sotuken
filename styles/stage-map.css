@@ -29,12 +29,14 @@
           z-index: 10; position: relative;
           box-shadow: 0 4px 25px rgba(0,0,0,0.6);
         }
-        .map-title-wrap h1 { margin: 0; font-size: 1.7rem; letter-spacing: 0.05em; text-shadow: 0 0 10px rgba(56, 189, 248, 0.6); font-family: monospace; }
-        .map-subtitle { margin: 6px 0 0; color: #a5f3fc; font-weight: 700; font-size: 0.9rem; }
+        /* 以前は英語＋等幅の「MathBlock Progression Map」だった。
+           日本語の学習アプリなので、そこで何をするのかを日本語で言う。 */
+        .map-title-wrap h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.04em; color: #e8f6ff; }
+        .map-subtitle { margin: 5px 0 0; color: #8fb6d8; font-weight: 500; font-size: 0.88rem; }
         .map-controls { display: flex; gap: 12px; align-items: center; }
         .map-control-btn { border: 1px solid var(--glass-border); background: rgba(56, 189, 248, 0.12); color: #ffffff; padding: 10px 16px; border-radius: 12px; cursor: pointer; font-weight: 700; transition: all 0.2s ease; }
         .map-control-btn:hover { background: rgba(56, 189, 248, 0.25); box-shadow: var(--cyber-glow); }
-        #map-progress { font-weight: 800; color: #fef08a; }
+        #map-progress { font-weight: 500; }
         .map-canvas { position: relative; flex: 1; overflow: auto; overscroll-behavior: contain; }
         
         #map-world { position: relative; min-width: 100%; height: 100%; min-height: 450px; }
@@ -77,7 +79,7 @@
           border: 2px solid rgba(148, 163, 184, 0.3); 
           box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: pointer; backdrop-filter: blur(12px); transition: all 0.3s cubic-bezier(0.2, 1, 0.2, 1);
           background: rgba(11, 19, 38, 0.9); color: rgba(226, 232, 240, 0.4);
-          font-family: monospace; z-index: 3;
+          font-family: var(--font-ui); z-index: 3;
         }
         .map-node::before {
           content: ""; position: absolute; inset: 5px;
@@ -85,12 +87,15 @@
           pointer-events: none; transition: all 0.2s;
         }
         
+        /* まだ開いていないステージ。
+           以前は赤（＝このアプリでは「間違い」の色）だったが、
+           まだ解いていないだけで失敗ではないので、灰色で静かに示す。 */
         .map-node.locked {
-          background: repeating-linear-gradient(45deg, rgba(251, 113, 133, 0.04), rgba(251, 113, 133, 0.04) 10px, rgba(11, 19, 38, 0.92) 10px, rgba(11, 19, 38, 0.92) 20px) !important;
-          border-color: rgba(251, 113, 133, 0.3) !important; cursor: not-allowed; box-shadow: none !important;
+          background: repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.05), rgba(148, 163, 184, 0.05) 10px, rgba(11, 19, 38, 0.92) 10px, rgba(11, 19, 38, 0.92) 20px) !important;
+          border-color: rgba(148, 163, 184, 0.22) !important; cursor: not-allowed; box-shadow: none !important;
         }
-        .map-node.locked .map-node-number { color: rgba(251, 113, 133, 0.4) !important; text-shadow: none !important; }
-        .map-node.locked .map-node-label { color: rgba(251, 113, 133, 0.3) !important; }
+        .map-node.locked .map-node-number { color: rgba(203, 213, 225, 0.3) !important; text-shadow: none !important; }
+        .map-node.locked .map-node-lock { opacity: 0.35; }
 
         .map-node.unlocked { 
           background: linear-gradient(135deg, rgba(6, 30, 66, 0.9), rgba(3, 12, 32, 0.8)); color: #ffffff; border-color: rgba(56, 189, 248, 0.7);
@@ -120,17 +125,18 @@
         }
         .map-node:hover::before { border-color: #66f7d6; }
 
-        .map-node-number { font-size: 1.9rem; font-weight: 950; letter-spacing: -0.02em; }
-        .map-node-label { font-size: 0.75rem; font-weight: 900; opacity: 0.85; letter-spacing: 0.05em; margin-top: 2px; }
-        
+        .map-node-number { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+        .map-node-lock { font-size: 1rem; margin-top: 8px; opacity: 0.45; }
+
+        /* 状態の札。日本語なので大文字変換と字間の広げすぎはやめる */
         .node-status-tag {
-          font-size: 0.65rem; font-weight: 950; padding: 3px 8px; border-radius: 6px;
-          text-transform: uppercase; margin-top: 8px; letter-spacing: 0.1em;
+          font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+          margin-top: 8px; letter-spacing: 0.02em; white-space: nowrap;
         }
-        .locked .node-status-tag { background: rgba(251, 113, 133, 0.15); color: #fb7185; }
+        .locked .node-status-tag { background: rgba(148, 163, 184, 0.14); color: #94a3b8; }
         .unlocked .node-status-tag { background: rgba(56, 189, 248, 0.18); color: #38bdf8; }
         .cleared .node-status-tag { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
-        .current .node-status-tag { background: #66f7d6; color: #030814; text-shadow: none; font-weight: 950; }
+        .current .node-status-tag { background: #66f7d6; color: #030814; text-shadow: none; font-weight: 700; }
 
         /* ✨ 背景の動的パーティクル */
         .cyber-bg-particle {

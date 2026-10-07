@@ -110,12 +110,36 @@ const FORMULA_BLOCK_DEFS = [
 const TYPE_EXPR = 'Expr';
 const TYPE_FORMULA = 'Formula';
 
+// ブロックの色。
+// 以前は Blockly の色相番号（20 や 30 など）を使っていたので、作業エリアを
+// 暗い方眼にしたとき、演算子や「よって」が泥のような茶色に見えていた。
+// 色でブロックの「種類」を言わせる:
+//   青系   … 式（手で動かす材料）。項は明るく、演算子は暗くして入れ子が読める
+//   ※ 入れ物（演算子・操作）は中身より暗くする。逆だと、外枠のほうが明るくなって
+//      中に入っている式が沈んで見える。
+//   紫     … 公式（よりどころ。画面でいちばん彩度の高い1色）
+//   緑青系 … 操作（置き換え・計算・通分）
+//   金     … よって（証明の終わり）
+//   濃紺   … 証明（いちばん外側の枠）
+// 白文字の読みやすさ（太字・大きめ）を確かめた値にしてある。
+const BLOCK_COLORS = {
+  term:      '#4A7BB7', // 項: sinθ, θ, α …
+  number:    '#5B8CC8', // 数
+  operator:  '#2C4C73', // + − × 分数 2乗（項より暗くして、中の項を浮かせる）
+  formula:   '#6D3FBF', // 公式
+  proof:     '#17304F', // 証明（外枠）
+  replace:   '#17514A', // 置き換え
+  simplify:  '#1C4D35', // 計算
+  common:    '#24547A', // 通分
+  conclusion:'#443722', // よって〜となる（唯一の暖色。盤面で終点がすぐ見つかる）
+};
+
 function defineMathBlocks() {
   Blockly.Blocks.custom_number = {
     init() {
       this.appendDummyInput().appendField(new Blockly.FieldNumber(1), 'NUM');
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(225);
+      this.setColour(BLOCK_COLORS.number);
     },
   };
 
@@ -150,7 +174,7 @@ function defineMathBlocks() {
       init() {
         this.appendDummyInput().appendField(label);
         this.setOutput(true, TYPE_EXPR);
-        this.setColour(200);
+        this.setColour(BLOCK_COLORS.term);
       },
     };
   });
@@ -167,7 +191,7 @@ function defineMathBlocks() {
         this.appendValueInput('ANGLE').setCheck(TYPE_EXPR).appendField(`${label}(`);
         this.appendDummyInput().appendField(')');
         this.setOutput(true, TYPE_EXPR);
-        this.setColour(200);
+        this.setColour(BLOCK_COLORS.term);
       },
     };
   });
@@ -178,7 +202,7 @@ function defineMathBlocks() {
       this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('+');
       this.setInputsInline(true);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
   };
 
@@ -190,7 +214,7 @@ function defineMathBlocks() {
       this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('−', 'NEG_SIGN');
       this.setInputsInline(true);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
   };
 
@@ -204,7 +228,7 @@ function defineMathBlocks() {
       this.appendDummyInput().appendField(')');
       this.setInputsInline(true);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
   };
 
@@ -214,7 +238,7 @@ function defineMathBlocks() {
       this.appendValueInput('B').setCheck(TYPE_EXPR).appendField('×');
       this.setInputsInline(true);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
   };
 
@@ -229,7 +253,7 @@ function defineMathBlocks() {
         .appendField(new FieldSpacer(0), 'DENOMINATOR_PAD');
       this.setInputsInline(false);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
     onchange(event) {
       if (!this.workspace || this.workspace.isDragging()) return;
@@ -265,7 +289,7 @@ function defineMathBlocks() {
       this.appendDummyInput().appendField('²');
       this.setInputsInline(true);
       this.setOutput(true, TYPE_EXPR);
-      this.setColour(30);
+      this.setColour(BLOCK_COLORS.operator);
     },
   };
 
@@ -278,7 +302,7 @@ function defineMathBlocks() {
     init() {
       this.appendDummyInput().appendField('公式をここへ');
       this.setOutput(true, TYPE_FORMULA);
-      this.setColour(260);
+      this.setColour(BLOCK_COLORS.formula);
       this.setTooltip('「公式」カテゴリの紫のブロックだけを入れられます');
     },
   };
@@ -292,7 +316,7 @@ function defineMathBlocks() {
           .appendField(numberLabel, 'FORMULA_NUMBER')
           .appendField(formulaLabel, 'FORMULA_TEXT');
         this.setOutput(true, TYPE_FORMULA);
-        this.setColour(260);
+        this.setColour(BLOCK_COLORS.formula);
         // ホバー時のツールチップ（番号＋数式の両方を表示）
         this.setTooltip(`${numberLabel}  ${formulaLabel}`);
       },
@@ -303,7 +327,7 @@ function defineMathBlocks() {
     init() {
       this.appendDummyInput().appendField('証明');
       this.appendStatementInput('OPERATIONS').appendField('操作');
-      this.setColour(210);
+      this.setColour(BLOCK_COLORS.proof);
       this.setMovable(true);
       this.setDeletable(true);
     },
@@ -323,7 +347,7 @@ function defineMathBlocks() {
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
-      this.setColour(120);
+      this.setColour(BLOCK_COLORS.replace);
     },
   };
 
@@ -427,7 +451,7 @@ function defineMathBlocks() {
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
-      this.setColour(120);
+      this.setColour(BLOCK_COLORS.common);
       this.setTooltip('左の穴に式を入れて「通分する」を押すと、通分した式が右の穴に自動で出てきます');
 
       // 再帰防止フラグ
@@ -546,7 +570,7 @@ function defineMathBlocks() {
       this.setInputsInline(true);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
-      this.setColour(160); // 緑系（replace_operationの120と区別）
+      this.setColour(BLOCK_COLORS.simplify);
       this.setTooltip('公式を使わず、ただ計算・整理するときに使う');
     },
   };
@@ -557,7 +581,7 @@ function defineMathBlocks() {
       this.appendDummyInput().appendField('となる');
       this.setPreviousStatement(true, null);
       this.setNextStatement(false);
-      this.setColour(20);
+      this.setColour(BLOCK_COLORS.conclusion);
     },
   };
 
