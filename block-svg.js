@@ -104,7 +104,7 @@
         ${_label(133, 22, '公式', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
         ${_slot(154, 10, 32, 14, _hole(C.formula), _edge(C.formula))}
         ${_label(196, 22, '】', { fontSize: 12, fontWeight: 800, fill: '#ffffff' })}
-        ${_label(213, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
+        ${_label(213, 22, '→', { fontSize: 13, fontWeight: 700, fill: '#ffffff' })}
         ${_slot(230, 10, 42, 14, _hole(C.replace), _edge(C.replace))}
       </svg>`;
     },
@@ -116,7 +116,7 @@
           fill="${C.simplify}" stroke="${_edge(C.simplify)}" stroke-width="1.5"/>
         ${_label(32, 22, '計算式', { fontSize: 11, fontWeight: 800, fill: '#ffffff' })}
         ${_slot(60, 10, 52, 14, _hole(C.simplify), _edge(C.simplify))}
-        ${_label(126, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
+        ${_label(126, 22, '→', { fontSize: 13, fontWeight: 700, fill: '#ffffff' })}
         ${_slot(142, 10, 52, 14, _hole(C.simplify), _edge(C.simplify))}
       </svg>`;
     },
@@ -131,7 +131,7 @@
         <rect x="100" y="8" width="56" height="18" rx="4" ry="4"
           fill="#cfe4fb" stroke="${_edge(C.common)}" stroke-width="1"/>
         ${_label(128, 22, '通分する', { fontSize: 9, fontWeight: 700, fill: '#1e293b' })}
-        ${_label(168, 22, '→', { fontSize: 13, fontWeight: 900, fill: '#ffffff' })}
+        ${_label(168, 22, '→', { fontSize: 13, fontWeight: 700, fill: '#ffffff' })}
         ${_slot(184, 10, 48, 14, _hole(C.common), _edge(C.common))}
       </svg>`;
     },
@@ -180,7 +180,7 @@
       return `<svg class="${SVG_CLASS}" viewBox="0 0 250 34" xmlns="http://www.w3.org/2000/svg" aria-label="${mark === '加法' ? '加法公式' : '公式' + mark}ブロック">
         <rect x="1" y="1" width="248" height="32" rx="16" ry="16"
           fill="${C.formula}" stroke="${_edge(C.formula)}" stroke-width="1.5"/>
-        ${_label(markX, 23, mark, { fontSize: markSize, fontWeight: 900, fill: '#ffffff' })}
+        ${_label(markX, 23, mark, { fontSize: markSize, fontWeight: 700, fill: '#ffffff' })}
         ${_label(textX, 22, label, { fontSize: textSize, fontWeight: 700, fill: '#ffffff', fontFamily: 'serif' })}
       </svg>`;
     },

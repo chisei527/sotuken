@@ -75,6 +75,26 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - ログは `AppLog.hint(on, level)`。`submit` にも `hint_level` / `max_hint_level` が入る。
   分析用ビューの列追加は `supabase/migrations/20261006120000_hint_level_columns.sql`（公開後に適用する）。
 
+## 解説
+- 入口は2つ。ヘッダーの「公式解説」ボタン（いつでも開ける）と、問題を終えたあとのパルの解説。
+- **「正解をチェック」はいつでも押せる**。パルの台本の途中でも押せる（`CONTROLLED_BUTTON_IDS` に入れていない）。
+  組み立て途中で押しても「まだ穴が空いている」と出るだけ。
+- 正解したあとは自動で次へ飛ばず、`enterClearReview()`（app.js）が
+  「解説を聞く／次の問題へ」を出す。盤面は自分が組んだ正解を残したまま触れなくする。
+  操作チュートリアル(`0-*`)だけは従来どおり `scheduleAutoAdvanceAfterClear()` で自動遷移する。
+  ヘッダーの ← → で抜けたときの後始末は `loadStage` の先頭でやる（やらないと次の問題が触れないまま始まる）。
+- パルの解説は `answer_reveal_pal_explain`（character-data.js の `buildLines`）。
+  あきらめたあとと自力正解の両方から `openPalExplainDialog()` で開く。`ctx.selfSolved` で言い回しが変わる。
+  - **`op.formula` は公式の「式のテキスト」で ID ではない**（`parseBlocksToAST` が `FORMULA_REGISTRY[type].text` を入れるため）。
+    名前や着眼点を引くときは `idOf()` で ID に戻す。忘れるとどの公式も「公式」としか言えなくなる。
+  - 公式を増やしたら `formulaName` と `noticeHint` にも足す。無いと名前が出ない。
+- 公式解説モーダルの中身は `explanations.js`。各公式は 意味/導出/使いどころ に加えて
+  `lecture` を持てる（`intro` / `steps`（導出を1手ずつ）/ `examples`（例題）/ `pitfalls` / `quiz`）。
+  描画は app.js の `renderLectureSteps` ほか。`TRIG_BASICS_ENTRIES` の基礎タブでも `body.lecture` が使える。
+  - LaTeX は JS の文字列なので**バックスラッシュを2つ**書く（`'\\dfrac'`）。
+    1つだと JS が食べてしまい、`\;` が `;` になるような壊れ方をする。
+  - 直したら MathJax のエラー（`mjx-merror`）が出ていないか画面で確認する。
+
 ## パルのチュートリアル
 - `PAL_TUTORIAL_SCRIPTS[ステージID]` に台本があれば、そのステージに初めて入ったときに流れる。チュートリアル(`0-*`)だけでなく本編ステージでも動く（例: `'23'` で加法定理の導入）。
 - 「もう見た」の記録は、チュートリアルはメモリだけ、本編は `AppStorage.KEYS.DEVICE.PAL_TUTORIAL_SEEN`（端末だけ）。

@@ -138,7 +138,12 @@
   // パルのチュートリアル中は、台本が許可するまで押せなくするボタン。
   // btn-hint も含める: 0-1 は完全誘導なので、途中でヒントが「置き換え」ブロックを
   // 置いてしまうと「自分で引き出してみて」の案内と食い違うため。
-  const CONTROLLED_BUTTON_IDS = ['btn-reset', 'btn-answer', 'btn-submit', 'btn-hint'];
+  //
+  // 「正解をチェック」(btn-submit) は意図的にここに入れない。
+  // いつでも押せることで、行き詰まったときにいつでも答え合わせ → パルの解説へ
+  // たどり着ける。台本が待っている間に押しても、組み立て途中なら
+  // 「まだ穴が空いている」と出るだけで流れは壊れない。
+  const CONTROLLED_BUTTON_IDS = ['btn-reset', 'btn-answer', 'btn-hint'];
 
   function disableAllControlledButtons() {
     CONTROLLED_BUTTON_IDS.forEach((id) => {

@@ -386,6 +386,23 @@ window.loadStage = async function(stageNumber) {
       }
       window._lastLoadedStageId = String(stageNumber);
 
+      // 解説を読んでいる途中でヘッダーの ← → から抜けたときの後始末。
+      // これをやらないと、次のステージが「盤面に触れない」状態のまま始まってしまう。
+      window._clearReviewMode = false;
+      if (typeof window.hideClearReviewButtons === 'function') window.hideClearReviewButtons();
+      if (typeof window.hideListenExplainButton === 'function') window.hideListenExplainButton();
+      if (typeof window.hideNextStageButton === 'function') window.hideNextStageButton();
+      document.body.classList.remove('answer-reveal-locked');
+      const _revealHost = document.getElementById('character-dialog-host');
+      if (_revealHost) _revealHost.classList.remove('answer-reveal-mode', 'reveal-collapsed');
+      ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
+        const b = document.getElementById(id);
+        if (b) {
+          b.disabled = false;
+          b.classList.remove('pal-tutorial-disabled');
+        }
+      });
+
       const isTutorialStage = window.isTutorialStageId(stageNumber);
       const stageFile = isTutorialStage ? `problems/tutorial/${stageNumber}.json` : `problems/${stageNumber}.json`;
       

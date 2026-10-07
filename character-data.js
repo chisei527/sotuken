@@ -260,10 +260,26 @@ window.CHARACTER_SCENES = {
 
       const fmt = (e) => (typeof window.prettyFormatExpression === 'function')
         ? window.prettyFormatExpression(e) : String(e || '');
-      const svg = (n) => (window.BlockSvg && typeof window.BlockSvg.formula === 'function')
-        ? ' ' + window.BlockSvg.formula(n) : '';
-      const numOf = (id) => ({ formula_1: 1, formula_2: 2, formula_3: 3 }[id] || null);
-      const MARU = ['', '①', '②', '③'];
+      const svg = (id) => (window.BlockSvg && typeof window.BlockSvg.formula === 'function')
+        ? ' ' + window.BlockSvg.formula(id) : '';
+
+      // parseBlocksToAST が返す op.formula は公式の「式のテキスト」
+      // （例: 'sin(x)^2+cos(x)^2=1'）であって ID ではない。
+      // 解説で使う名前や着眼点は ID 引きなので、ここで ID に戻す。
+      // これを忘れると、どの公式を使っても「公式」としか言えなくなる。
+      const REG = window.FORMULA_REGISTRY || {};
+      const idOf = (f) => {
+        if (!f) return null;
+        if (REG[f]) return f;
+        return Object.keys(REG).find((k) => REG[k] && REG[k].text === f) || null;
+      };
+      // 締めの「使った順番」で出す短い呼び名
+      const shortName = {
+        formula_1: '公式①', formula_2: '公式②', formula_3: '公式③',
+        formula_addition_sin: 'sin の加法公式',
+        formula_addition_cos: 'cos の加法公式',
+        formula_addition_tan: 'tan の加法公式',
+      };
 
       // 公式ごとの「どこに目をつければ気づけるか」。
       // 解き方の丸暗記ではなく、次の問題で自分で気づけるようにするのが狙い。
@@ -271,11 +287,17 @@ window.CHARACTER_SCENES = {
         formula_1: 'sin と cos の 2 乗が足し算で並んでいたら、公式①で「1」にまとめられる合図だよ。',
         formula_2: 'tan が混ざっていたら、公式②で sinθ/cosθ に開くと他の項とそろえやすくなるよ。',
         formula_3: '「1 + tan²θ」の形を見つけたら、公式③で 1/cos²θ に変えられる合図だよ。',
+        formula_addition_sin: '角が「α+β」のようにくっついた sin が出てきたら、加法公式でバラバラの角にほどけるよ。逆に sinαcosβ + cosαsinβ の形を見つけたら、1つの sin にまとめられる合図だね。',
+        formula_addition_cos: 'cos の加法公式は、真ん中の符号がマイナスになるのがポイント。cosαcosβ − sinαsinβ を見つけたら cos(α+β) にまとめられるよ。',
+        formula_addition_tan: 'tan の加法公式は分数の形。分子が足し算、分母が「1 − かけ算」だよ。',
       };
       const formulaName = {
         formula_1: '公式① sin²θ + cos²θ = 1',
         formula_2: '公式② tanθ = sinθ/cosθ',
         formula_3: '公式③ 1 + tan²θ = 1/cos²θ',
+        formula_addition_sin: '加法公式 sin(α+β) = sinαcosβ + cosαsinβ',
+        formula_addition_cos: '加法公式 cos(α+β) = cosαcosβ − sinαsinβ',
+        formula_addition_tan: '加法公式 tan(α+β) = (tanα+tanβ)/(1 − tanαtanβ)',
       };
 
       // 変形ステップ（結論ブロックを除く）
@@ -285,11 +307,13 @@ window.CHARACTER_SCENES = {
       // ── 手順が取れなかった場合のフォールバック ──
       // 盤面を読めなかったときでも、公式の一般論だけは伝える。
       if (ops.length === 0) {
-        lines.push('じゃあ、この問題のポイントを説明するね！');
+        lines.push((ctx && ctx.selfSolved)
+          ? '正解おめでとう！　この問題のポイントをおさらいしておくね。'
+          : 'じゃあ、この問題のポイントを説明するね！');
         if (req.length === 0) {
           lines.push('今回はブロックを整理するだけで解けたね！');
         } else {
-          req.forEach((k) => { if (noticeHint[k]) lines.push(`${formulaName[k]}${svg(numOf(k))} がポイントだよ。${noticeHint[k]}`); });
+          req.forEach((k) => { if (noticeHint[k]) lines.push(`${formulaName[k]}${svg(k)} がポイントだよ。${noticeHint[k]}`); });
         }
         lines.push('この解き方を覚えて、次の問題にチャレンジしてみよう！');
         return lines;
@@ -301,8 +325,12 @@ window.CHARACTER_SCENES = {
       // 1 手目が通分や計算の問題（例: 問題20）で「sin²+cos² を探そう」と言うと、
       // 実際にやることと食い違って混乱させてしまう。
       const firstOp = ops[0];
-      const firstFormula = (firstOp && firstOp.formula) ? firstOp.formula : null;
+      const firstFormula = (firstOp && firstOp.formula) ? idOf(firstOp.formula) : null;
       const firstIsPrep = firstOp && !firstOp.formula;
+      const selfSolved = !!(ctx && ctx.selfSolved);
+      if (selfSolved) {
+        lines.push('正解おめでとう！　いま自分で組み立てた証明を、一緒に見直してみよう。');
+      }
       if (startExpr) {
         lines.push(`まずは左辺の ${startExpr} からスタート。ここを右辺の形に近づけていくよ。`);
       } else {
@@ -328,9 +356,9 @@ window.CHARACTER_SCENES = {
         const arrow = (before && after) ? `${before} → ${after}` : (after || before);
 
         if (op.type === 'replace_operation' && op.formula) {
-          const n = numOf(op.formula);
-          const label = formulaName[op.formula] || '公式';
-          lines.push(`${no}「${label}」${svg(n)} を当てはめて、${arrow} にしたよ。`);
+          const fid = idOf(op.formula);
+          const label = (fid && formulaName[fid]) || '公式';
+          lines.push(`${no}「${label}」${fid ? svg(fid) : ''} を当てはめて、${arrow} にしたよ。`);
         } else if (op.type === 'replace_operation') {
           lines.push(`${no}${arrow} と書き換えたよ。`);
         } else if (op.type === 'common_denominator_operation') {
@@ -350,21 +378,34 @@ window.CHARACTER_SCENES = {
 
       // ── 4. 次に活かすまとめ ──
       // 2 つ以上の公式を組み合わせた問題は、その「順番」が肝になる。
-      const usedFormulas = ops.map((o) => o.formula).filter(Boolean);
+      const usedFormulas = ops.map((o) => idOf(o.formula)).filter(Boolean);
       const uniqueUsed = usedFormulas.filter((v, i) => usedFormulas.indexOf(v) === i);
       if (uniqueUsed.length >= 2) {
-        const order = uniqueUsed.map((k) => MARU[numOf(k)] || k).join(' → ');
+        const order = uniqueUsed.map((k) => shortName[k] || k).join(' → ');
         lines.push(`今回のコツは、公式を使う順番。${order} の順に使うのがポイントだったよ。`);
       } else if (uniqueUsed.length === 1) {
         // 着眼点は冒頭で既に言っているので、締めでは同じ文を繰り返さない。
         // 「探すべき形」だけを短く復習させる。
+        const key = uniqueUsed[0];
         const target = {
           formula_1: 'sin²θ + cos²θ',
           formula_2: 'tanθ',
           formula_3: '1 + tan²θ',
-        }[uniqueUsed[0]];
-        const n = numOf(uniqueUsed[0]);
-        if (target) lines.push(`次からは式の中に「${target}」が隠れていないか探してみて。見つけたら公式${MARU[n]}の出番だよ。`);
+          formula_addition_sin: 'sinαcosβ + cosαsinβ（または sin(α+β)）',
+          formula_addition_cos: 'cosαcosβ − sinαsinβ（または cos(α+β)）',
+          formula_addition_tan: 'tan(α+β)',
+        }[key];
+        const who = ({
+          formula_1: '公式①', formula_2: '公式②', formula_3: '公式③',
+          formula_addition_sin: '「sin の加法公式」',
+          formula_addition_cos: '「cos の加法公式」',
+          formula_addition_tan: '「tan の加法公式」',
+        }[key]) || '公式';
+        if (target) lines.push(`次からは式の中に「${target}」が隠れていないか探してみて。見つけたら${who}の出番だよ。`);
+      }
+      // 自力で解けたときは、最後にもうひと押し。
+      if (ctx && ctx.selfSolved) {
+        lines.push('ここまで自分で組み立てられたのはすごいよ。この手順を思い出せれば、次の問題もきっと解けるはず！');
       }
 
       return lines;

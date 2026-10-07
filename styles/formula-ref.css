@@ -115,7 +115,191 @@
           justify-content: center;
         }
         .formula-ref-image svg { max-width: 100%; height: auto; }
-        @media (max-width: 700px) {
+        /* 講義の本文は縦に長い。図の列(280px)を残すと本文が 1 行 20 字ほどになって
+           読みづらいので、横幅が足りないときは図を上に出して本文を全幅で使う。 */
+        @media (max-width: 900px) {
           .formula-ref-body { grid-template-columns: 1fr; }
-          .formula-ref-image { order: -1; }
+          .formula-ref-image { order: -1; position: static; }
+          /* 1列のときは図が画面いっぱいに伸びて、本文が最初の画面から消えてしまう。
+             高さで上限をかけて、図と本文の書き出しが同時に見えるようにする。 */
+          .formula-ref-image svg { max-height: 220px; width: auto; }
         }
+        /* ==== 講義パート（導出のステップ・例題・つまずき・確認問題） ====
+           読み物として長くなるので、「いま何を読んでいるか」が分かるように
+           パーツごとに箱を変える。色は増やさず、既存の面と仕切りだけで区別する。 */
+        .formula-ref-body .formula-text-area .lec-lead {
+          color: #9fc0de;
+          font-size: 0.95rem;
+          margin: 0 0 4px 0;
+        }
+        /* 導出のステップ */
+        .lec-steps {
+          list-style: none;
+          margin: 4px 0 12px 0;
+          padding: 0;
+          counter-reset: none;
+        }
+        .lec-step {
+          display: grid;
+          grid-template-columns: 28px minmax(0, 1fr);
+          gap: 12px;
+          align-items: start;
+          padding: 10px 0;
+          border-top: 1px solid var(--hairline);
+        }
+        .lec-step:first-child { border-top: none; padding-top: 2px; }
+        .lec-step-no {
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: rgba(56, 189, 248, 0.18);
+          border: 1px solid rgba(56, 189, 248, 0.45);
+          color: #bae6fd;
+          font-size: 0.82rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 2px;
+        }
+        .formula-ref-body .formula-text-area .lec-step-body p { margin: 0; }
+        .lec-step-math,
+        .lec-example-problem {
+          background: rgba(0, 0, 0, 0.32);
+          border: 1px solid var(--glass-border);
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin: 8px 0 2px 0;
+          text-align: center;
+          font-size: 1.05rem;
+          overflow-x: auto;
+        }
+        .lec-step-math mjx-container[display="true"],
+        .lec-example-problem mjx-container[display="true"],
+        .lec-example-answer mjx-container[display="true"] { margin: 0 !important; }
+
+        /* 例題 */
+        .lec-example {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--hairline);
+          border-left: 3px solid rgba(56, 189, 248, 0.55);
+          border-radius: 10px;
+          padding: 14px 16px;
+          margin: 8px 0 14px 0;
+        }
+        .lec-example-head {
+          color: #7dd3fc;
+          font-size: 0.88rem;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          margin-bottom: 8px;
+        }
+        .lec-example-problem { font-size: 1.15rem; margin-top: 0; }
+        .lec-example-steps {
+          margin: 10px 0 0 0;
+          padding-left: 1.3em;
+          color: #c5d6e8;
+        }
+        .lec-example-steps > li { margin-bottom: 10px; line-height: 1.9; }
+        .formula-ref-body .formula-text-area .lec-example-steps p { margin: 0; }
+        .lec-example-answer {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+          padding: 10px 14px;
+          background: rgba(56, 189, 248, 0.10);
+          border: 1px solid rgba(56, 189, 248, 0.35);
+          border-radius: 8px;
+          font-size: 1.1rem;
+        }
+        .lec-example-answer > span {
+          font-size: 0.78rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: #7dd3fc;
+        }
+        .formula-ref-body .formula-text-area .lec-note {
+          color: #9fc0de;
+          font-size: 0.9rem;
+          margin: 10px 0 0 0;
+        }
+
+        /* つまずきやすいところ */
+        .lec-pitfalls {
+          margin: 4px 0 12px 0;
+          padding: 0;
+          list-style: none;
+        }
+        .lec-pitfalls li {
+          position: relative;
+          padding: 8px 0 8px 26px;
+          line-height: 1.9;
+          color: #c5d6e8;
+          border-top: 1px solid var(--hairline);
+        }
+        .lec-pitfalls li:first-child { border-top: none; }
+        .lec-pitfalls li::before {
+          content: '!';
+          position: absolute;
+          left: 0;
+          top: 10px;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: rgba(251, 191, 36, 0.18);
+          border: 1px solid rgba(251, 191, 36, 0.5);
+          color: #fcd34d;
+          font-size: 0.72rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* 確認問題 */
+        .formula-ref-body .formula-text-area .lec-quiz-lead {
+          color: #9fc0de;
+          font-size: 0.9rem;
+          margin: 0 0 8px 0;
+        }
+        .lec-quiz {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--hairline);
+          border-radius: 10px;
+          margin-bottom: 8px;
+          overflow: hidden;
+        }
+        .lec-quiz > summary {
+          cursor: pointer;
+          padding: 12px 14px;
+          line-height: 1.8;
+          color: #dceaf7;
+          list-style: none;
+          display: flex;
+          gap: 10px;
+          align-items: baseline;
+        }
+        .lec-quiz > summary::-webkit-details-marker { display: none; }
+        .lec-quiz > summary:hover { background: rgba(255, 255, 255, 0.05); }
+        .lec-quiz-no {
+          flex: 0 0 auto;
+          font-size: 0.74rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: #7dd3fc;
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          border-radius: 999px;
+          padding: 2px 9px;
+        }
+        .lec-quiz[open] > summary { border-bottom: 1px solid var(--hairline); }
+        .lec-quiz-answer {
+          padding: 12px 14px 14px 14px;
+          line-height: 1.9;
+          color: #c5d6e8;
+          background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* 図は本文が長くても見えるように、スクロールに追従させる */
+        .formula-ref-image { position: sticky; top: 0; }

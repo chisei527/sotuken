@@ -118,6 +118,61 @@
           border-color: rgba(125, 211, 252, 0.6);
           color: #eaf4ff;
         }
+        /* ==== 自力で正解したあとの2択 (解説を聞く / 次の問題へ) ====
+           正解した盤面を残したまま、振り返るか進むかを選ばせる。
+           主ボタンは「解説を聞く」1つだけ。次へ進むのは静かな線のボタンにする。 */
+        .clear-review-group {
+          position: fixed;
+          left: 50%;
+          bottom: 28px;
+          transform: translate(-50%, 20px);
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          z-index: 1700; /* モーダル(2000)より下 */
+          opacity: 0;
+          transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+        }
+        .clear-review-group.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .clear-review-group.hidden { display: none !important; }
+        .clear-review-btn {
+          padding: 15px 32px;
+          font-family: inherit;
+          font-size: 1.08rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #fff;
+          background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
+          border: 2px solid rgba(125, 211, 252, 0.7);
+          border-radius: 999px;
+          cursor: pointer;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.45);
+          transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+        }
+        .clear-review-btn:hover {
+          background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+        .clear-review-btn.quiet {
+          background: transparent;
+          border-color: var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          font-weight: 500;
+        }
+        .clear-review-btn.quiet:hover {
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
+        }
+        .clear-review-btn .listen-explain-arrow { margin-left: 6px; }
+        .clear-review-btn:hover .listen-explain-arrow { transform: translateX(4px); }
+
         /* ==== パル解説モード後の独立ボタングループ (もう一度 / 次の問題へ) ==== */
         .post-explain-button-group {
           position: fixed;
@@ -137,6 +192,7 @@
           pointer-events: auto;
         }
         .post-explain-button-group.hidden { display: none !important; }
+        .post-explain-btn.hidden { display: none !important; }
 
         /* 解説パネルが出ている間は、このボタン群をパネルと同じ列に揃える。
            以前は常に画面下中央固定で、右ドックのパネルとバラバラの位置に出ていた。
