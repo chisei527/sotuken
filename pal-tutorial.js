@@ -208,6 +208,11 @@
 
     currentState.stepIndex = stepIndex;
     currentState.phase = 'waiting';
+    // このステップで待ち始めた時刻。
+    // 台本の customWatch が「待ち始めてから押したか」を見るのに使う。
+    // 「押したことがあるか」をグローバルなフラグで覚えると、やり直したときに
+    // 前回の記録が残っていてステップが素通りしてしまう。
+    currentState.waitingSince = Date.now();
 
     // hintHtml は文字列 or 関数。関数なら実行時に評価してブロック SVG を注入できる。
     let hintHtml = step.hintHtml;
@@ -410,6 +415,11 @@
   };
 
   // 現在パルチュートリアル進行中かどうかを外部から確認できるようにする
+  // 台本の customWatch から「このステップで待ち始めた時刻」を見るための窓口。
+  window.getPalTutorialWaitingSince = function () {
+    return (currentState && currentState.waitingSince) || 0;
+  };
+
   window.isPalTutorialActive = function () {
     return currentState !== null;
   };

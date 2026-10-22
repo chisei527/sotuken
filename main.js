@@ -383,8 +383,22 @@ window.loadStage = async function(stageNumber) {
             && typeof window.abortPalTutorial === 'function') {
           window.abortPalTutorial();
         }
+        // フリエの操作説明も同じ。終わらせないと、次のステージで
+        // 「会話が出たまま」と見なされてパルの台本が始まらず、パルも隠れたままになる。
+        if (typeof window.isBasicsTutorialActive === 'function' && window.isBasicsTutorialActive()
+            && typeof window.abortBasicsTutorial === 'function') {
+          window.abortBasicsTutorial();
+          window._basicsTutorialActive = false;
+          document.body.classList.remove('basics-tutorial-active', 'furie-tutorial-active');
+          window._pendingUnlockFormulaIds = [];
+        }
       }
       window._lastLoadedStageId = String(stageNumber);
+
+      // 本編のステージに入ったら、チュートリアルやり直しの目印は畳む。
+      if (typeof window.isTutorialStageId === 'function' && !window.isTutorialStageId(stageNumber)) {
+        window._tutorialReplay = false;
+      }
 
       // 解説を読んでいる途中でヘッダーの ← → から抜けたときの後始末。
       // これをやらないと、次のステージが「盤面に触れない」状態のまま始まってしまう。

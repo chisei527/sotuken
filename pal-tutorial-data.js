@@ -172,12 +172,14 @@ window.PAL_TUTORIAL_SCRIPTS['0-2'] = {
       ],
       hintHtml: '「パル」ボタンを押して、「いまの式を見て」を選んでみよう！',
       customWatch: {
-        // このステップに入ってから押したぶんだけを数える（前の問題で使っていても素通りしない）。
+        // このステップで待ち始めてから押したぶんだけを数える。
+        // （前の問題で使っていても、チュートリアルをやり直しても素通りしない）
         // 返事の吹き出しを読む時間を取ってから次へ進む。
         pollCheck: () => {
-          if (!window._palCheckStepStartedAt) window._palCheckStepStartedAt = Date.now();
+          const since = (typeof window.getPalTutorialWaitingSince === 'function')
+            ? window.getPalTutorialWaitingSince() : 0;
           const used = window._palCheckUsedAt || 0;
-          return used > window._palCheckStepStartedAt && (Date.now() - used) > 4000;
+          return since > 0 && used > since && (Date.now() - used) > 4000;
         },
       },
     },

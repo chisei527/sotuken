@@ -133,6 +133,9 @@
         <!-- 「データリセット」はここから外し、アカウント画面に移した。
              実験中にうっかり押されると、その人の記録が消えてしまうため。 -->
         <div class="map-controls">
+          <!-- 本編を始めたあとでも、使い方の練習(0-1〜0-8)をやり直せるようにする。
+               進捗は消えない（やり直しても、クリア済みのステージはそのまま）。 -->
+          <button id="btn-replay-tutorial" class="map-control-btn" type="button">使い方をもう一度</button>
           <button id="btn-unlock-all" class="map-control-btn" onclick="unlockAllStages()">全問題を開放</button>
         </div>
       </div>

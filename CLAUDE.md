@@ -143,8 +143,25 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - 公式紹介の演出と重ならないよう、`window._formulaUnlockSceneActive` が立っている間は待つ。
 - 台本の進行中は `CONTROLLED_BUTTON_IDS`（リセット／あきらめる／正解をチェック／ヒント）が押せない。
   押させたいステップでは `enableButtons: [...]` に書く。
-- 別のステージへ移ると `loadStage` が `abortPalTutorial()` を呼んで台本を終わらせる
-  （以前は「ステージ選択」からしか終わらず、ヘッダーの ← → で抜けるとボタンが押せないままだった）。
+- 別のステージへ移ると `loadStage` が `abortPalTutorial()` と `abortBasicsTutorial()` を呼んで終わらせる
+  （以前は「ステージ選択」からしか終わらず、ヘッダーの ← → で抜けるとボタンが押せないままだった。
+  フリエの操作説明を残したまま移ると、次のステージで「会話が出たまま」と見なされて台本が始まらず、
+  パルも隠れたままになっていた）。
+- 台本の `customWatch` で「このステップで操作したか」を見るときは、
+  `window.getPalTutorialWaitingSince()`（待ち始めた時刻）より後かで判定する。
+  「押したことがある」というグローバルなフラグにすると、やり直したときに前回の記録で素通りする。
+
+## チュートリアルのやり直し
+- マップの「使い方をもう一度」（`#btn-replay-tutorial` → `window.restartTutorial()`）から、
+  本編を始めたあとでも 0-1 からやり直せる。タイトル画面の「使い方を覚えてから」も同じ入口。
+- 消すのは「もう見た」の記録だけ（`window.resetTutorialSeenFlags()`）。
+  クリア済みステージ・公式の解放・アカウントの進捗には触らない。
+- やり直し中は `window._tutorialReplay` が立つ。完了画面（tutorial-complete.js）はこれを見て
+  行き先を「本編を始める（1問目）」から「ステージ選択へ戻る」に変える。
+  すでに進んでいる人を1問目に送ると、進み具合を見失うため。
+  本編のステージを読み込んだ時点で `loadStage` が畳む。
+- 本編ステージの台本（23〜26）は端末に保存している（`KEYS.DEVICE.PAL_TUTORIAL_SEEN`）ので、
+  やり直しても再生されない。消したいならこのキーを消す。
 
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080

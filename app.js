@@ -431,6 +431,7 @@ window.setupEventListeners = function() {
     }
     if (nextStageNumber && window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStageNumber)) {
       window.showTutorialCompleteScreen({
+        replay: !!window._tutorialReplay,
         onStart: () => { window.currentStageNumber = nextStageNumber; if (typeof window.loadStage === 'function') window.loadStage(nextStageNumber); },
         onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
       });
@@ -645,6 +646,31 @@ window.setupEventListeners = function() {
   }
 
   // チュートリアル開始（サイバー演出つき）
+  // ============================================
+  // チュートリアルのやり直し
+  // ============================================
+  // 「もう見た」の記録だけを消す。クリア済みステージ・公式の解放・
+  // アカウントの進捗には触らない（やり直しても進捗は減らない）。
+  window.resetTutorialSeenFlags = function () {
+    window._basicsTutorialSeen = false;      // フリエの操作説明（0-1 の冒頭）
+    window._basicsTutorialActive = false;
+    window._palTutorialStageSeen = {};       // パルの台本（0-* はメモリだけで覚えている）
+  };
+
+  // マップから呼ぶ。チュートリアル 0-1 へ移り、説明を最初から流す。
+  window.restartTutorial = function () {
+    window.resetTutorialSeenFlags();
+    // 完了画面の行き先を「本編の1問目」から「ステージ選択」に変えるための目印。
+    // やり直しの人を本編1問目に戻してしまうと、進み具合を見失う。
+    window._tutorialReplay = true;
+    if (window.CHARACTER_SCENE_ACTIONS
+        && typeof window.CHARACTER_SCENE_ACTIONS.exec_tutorial_start === 'function') {
+      window.CHARACTER_SCENE_ACTIONS.exec_tutorial_start();
+    } else if (typeof window.transitionToStage === 'function') {
+      window.transitionToStage('0-1');
+    }
+  };
+
   async function startTutorialWithTransition() {
     const transitionLayer = document.getElementById('cyber-transition');
     const bootText = document.getElementById('cyber-boot-text');
@@ -664,9 +690,20 @@ window.setupEventListeners = function() {
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
 
+    // 「チュートリアルをやめる」で一度抜けた人がここから入り直すこともあるので、
+    // 毎回「もう見た」の記録を消してから始める。
+    // （消さないと、フリエの操作説明もパルの台本も二度と出なかった）
+    window.resetTutorialSeenFlags();
+
     // 説明動画モーダルは廃止し、キャラ会話方式に一本化した。
     // 以前はここから 12MB の tutorial_intro.mp4 が再生される経路が残っていた。
     await startTutorialWithTransition();
+  });
+
+  // マップの「使い方をもう一度」。本編を始めたあとでもチュートリアルをやり直せる。
+  document.getElementById('btn-replay-tutorial')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.restartTutorial();
   });
 
   // (動画モーダルの「了解！」ボタンの処理はモーダルごと削除した)
@@ -731,6 +768,7 @@ window.scheduleAutoAdvanceAfterClear = function() {
            } else if (window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStage)) {
              // チュートリアルを全部終えた → 完了画面を出してから本編へ
              window.showTutorialCompleteScreen({
+               replay: !!window._tutorialReplay,
                onStart: () => window.transitionToStage(nextStage),
                onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
              });

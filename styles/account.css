@@ -70,6 +70,9 @@
 .tutorial-complete-list { display: inline-block; margin: 0 0 12px; padding: 12px 18px 12px 34px; text-align: left; font-size: 0.95rem; line-height: 1.8; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--glass-border); border-radius: 12px; }
 .tutorial-complete-next { margin: 0 0 16px; font-weight: 700; color: var(--cyber-blue); }
 .tutorial-complete-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+/* 「使い方をもう一度」からのやり直しでは、行き先がステージ選択だけになる。
+   本編1問目へ送るボタンは出さない（進み具合を見失わせないため）。 */
+.tutorial-complete-actions .action-btn.hidden { display: none !important; }
 
 
 /* 同意画面の2択。どちらも同じ重みにして、選択を誘導しない。

@@ -772,8 +772,9 @@ function watchForStaleSpeech() {
 
 // パルのメニュー「いまの式を見て」から呼ばれる。
 window.runPalProgressCheck = function () {
-  // パルのチュートリアル(0-2)が「使ってみた？」を見るための印
-  window._palCheckUsedOnce = true;
+  // パルのチュートリアル(0-2)が「使ってみた？」を見るための印。
+  // 時刻だけを残す（「押したことがある」という真偽値だと、
+  // チュートリアルをやり直したときに前回の記録でステップが素通りする）。
   window._palCheckUsedAt = Date.now();
   const report = window.buildProgressCheckReport();
   window.showPalSpeech(report.text, report.tone, 'いまの式を見たよ');

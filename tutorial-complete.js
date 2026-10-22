@@ -2,9 +2,11 @@
 // チュートリアル（0-1〜0-8）を最後まで終えたときに出す「チュートリアル完了」画面。
 // 以前は最後のチュートリアルをクリアすると、何の区切りもなく本編ステージ1が始まっていた。
 //
-// 使い方: window.showTutorialCompleteScreen({ onStart, onMap })
+// 使い方: window.showTutorialCompleteScreen({ onStart, onMap, replay })
 //   onStart … 「本編を始める」を押したとき（ステージ1へ）
 //   onMap   … 「ステージマップを見る」を押したとき
+//   replay  … 「使い方をもう一度」からのやり直しなら true。
+//             この人はもう本編を進めているので、1問目へ送らずステージ選択へ戻す。
 // 次へ進む処理（app.js の自動遷移・「次の問題へ」ボタン）から呼ばれる。
 
 (function () {
@@ -40,15 +42,29 @@
 
   let screen = null;
 
-  window.showTutorialCompleteScreen = function ({ onStart, onMap } = {}) {
+  window.showTutorialCompleteScreen = function ({ onStart, onMap, replay } = {}) {
     screen = screen || build();
     const close = () => screen.classList.add('hidden');
     const start = screen.querySelector('#btn-tc-start');
     const map = screen.querySelector('#btn-tc-map');
-    start.onclick = () => { close(); if (typeof onStart === 'function') onStart(); };
-    map.onclick = () => { close(); if (typeof onMap === 'function') onMap(); };
+    const next = screen.querySelector('.tutorial-complete-next');
+
+    // やり直しのときは行き先がちがう。
+    // すでに本編を進めている人なので、1問目に送らずステージ選択へ戻す。
+    start.classList.toggle('hidden', !!replay);
+    map.classList.toggle('btn-primary', !!replay);
+    map.classList.toggle('btn-secondary', !replay);
+    map.textContent = replay ? 'ステージ選択へ戻る ▶' : 'ステージマップを見る';
+    if (next) {
+      next.textContent = replay
+        ? 'おさらいはここまで。ステージ選択に戻って、続きから挑戦しよう！'
+        : 'ここからは本編。全26ステージに挑戦しよう！';
+    }
+
+    start.onclick = () => { close(); window._tutorialReplay = false; if (typeof onStart === 'function') onStart(); };
+    map.onclick = () => { close(); window._tutorialReplay = false; if (typeof onMap === 'function') onMap(); };
     screen.classList.remove('hidden');
-    setTimeout(() => start.focus(), 50);
+    setTimeout(() => (replay ? map : start).focus(), 50);
   };
 
   // 「チュートリアルの最後 → 本編」に進む場面かどうか
