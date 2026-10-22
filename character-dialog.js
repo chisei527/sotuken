@@ -142,6 +142,11 @@
       return;
     }
 
+    // 呼び出し中のパルと吹き出しは引っ込める。
+    // 会話パネルにもパルの立ち絵が出るので、2人いるように見えてしまう。
+    if (typeof window.dismissPal === 'function') window.dismissPal();
+    if (typeof window.hidePalSpeech === 'function') window.hidePalSpeech();
+
     const host = ensureDialogHost();
     // assetUrl() で .webp があればそちらを使う（立ち絵は1枚2〜4MBあったため効果が大きい）
     const rawPortrait = character.portraits[scene.portrait] || character.portraits.default;

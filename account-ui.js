@@ -33,8 +33,10 @@
           </ul>
           <p class="account-note"><a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
           <div class="account-actions">
-            <button id="btn-consent-no" class="action-btn btn-secondary" type="button">協力しない</button>
-            <button id="btn-consent-yes" class="action-btn btn-primary" type="button">協力する</button>
+            <!-- 2つのボタンは同じ見た目にする。
+                 同意を取る場面で片方だけを目立たせると、選択を誘導することになるため。 -->
+            <button id="btn-consent-no" class="action-btn btn-consent-choice" type="button">協力しない</button>
+            <button id="btn-consent-yes" class="action-btn btn-consent-choice" type="button">協力する</button>
           </div>
         </div>
       </div>`);
@@ -92,12 +94,29 @@
             <label class="account-toggle"><input id="chk-consent" type="checkbox"> 遊んだ記録を研究に提供する</label>
             <p class="account-note"><a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
           </section>
+
+          <!-- 以前はステージ選択画面の右上に置いていた。
+               遊んでいる最中に目に入る場所に消去ボタンがあるのは危ないので、
+               データを扱うここへ移した。 -->
+          <section class="account-section">
+            <h3>最初からやり直す</h3>
+            <p class="account-note">この端末のクリア状況と、使えるようになった公式をすべて消します。元には戻せません。</p>
+            <button id="btn-reset-save" class="action-btn btn-danger" type="button">進捗を消す</button>
+          </section>
         </div>
       </div>`);
     document.body.appendChild(modal);
 
     const q = (s) => modal.querySelector(s);
     const close = () => modal.classList.add('hidden');
+
+    // 進捗の消去（確認は resetSaveData の中で出る）
+    const resetBtn = modal.querySelector('#btn-reset-save');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (typeof window.resetSaveData === 'function') window.resetSaveData();
+      });
+    }
     q('.account-close').addEventListener('click', close);
     modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 

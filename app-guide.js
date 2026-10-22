@@ -596,6 +596,405 @@ window.setupGuideButton = function () {
   });
 };
 
+// ====== 5.5 パルの「いまの式を見て」（途中チェック） ======
+// 答えは言わず、「どこまで合っているか」「どこで止まっているか」だけを伝える。
+// ヒント（次の一手を教える）とは役割を分けている。
+//   ヒント    … 次に何をすればいいか
+//   このチェック … いま組んである式が、どこまで正しいか
+// 判定は提出と同じ validateProof をそのまま使うので、採点と食い違わない。
+
+window.PAL_CHECK_BUBBLE_ID = 'pal-speech';
+
+// 途中チェックの結果を文章にする。
+// 戻り値 { tone: 'done'|'ok'|'warn'|'info', text: string }
+window.buildProgressCheckReport = function () {
+  if (!window.workspace
+      || typeof window.parseBlocksToAST !== 'function'
+      || typeof window.validateProof !== 'function') {
+    return { tone: 'info', text: 'ごめん、いまは式を読み取れなかったよ。' };
+  }
+
+  const ast = window.parseBlocksToAST(window.workspace) || [];
+  const ops = ast.filter((s) => s && s.type && s.type !== 'conclusion_operation');
+  const v = window.validateProof(ast, window.currentProblemData) || {};
+
+  if (v.isValid) {
+    return { tone: 'done', text: 'ぜんぶ合っているよ！　下の「正解をチェック」を押してみて。' };
+  }
+
+  // 止まっている手の「ひとつ前」までは確認できた、という言い方にする。
+  const step = Number.isFinite(v.errorStepIndex) ? v.errorStepIndex : null;
+  const okCount = step == null ? 0 : Math.max(0, Math.min(step - 1, ops.length));
+  const ok = okCount >= 1 ? `${okCount}手目までは合っているよ。` : '';
+  const here = step == null ? 'そこ' : `${step}手目`;
+
+  switch (v.errorCode) {
+    case 'ERROR_NO_PROOF_BLOCK':
+      return { tone: 'info', text: '「証明」ブロックが見つからないよ。左のメニューから出して、その中に式を組んでいこう。' };
+    case 'ERROR_PROBLEM_DATA_MISSING':
+      return { tone: 'info', text: 'ごめん、この問題のデータが読めなかったよ。' };
+    case 'ERROR_NO_TRANSFORM':
+      return { tone: 'info', text: 'まだ変形が1つも入っていないね。問題の左辺をよく見て、「操作」から最初の一手を選んでみよう。' };
+    case 'ERROR_INITIAL_LEFT_MISMATCH':
+      return { tone: 'warn', text: '出だしの式が、問題の左辺とそろっていないみたい。1手目の「式」の穴を見直してみて。' };
+
+    case 'ERROR_EMPTY_INPUT':
+      return { tone: 'ok', text: `${ok}${here}に、まだ空いている穴があるよ。` };
+    case 'ERROR_FORMULA_REQUIRED':
+      return { tone: 'ok', text: `${ok}${here}の「公式」の穴が、まだ紫の見本のままだよ。使う公式を入れてみて。` };
+    case 'ERROR_CHAIN_EMPTY_INPUT':
+      return { tone: 'ok', text: `${ok}${here}の出発点の式が空だよ。ひとつ前の「→」の右側を、そのまま置こう。` };
+    case 'ERROR_FINAL_EMPTY':
+      return { tone: 'ok', text: `${ok}「よって〜となる」の中の式が空だよ。` };
+
+    case 'ERROR_EQUATION_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}の「→」の前と後ろが、同じ式になっていないみたい。そこだけ見直してみて。` };
+    case 'ERROR_NO_CHANGE':
+      return { tone: 'warn', text: `${ok}${here}は、変形の前と後ろが同じ式だよ。まだ何も変わっていないね。` };
+    case 'ERROR_FORMULA_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}で使った公式と、式の変わり方が合っていないよ。公式が式のどこに当たるのかを確かめてみて。` };
+    case 'ERROR_FORMULA_NOT_USED':
+      return { tone: 'warn', text: `${ok}${here}は、公式を使わない書き換えになっているよ。ふつうの計算なら「計算」ブロックのほうだね。` };
+    case 'ERROR_UNSUPPORTED_FORMULA':
+      return { tone: 'warn', text: `${ok}${here}で入れた公式は、この問題では使えないよ。` };
+    case 'ERROR_SIMPLIFY_NEEDS_FORMULA':
+      return { tone: 'warn', text: `${ok}${here}は「計算」や「通分」のブロックだけど、中身は公式を使う書き換えになっているよ。公式を使うところは「置き換え」ブロックだね。` };
+    case 'ERROR_COMMON_DENOMINATOR_RULE':
+      return { tone: 'warn', text: `${ok}${here}の「通分」では公式は使えないよ。公式を使うなら「置き換え」ブロックにしよう。` };
+    case 'ERROR_CHAIN_MISMATCH':
+      return { tone: 'warn', text: `${ok}${here}の出発点が、ひとつ前の結果とつながっていないよ。前の「→」の右側をそのまま写してみて。` };
+
+    case 'ERROR_EVALUATION':
+    case 'ERROR_CHAIN_EVALUATION':
+      return { tone: 'warn', text: `${ok}${here}に、どこにもつながっていないブロックがあるみたい。` };
+    case 'ERROR_FINAL_EVALUATION':
+      return { tone: 'warn', text: '「よって〜となる」の中の式が読み取れなかったよ。ブロックがつながっているか見てみて。' };
+    case 'ERROR_DIVISION_BY_ZERO':
+    case 'ERROR_CHAIN_DIVISION_BY_ZERO':
+    case 'ERROR_FINAL_DIVISION_BY_ZERO':
+      return { tone: 'warn', text: `${ok}${here}で分母が0になってしまっているよ。式を見直してみて。` };
+
+    case 'ERROR_NO_CONCLUSION':
+      return { tone: 'ok', text: `${ok}あとは最後を「よって〜となる」で締めるだけだね。` };
+    case 'ERROR_FINAL_MISMATCH':
+      return { tone: 'ok', text: '変形じたいは合っているよ。あとは最後の式を、問題の右辺と同じ形にそろえるだけ！' };
+    case 'ERROR_CONCLUSION_NOT_GOAL':
+      return { tone: 'warn', text: '「よって」の中の式が、問題の右辺とそろっていないよ。ゴールの式をそのまま入れてね。' };
+    case 'ERROR_CONCLUSION_NOT_LAST_RESULT':
+      return { tone: 'warn', text: '「よって」の中の式が、最後の変形の結果とそろっていないよ。' };
+
+    default:
+      return { tone: 'warn', text: `${ok}${here}で止まっているみたい。もう一度、ブロックのつながりを見てみよう。` };
+  }
+};
+
+// パルの吹き出し。作業エリアの上の補助なので z-index は 1700 の帯に入れる。
+function ensurePalSpeech() {
+  let el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = window.PAL_CHECK_BUBBLE_ID;
+  el.className = 'pal-speech hidden';
+  el.innerHTML = `
+    <button class="pal-speech-close" type="button" aria-label="閉じる">×</button>
+    <div class="pal-speech-head"></div>
+    <div class="pal-speech-body"></div>
+  `;
+  document.body.appendChild(el);
+  el.querySelector('.pal-speech-close').addEventListener('click', () => window.hidePalSpeech());
+  window.addEventListener('resize', () => window.positionPalSpeech());
+  return el;
+}
+
+// パルの立ち絵の真上に置く。パルが画面のどこにいても追従するよう実測する。
+window.positionPalSpeech = function () {
+  const el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (!el || el.classList.contains('hidden')) return;
+  const host = document.getElementById('character-mascot-host');
+  const rect = host ? host.getBoundingClientRect() : null;
+  const margin = 12;
+  const width = el.offsetWidth || 320;
+  if (rect && rect.width) {
+    // パルの左どなりに出す。パルの顔を隠さず、右端のゴミ箱にもかからない。
+    const right = Math.max(margin, window.innerWidth - rect.left + 10);
+    el.style.right = `${Math.min(right, Math.max(margin, window.innerWidth - width - margin))}px`;
+    el.style.bottom = `${Math.max(margin, window.innerHeight - rect.bottom + 24)}px`;
+  } else {
+    el.style.right = `${margin}px`;
+    el.style.bottom = '96px';
+  }
+};
+
+// text は既定では文字列として入れる（式が化けないように）。
+// 答案の清書だけは行を桁でそろえたいので、opts.html を立てて HTML を渡す。
+window.showPalSpeech = function (text, tone, head, opts) {
+  const el = ensurePalSpeech();
+  el.classList.remove('tone-done', 'tone-ok', 'tone-warn', 'tone-info');
+  el.classList.add(`tone-${tone || 'info'}`);
+  el.classList.toggle('wide', !!(opts && opts.wide));
+  el.querySelector('.pal-speech-head').textContent = head || 'パル';
+  const body = el.querySelector('.pal-speech-body');
+  if (opts && opts.html) body.innerHTML = text || '';
+  else body.textContent = text || '';
+  el.classList.remove('hidden');
+  window.positionPalSpeech();
+  requestAnimationFrame(() => {
+    el.classList.add('show');
+    window.positionPalSpeech();
+  });
+};
+
+window.hidePalSpeech = function () {
+  const el = document.getElementById(window.PAL_CHECK_BUBBLE_ID);
+  if (!el) return;
+  el.classList.remove('show');
+  setTimeout(() => el.classList.add('hidden'), 200);
+};
+
+// 盤面を動かしたら、その返事はもう古い。次の変更が来たら畳む。
+let _palSpeechStaleListener = null;
+function watchForStaleSpeech() {
+  if (!window.workspace || typeof window.workspace.addChangeListener !== 'function') return;
+  if (_palSpeechStaleListener) {
+    window.workspace.removeChangeListener(_palSpeechStaleListener);
+    _palSpeechStaleListener = null;
+  }
+  _palSpeechStaleListener = (event) => {
+    if (!event || event.isUiEvent) return;
+    window.hidePalSpeech();
+    if (_palSpeechStaleListener && window.workspace) {
+      window.workspace.removeChangeListener(_palSpeechStaleListener);
+      _palSpeechStaleListener = null;
+    }
+  };
+  window.workspace.addChangeListener(_palSpeechStaleListener);
+}
+
+// パルのメニュー「いまの式を見て」から呼ばれる。
+window.runPalProgressCheck = function () {
+  // パルのチュートリアル(0-2)が「使ってみた？」を見るための印。
+  // 時刻だけを残す（「押したことがある」という真偽値だと、
+  // チュートリアルをやり直したときに前回の記録でステップが素通りする）。
+  window._palCheckUsedAt = Date.now();
+  const report = window.buildProgressCheckReport();
+  window.showPalSpeech(report.text, report.tone, 'いまの式を見たよ');
+  watchForStaleSpeech();
+  if (window.AppLog && typeof window.AppLog.progressCheck === 'function') {
+    window.AppLog.progressCheck(report.tone);
+  }
+};
+
+// ====== 5.6 パルの「左辺と右辺をくらべて」 ======
+// 基礎④「証明の進め方」の手順①——左辺と右辺の<ちがい>を言葉にする——を、
+// その問題について代わりにやってみせる。
+// 次の一手は言わない（それはヒントの仕事）。「何を目指すのか」だけを言う。
+
+// 式に何が入っているかを数えて、くらべるための特徴を取り出す。
+function expressionFeatures(expr) {
+  const f = {
+    ok: false, sin: false, cos: false, tan: false,
+    fraction: false, square: false, angles: new Set(), sumAngle: false, terms: 1,
+  };
+  if (!expr || typeof math === 'undefined' || !math.parse) return f;
+  let node;
+  try { node = math.parse(String(expr)); } catch (_) { return f; }
+  f.ok = true;
+  node.traverse((n) => {
+    if (n.type === 'FunctionNode') {
+      const name = String(n.fn && n.fn.name ? n.fn.name : n.name || '');
+      if (name === 'sin') f.sin = true;
+      if (name === 'cos') f.cos = true;
+      if (name === 'tan') f.tan = true;
+      // 角の中身。alpha + beta のように足し算になっていたら「和の角」。
+      const arg = n.args && n.args[0];
+      if (arg) {
+        if (arg.type === 'SymbolNode') f.angles.add(arg.name);
+        else {
+          f.sumAngle = true;
+          arg.traverse((m) => { if (m.type === 'SymbolNode') f.angles.add(m.name); });
+        }
+      }
+    }
+    if (n.type === 'OperatorNode') {
+      if (n.op === '/') f.fraction = true;
+      if (n.op === '^') f.square = true;
+    }
+  });
+  // 一番外側が足し算・引き算なら、項の数を数える。
+  // ブロックから起こした式は丸ごとかっこで包まれていることが多いので、
+  // かっこを外してから見ないと「ひとかたまり」と誤解してしまう。
+  const unwrap = (m) => (m && m.type === 'ParenthesisNode' && m.content) ? unwrap(m.content) : m;
+  const countTerms = (m) => {
+    const u = unwrap(m);
+    if (u && u.type === 'OperatorNode' && (u.op === '+' || u.op === '-')) {
+      return u.args.reduce((sum, a) => sum + countTerms(a), 0);
+    }
+    return 1;
+  };
+  f.terms = countTerms(node);
+  return f;
+}
+
+// 2つの特徴をくらべて、ちがいを日本語にする。
+window.buildGoalCompareReport = function () {
+  const pd = window.currentProblemData;
+  const left = (typeof window.getInitialLeftExpression === 'function')
+    ? window.getInitialLeftExpression(pd) : '';
+  const right = (typeof window.getInitialRightExpression === 'function')
+    ? window.getInitialRightExpression(pd) : '';
+  if (!left || !right) {
+    return { tone: 'info', text: 'ごめん、この問題の左辺と右辺が読み取れなかったよ。' };
+  }
+
+  const fmt = (e) => (typeof window.prettyFormatExpression === 'function')
+    ? window.prettyFormatExpression(e) : String(e);
+  const L = expressionFeatures(left);
+  const R = expressionFeatures(right);
+  const lines = [`ゴールは右辺の ${fmt(right)}。左辺の ${fmt(left)} をこの形にしていくよ。`];
+
+  // ちがい① 出てくる関数
+  const onlyLeft = ['sin', 'cos', 'tan'].filter((k) => L[k] && !R[k]);
+  const onlyRight = ['sin', 'cos', 'tan'].filter((k) => R[k] && !L[k]);
+  const rightHasTrig = R.sin || R.cos || R.tan;
+  if (!rightHasTrig && (L.sin || L.cos || L.tan)) {
+    // 右辺が「1」のように数だけの問題。「消す」より「まとまる」と言ったほうが近い。
+    lines.push(`右辺には三角関数が出てこないね。左辺の ${onlyLeft.join('・')} がまとまって消える形を目指すよ。`);
+  } else if (onlyLeft.length) {
+    lines.push(`左辺には ${onlyLeft.join('・')} があるけど、右辺には無いね。まず ${onlyLeft.join('・')} を消すのが目標だよ。`);
+  } else if (onlyRight.length) {
+    lines.push(`右辺には ${onlyRight.join('・')} があるけど、左辺には無いね。${onlyRight.join('・')} の形を作りにいくんだ。`);
+  }
+
+  // ちがい② 形
+  if (L.fraction && !R.fraction) {
+    lines.push('左辺は分数で、右辺は分数じゃない。約分できる形まで持っていくのがねらいだね。');
+  } else if (!L.fraction && R.fraction) {
+    lines.push('右辺は分数だね。左辺を通分して、1つの分数にまとめる方向だよ。');
+  } else if (L.fraction && R.fraction) {
+    lines.push('どちらも分数。分母どうし・分子どうしを見くらべてみて。');
+  }
+  if (L.terms > R.terms) {
+    lines.push(`左辺は ${L.terms} つの項に分かれているけど、右辺は ${R.terms === 1 ? 'ひとかたまり' : R.terms + 'つ'}。まとめる方向だね。`);
+  } else if (L.terms < R.terms) {
+    lines.push(`右辺のほうが項が多いね。左辺をばらしていく方向だよ。`);
+  }
+
+  // ちがい③ 角
+  const lAng = [...L.angles].sort().join(',');
+  const rAng = [...R.angles].sort().join(',');
+  if (L.sumAngle && !R.sumAngle) {
+    lines.push('左辺は角が「足し算」になっているね。加法公式でバラバラの角にほどける合図だよ。');
+  } else if (!L.sumAngle && R.sumAngle) {
+    lines.push('右辺の角が「足し算」になっているね。バラバラの角を1つにまとめる方向だよ。');
+  } else if (lAng && rAng && lAng !== rAng) {
+    lines.push(`出てくる角もちがうね（左辺は ${lAng}、右辺は ${rAng}）。`);
+  }
+
+  // どこもちがわないように見えたとき
+  if (lines.length === 1) {
+    lines.push('使われている関数も形も似ているね。かっこの中や2乗の付き方など、細かいちがいを探してみて。');
+  }
+  lines.push('この「ちがい」を埋められる公式を探すのが、最初の一手だよ。');
+  return { tone: 'ok', text: lines.join('\n') };
+};
+
+window.runPalGoalCompare = function () {
+  const report = window.buildGoalCompareReport();
+  window.showPalSpeech(report.text, report.tone, '左辺と右辺をくらべたよ');
+  watchForStaleSpeech();
+};
+
+// ====== 5.7 パルの「答案にすると？」 ======
+// いま盤面に組んであるものを、紙に書く答案の形（＝ でつないだ式の列）に起こす。
+// このアプリで身につけてほしいのは「恒等式の証明の書き方」そのものなので、
+// ブロックの並びが答案のどの行になるのかを、途中でも見られるようにする。
+// 合っているかどうかは言わない（それは「いまの式を見て」の仕事）。
+
+const WRITEUP_LABELS = {
+  simplify_operation: '計算',
+  common_denominator_operation: '通分',
+};
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// その一手の「根拠」。答案の右側に小さく添える。
+function writeupReason(op) {
+  if (!op) return '';
+  if (op.type === 'replace_operation') {
+    const id = (typeof window.formulaIdFromText === 'function')
+      ? window.formulaIdFromText(op.formula) : null;
+    const reg = window.FORMULA_REGISTRY || {};
+    if (id && reg[id] && reg[id].label) return `${reg[id].label} より`;
+    return op.formula ? '公式より' : '書きかえ';
+  }
+  return WRITEUP_LABELS[op.type] || '';
+}
+
+window.buildWriteupReport = function () {
+  const fmt = (e) => (typeof window.prettyFormatExpression === 'function')
+    ? window.prettyFormatExpression(e) : String(e || '');
+
+  if (!window.workspace || typeof window.parseBlocksToAST !== 'function') {
+    return { tone: 'info', text: 'ごめん、いまは盤面を読み取れなかったよ。' };
+  }
+  const ast = window.parseBlocksToAST(window.workspace) || [];
+  const ops = ast.filter((s) => s && s.type && s.type !== 'conclusion_operation');
+  const conclusion = ast.find((s) => s && s.type === 'conclusion_operation');
+
+  if (ops.length === 0) {
+    return {
+      tone: 'info',
+      text: 'まだ書くものが無いよ。「操作」から変形のブロックを1つ入れると、答案の1行目ができるんだ。',
+    };
+  }
+
+  // 1行目は最初の変形の出発点。以降は各手の結果を = でつないでいく。
+  const rows = [];
+  rows.push({ head: '(左辺)', expr: fmt(ops[0].before), reason: '' });
+  ops.forEach((op) => {
+    const after = fmt(op.after);
+    if (!after) return;   // まだ埋まっていない手は、答案にも書けない
+    rows.push({ head: '', expr: after, reason: writeupReason(op) });
+  });
+
+  const rowsHtml = rows.map((r) => `
+    <div class="pal-writeup-row">
+      <span class="pal-writeup-eq">${r.head ? escapeHtml(r.head) + ' =' : '='}</span>
+      <span class="pal-writeup-expr">${escapeHtml(r.expr)}</span>
+      <span class="pal-writeup-why">${escapeHtml(r.reason)}</span>
+    </div>`).join('');
+
+  const right = (typeof window.getInitialRightExpression === 'function')
+    ? fmt(window.getInitialRightExpression(window.currentProblemData)) : '';
+  const left = (typeof window.getInitialLeftExpression === 'function')
+    ? fmt(window.getInitialLeftExpression(window.currentProblemData)) : '';
+
+  // 「よって」まで組めていれば締めの行も書く。まだなら、何が足りないかを一言。
+  let tailHtml;
+  if (conclusion && fmt(conclusion.before)) {
+    tailHtml = `<div class="pal-writeup-end">よって ${escapeHtml(left)} = ${escapeHtml(fmt(conclusion.before))}</div>`;
+  } else {
+    tailHtml = `<div class="pal-writeup-note">ここまでが今の答案だよ。右辺の ${escapeHtml(right)} までたどり着いたら、「よって〜となる」で締めよう。</div>`;
+  }
+
+  const html = `<div class="pal-writeup">${rowsHtml}${tailHtml}</div>`
+    + '<div class="pal-writeup-note">合っているかどうかは「いまの式を見て」で確かめてね。</div>';
+  return { tone: 'ok', html, wide: true };
+};
+
+window.runPalWriteup = function () {
+  const report = window.buildWriteupReport();
+  if (report.html) {
+    window.showPalSpeech(report.html, report.tone, '答案にすると、こう書けるよ', { html: true, wide: true });
+  } else {
+    window.showPalSpeech(report.text, report.tone, '答案にすると');
+  }
+  watchForStaleSpeech();
+};
+
 // ====== 6. 初期化 ======
 // ワークスペース監視 + ヒントボタンのバインドをまとめて行う。
 // 定義はここ1箇所だけ（以前は同名関数を2回定義して片方を握り潰していた）。

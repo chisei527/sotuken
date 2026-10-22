@@ -38,6 +38,28 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   - `STRICT_FORMULA_MODES` に無い公式（④以降）は、従来のゆるい判定にフォールバックする。厳密にしたい公式を増やすときはここにモードを足す。
 - 解説（`explanations.js` の `FORMULA_EXPLANATIONS`）は、解放済みの公式だけタブに出る。
 
+## 見た目のルール
+- **見せ場と作業場を分ける**。タイトル・マップ・シャッター演出・キャラ会話は絵を使って派手に。
+  プレイ画面の作業エリア（`#l`）は方眼だけにして、画面でいちばん明るいものがブロックになるようにする。
+  `setAppBackgroundByKey('stage')` はプレイ画面では背景画像を敷かない（`app-ui.js`）。
+- トークンは `styles/base.css` の `:root`。面は3枚だけ（`--surface-0` 地 / `--surface-1` パネル / `--surface-2` その中）、
+  仕切りは `--hairline`、方眼は `--grid-line` と `--grid-line-strong`。新しい色を増やす前にここを見る。
+- 書体は `--font-ui`（Zen Kaku Gothic New・画面の文字）と `--font-math`（STIX Two Text・式）。
+  index.html で Google Fonts から読む。**`font-weight` は 400 / 500 / 700 だけ**（900 は無く、指定すると合成太字になって濁る）。
+- ブロックの色は `blocks.js` の `BLOCK_COLORS`。色が種類を語る:
+  青＝項と数／茶＝演算子(+ − × 分数 2乗)／紫＝公式／緑青＝操作／梅＝よって／濃紺＝証明。
+  **入れ物は中身より暗くする**（逆にすると中の式が沈む）。ツールボックスのカテゴリ色もここと合わせる。
+  セリフの中に差し込むブロックの絵（`block-svg.js` の `window.BlockSvg`）も `BLOCK_COLORS` を読む。
+  絵を増やすときは BlockSvg に足す。各ファイルで SVG を書き直すと盤面と色がずれる。
+- ボタンの主従: 塗りつぶしは主ボタン1つだけ（`.btn-primary` = 正解をチェック）。
+  ヒントは線、リセットとあきらめるは静かに（あきらめるは触れたときだけ赤）。
+- 言葉は「押すと何が起きるか」で書く。`SECTOR 014` や `SYNCED` のような造語は使わない。
+- 重なりの順番（新しく `position: fixed` を足すときはここに収める）:
+  下のボタン列とその中のパル 1000 < お知らせ 1600 < 作業エリアの上の補助（解説を聞く・パルの吹き出し・待機ヒント）1700
+  < モーダル(`.overlay-screen`) 2000 < タイトル 2400 < キャラ会話 3000 < 同意/アカウント 5000 < シャッター 9999。
+- 同意画面の2択は同じ見た目にする（片方を目立たせると選択を誘導することになるため）。
+- 動きは `prefers-reduced-motion` で止まる（base.css の末尾）。キーボードの focus は `:focus-visible` で見える。
+
 ## ヒント（段階制）
 - ヒントは `window.hintLevel`（0〜3）の1本だけ。旧「ガイド機能」ボタンは段階3に統合した。
   - 1 … 問題ごとのヒント文（`problems/*.json` の `hints`。全ステージ3本ずつ用意してある）
@@ -53,14 +75,102 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - ログは `AppLog.hint(on, level)`。`submit` にも `hint_level` / `max_hint_level` が入る。
   分析用ビューの列追加は `supabase/migrations/20261006120000_hint_level_columns.sql`（公開後に適用する）。
 
+## 解説
+- 入口は2つ。ヘッダーの「公式解説」ボタン（いつでも開ける）と、問題を終えたあとのパルの解説。
+- **「正解をチェック」はいつでも押せる**。パルの台本の途中でも押せる（`CONTROLLED_BUTTON_IDS` に入れていない）。
+  組み立て途中で押しても「まだ穴が空いている」と出るだけ。
+- 正解したあとは自動で次へ飛ばず、`enterClearReview()`（app.js）が
+  「解説を聞く／次の問題へ」を出す。盤面は自分が組んだ正解を残したまま触れなくする。
+  操作チュートリアル(`0-*`)だけは従来どおり `scheduleAutoAdvanceAfterClear()` で自動遷移する。
+  ヘッダーの ← → で抜けたときの後始末は `loadStage` の先頭でやる（やらないと次の問題が触れないまま始まる）。
+- パルの解説は `answer_reveal_pal_explain`（character-data.js の `buildLines`）。
+  あきらめたあとと自力正解の両方から `openPalExplainDialog()` で開く。`ctx.selfSolved` で言い回しが変わる。
+  - **`op.formula` は公式の「式のテキスト」で ID ではない**（`parseBlocksToAST` が `FORMULA_REGISTRY[type].text` を入れるため）。
+    名前や着眼点を引くときは `window.formulaIdFromText()`（math-logic.js）で ID に戻す。
+    忘れるとどの公式も「公式」としか言えなくなる。引き直しは各所で書かず、この1本を使う。
+  - 公式を増やしたら `formulaName` と `noticeHint` にも足す。無いと名前が出ない。
+- 公式解説モーダルの中身は `explanations.js`。各公式は 意味/導出/使いどころ に加えて
+  `lecture` を持てる（`intro` / `steps`（導出を1手ずつ）/ `examples`（例題）/ `pitfalls` / `quiz`）。
+  描画は app.js の `renderLectureSteps` ほか。`TRIG_BASICS_ENTRIES` の基礎タブでも `body.lecture` が使える。
+  - LaTeX は JS の文字列なので**バックスラッシュを2つ**書く（`'\\dfrac'`）。
+    1つだと JS が食べてしまい、`\;` が `;` になるような壊れ方をする。
+  - 直したら MathJax のエラー（`mjx-merror`）が出ていないか画面で確認する。
+
+## パル（呼び出し式）
+- ふだんは画面に出さない。下のボタン列の右はしに呼び出しボタン（`#btn-pal`「パル」）だけを置く。
+  押すとパルが本来の大きさで、ボタン列のすぐ上に立ってメニューを開く。用が済んだら消える。
+  - 常駐は板挟みになる。小さくすれば盤面は守れるがキャラクターに見えず、
+    大きくすれば盤面を隠す。「呼ぶときだけ大きく」でそれを解いた。
+  - 引っ込むのは、外側をクリック・「閉じる」・呼び出しボタンをもう一度・会話が始まったとき
+    （会話パネルにもパルが出るので、2人いるように見えないように）。
+  - 呼び出しボタンは「正解をチェック」のすぐ右。役割が違うので、ひとつぶん余分に間をあけて塗らない。
+  - パル本体は `.action-bar-container` の中に入れてある。`bottom: 100%` でボタン列の高さに自動で乗る。
+  - 元画像(900x491)は横長で、本体は横幅の 0.33〜0.665・縦の 0.10〜0.92 あたりだけ。
+    枠で切り抜いて本体だけを見せている（呼び出しボタンの丸は顔だけ）。寸法は `styles/mascot.css` のコメント参照。
+- メニューはパルの左に開く（上に開くと画面からはみ出し、顔も隠れる）。
+  並びは下＝パルに近いほうが押しやすい順。塗りつぶしは「いまの式を見て」1つだけ。
+- **「いまの式を見て」**（`runPalProgressCheck` / app-guide.js）がパル固有の仕事。
+  答えは言わず「どこまで合っているか」「どこで止まっているか」だけを返す。
+  - 判定は提出と同じ `validateProof` をそのまま使う（採点と食い違わないように）。
+    `errorStepIndex` の 1 つ手前までを「合っている」として数える。
+  - 公式の候補（`suggestions`）は出さない。次の一手を教えるのはヒントの仕事。
+  - 返事は `#pal-speech`（z 1700）。パルの左どなりに出す。
+    盤面を動かしたら畳む（古い返事を残さない）。
+- **「左辺と右辺をくらべて」**（`runPalGoalCompare` / app-guide.js）がもう1つの仕事。
+  基礎④の手順①「左辺と右辺のちがいを言葉にする」を、その問題について代わりにやってみせる。
+  次の一手は言わない（それはヒント）。「何を目指すのか」だけを言う。
+  - くらべる材料は `getInitialLeftExpression` / `getInitialRightExpression`（math-logic.js から公開）。
+  - `expressionFeatures()` が math.js の AST を見て、出てくる関数・分数かどうか・項の数・
+    角の種類と「和の角」かどうかを拾う。
+    **ブロックから起こした式は丸ごとかっこで包まれていることが多い**ので、
+    項を数える前に `ParenthesisNode` を外す（外さないと全部「ひとかたまり」になる）。
+- **「答案にすると？」**（`runPalWriteup` / app-guide.js）が3つめの仕事。
+  盤面のブロックを、紙に書く答案（＝ でつないだ式の列＋右に「公式② より」などの根拠）に起こす。
+  合っているかは言わない（それは「いまの式を見て」）。
+  - 吹き出しの中だけ3列のグリッドにして「=」を桁でそろえる。長い式は横スクロールにせず折り返す
+    （切れていると壊れて見えるため）。`showPalSpeech(..., {html:true, wide:true})`。
+  - 一手の根拠は `FORMULA_REGISTRY[id].label`。`op.formula` はテキストなので
+    `window.formulaIdFromText()`（math-logic.js）で ID に戻してから引く。
+- ログは `event_logs` に新しい行を作らず、`submit` / `giveup` の payload に `checks_used` として入れる。
+  **event_type を増やすと DB の check 制約に引っかかって、ログ送信がまるごと止まる**ため。
+  分析用ビューの列追加は `supabase/migrations/20261007120000_pal_check_column.sql`
+  （ヒントの migration のあと、公開後に適用する）。
+- 使い方は 0-2 のパルのチュートリアルで、実際に1回呼んでもらって教える。
+
 ## パルのチュートリアル
 - `PAL_TUTORIAL_SCRIPTS[ステージID]` に台本があれば、そのステージに初めて入ったときに流れる。チュートリアル(`0-*`)だけでなく本編ステージでも動く（例: `'23'` で加法定理の導入）。
 - 「もう見た」の記録は、チュートリアルはメモリだけ、本編は `AppStorage.KEYS.DEVICE.PAL_TUTORIAL_SEEN`（端末だけ）。
 - 公式紹介の演出と重ならないよう、`window._formulaUnlockSceneActive` が立っている間は待つ。
 - 台本の進行中は `CONTROLLED_BUTTON_IDS`（リセット／あきらめる／正解をチェック／ヒント）が押せない。
   押させたいステップでは `enableButtons: [...]` に書く。
-- 別のステージへ移ると `loadStage` が `abortPalTutorial()` を呼んで台本を終わらせる
-  （以前は「ステージ選択」からしか終わらず、ヘッダーの ← → で抜けるとボタンが押せないままだった）。
+- 別のステージへ移ると `loadStage` が `abortPalTutorial()` と `abortBasicsTutorial()` を呼んで終わらせる
+  （以前は「ステージ選択」からしか終わらず、ヘッダーの ← → で抜けるとボタンが押せないままだった。
+  フリエの操作説明を残したまま移ると、次のステージで「会話が出たまま」と見なされて台本が始まらず、
+  パルも隠れたままになっていた）。
+- 台本の `customWatch` で「このステップで操作したか」を見るときは、
+  `window.getPalTutorialWaitingSince()`（待ち始めた時刻）より後かで判定する。
+  「押したことがある」というグローバルなフラグにすると、やり直したときに前回の記録で素通りする。
+
+## チュートリアルのやり直し
+- マップの「使い方をもう一度」（`#btn-replay-tutorial` → `window.restartTutorial()`）から、
+  本編を始めたあとでも 0-1 からやり直せる。タイトル画面の「使い方を覚えてから」も同じ入口。
+- 消すのは「もう見た」の記録だけ（`window.resetTutorialSeenFlags()`）。
+  クリア済みステージ・公式の解放・アカウントの進捗には触らない。
+- やり直し中は `window._tutorialReplay` が立つ。完了画面（tutorial-complete.js）はこれを見て
+  行き先を「本編を始める（1問目）」から「ステージ選択へ戻る」に変える。
+  すでに進んでいる人を1問目に送ると、進み具合を見失うため。
+  本編のステージを読み込んだ時点で `loadStage` が畳む。
+- 本編ステージの台本（23〜26）は端末に保存している（`KEYS.DEVICE.PAL_TUTORIAL_SEEN`）ので、
+  やり直しても再生されない。消したいならこのキーを消す。
+- 最後(0-8)を終えると完了画面（`tutorial-complete.js` / `styles/tutorial-complete.css`、重なりは 5000）。
+  ここは見せ場なので全画面で祝う: 放射光・紙吹雪・2人の立ち絵・
+  覚えた操作ブロックの絵（`window.BlockSvg`）・解放した公式（`getUnlockedFormulaIds()`）。
+  - 紙吹雪は開いたときに1回降らせて終わる。降り続けると読ませたい文字の邪魔になる。
+    `prefers-reduced-motion` の人には JS 側で最初から作らない。
+  - 背景の光は `.tc-burst` の `::before` に描いて親で切り落とす。
+    画面より大きい要素をそのまま置くと、そのぶん縦スクロールが生まれる
+    （`.overlay-screen` は `backdrop-filter` を持つので、中の `fixed` もここを基準にする）。
+  - 1280x720 でもスクロールせずに収まるよう、寸法は vh の clamp で決める。
 
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080

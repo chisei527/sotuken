@@ -1284,6 +1284,22 @@
       .map((id) => formulaIdToLabel(id));
   }
 
+  /**
+   * 公式の「式のテキスト」から公式IDに戻す。
+   *
+   * parseBlocksToAST が AST に入れる formula は FORMULA_REGISTRY[type].text
+   * （例: 'tan(x)=sin(x)/cos(x)'）であって ID ではない。
+   * 解説やパルの返事は ID 引きなので、各所で引き直しているとズレる。ここ1箇所に置く。
+   * 既に ID が渡されたらそのまま返す。
+   */
+  function formulaIdFromText(formula) {
+    if (!formula) return null;
+    const key = String(formula);
+    if (FORMULA_REGISTRY[key]) return key;
+    return Object.keys(FORMULA_REGISTRY)
+      .find((id) => FORMULA_REGISTRY[id] && FORMULA_REGISTRY[id].text === key) || null;
+  }
+
   function getErrorMessage(errorCode, stepIndex, suggestions) {
     const stepPrefix = stepIndex == null ? '' : `${stepIndex}段目: `;
     const suggestionText = Array.isArray(suggestions) && suggestions.length > 0
@@ -1930,6 +1946,10 @@
     collectAppliedFormulaIdsFromAST,
     getErrorMessage,
     validateProof,
+    // パルの「左辺と右辺をくらべて」が使う（app-guide.js）
+    getInitialLeftExpression,
+    getInitialRightExpression,
+    formulaIdFromText,
     strictEquivalent,
     computeCommonDenominator,
     prettyFormatExpression,

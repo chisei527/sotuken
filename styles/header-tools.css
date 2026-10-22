@@ -1,6 +1,3 @@
-#btn-formula-reference {
-          display: none !important;
-        }
 
         .curtain { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #030814; z-index: 9999; opacity: 1; transition: opacity 0.3s ease; pointer-events: none; }
         .curtain.hidden { opacity: 0; }
@@ -15,17 +12,42 @@
         .stage-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
         .stage-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-        /* ヘッダー3列レイアウト */
-        .header-left  { display: flex; align-items: center; gap: 14px; justify-self: start; }
-        .header-center{ display: flex; align-items: center; gap: 14px; justify-self: center; }
-        .header-right { display: flex; align-items: center; gap: 14px; justify-self: end; }
+        /* ヘッダー3列レイアウト。
+           中央は「いま何問目か」＋進み具合のバー。右は連続正解と公式解説。
+           以前は右の列が空だったので、中央が左に寄って見えていた。 */
+        .header-left  { display: flex; align-items: center; gap: 12px; justify-self: start; }
+        .header-center{ display: flex; flex-direction: column; align-items: center; gap: 6px; justify-self: center; min-width: 200px; }
+        .header-right { display: flex; align-items: center; gap: 12px; justify-self: end; }
+
+        #r {
+          font-size: 0.95rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #cfe2f7;
+          white-space: nowrap;
+        }
+        #stage-progress-track {
+          width: 100%;
+          height: 3px;
+          border-radius: 999px;
+          background: rgba(148, 197, 255, 0.18);
+          overflow: hidden;
+        }
+        #stage-progress-fill {
+          width: 0%;
+          height: 100%;
+          border-radius: 999px;
+          background: var(--cyber-blue);
+          transition: width 0.4s ease;
+        }
 
 
-        /* 📘 公式解説ボタン：ガイド機能ボタンとトーンを揃える */
+        /* 公式解説ボタン。パルのメニューの中だけだと見つけにくいので、
+           ヘッダーにも常に出しておく（同じモーダルが開く）。 */
         .header-tool-btn {
-          font-size: 0.82rem; padding: 6px 12px; border-radius: 8px;
-          border: 1px solid var(--glass-border);
-          background: rgba(255, 255, 255, 0.08);
+          font-size: 0.82rem; padding: 7px 14px; border-radius: 8px;
+          border: 1px solid var(--hairline);
+          background: rgba(255, 255, 255, 0.05);
           color: var(--cyber-text);
           font-weight: 700; cursor: pointer;
           transition: all 0.2s ease;
@@ -35,15 +57,35 @@
           border-color: rgba(56, 189, 248, 0.5);
         }
 
-        /* 🚀 Blockly ツールボックスの完全ダークサイバー化 */
+        /* ==== ブロックの引き出し（ツールボックス）====
+           作業エリアを方眼にしたので、ここは「棚」としてはっきり面を持たせる。
+           以前は背景の絵の上に文字が浮いているだけで、棚に見えていなかった。
+           左のタブの色は blocks.js の BLOCK_COLORS と対応していて、
+           色を見ればどんなブロックが出てくるか予想がつく。 */
         #l .blocklyToolboxDiv {
-          background-color: rgba(4, 14, 32, 0.95) !important;
-          border-right: 2px solid rgba(56, 189, 248, 0.4) !important;
-          backdrop-filter: blur(10px);
+          background-color: var(--surface-1) !important;
+          border-right: 1px solid var(--hairline) !important;
+          padding-top: 8px !important;
+          box-shadow: 1px 0 0 rgba(0, 0, 0, 0.35);
         }
-        #l .blocklyTreeRow { background-color: transparent !important; height: 44px !important; margin: 4px 6px !important; border-radius: 10px !important; }
-        #l .blocklyTreeRow:hover { background-color: rgba(56, 189, 248, 0.15) !important; }
-        #l .blocklyTreeRow.blocklyTreeSelected { background-color: rgba(56, 189, 248, 0.35) !important; }
-        #l .blocklyTreeLabel { color: #ffffff !important; font-weight: 900 !important; font-size: 15px !important; }
-        .blocklyFlyoutBackground { fill: rgba(5, 16, 36, 0.94) !important; stroke: rgba(56, 189, 248, 0.3) !important; stroke-width: 2px !important; rx: 16px; ry: 16px; }
-        .blocklyScrollbarHandle { fill: rgba(56, 189, 248, 0.5) !important; }
+        #l .blocklyTreeRow {
+          background-color: transparent !important;
+          height: 46px !important;
+          margin: 2px 8px !important;
+          border-radius: 8px !important;
+          transition: background-color 0.12s ease;
+        }
+        #l .blocklyTreeRow:hover { background-color: rgba(86, 162, 232, 0.14) !important; }
+        #l .blocklyTreeRow.blocklyTreeSelected { background-color: rgba(86, 162, 232, 0.26) !important; }
+        #l .blocklyTreeLabel {
+          color: #dce9fb !important;
+          font-family: var(--font-ui) !important;
+          font-weight: 700 !important;
+          font-size: 15px !important;
+          letter-spacing: 0.02em;
+        }
+        .blocklyFlyoutBackground { fill: rgba(8, 20, 40, 0.97) !important; stroke: var(--hairline) !important; stroke-width: 1px !important; rx: 0; ry: 0; }
+        /* スクロールバーは操作できると分かる程度に。以前は水色が明るすぎて、
+           画面の下端に一本の光る帯が走っているように見えていた。 */
+        .blocklyScrollbarHandle { fill: rgba(120, 170, 220, 0.3) !important; }
+        .blocklyScrollbarHandle:hover { fill: rgba(140, 195, 245, 0.5) !important; }

@@ -10,12 +10,31 @@
           --cyber-green: #22c55e;      /* 正解グリーン */
           --cyber-red: #fb7185;        /* 不正解レッド */
           --cyber-dark-blue: #061a3a;
-          
+
           /* ガラスの質感共通パーツ */
           --glass-bg: rgba(6, 22, 44, 0.65);
           --glass-border: rgba(56, 189, 248, 0.25);
           --cyber-glow: 0 0 12px rgba(56, 189, 248, 0.4);
           --cyber-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+
+          /* ===== 面の階層 =====
+             「いちばん奥の地」「その上のパネル」「パネルの中の一段上」の3枚だけ。
+             これを守ると、どの画面でも奥行きの付き方が同じになる。 */
+          --surface-0: #050d1c;   /* 画面の地 */
+          --surface-1: #0a1830;   /* パネル・カード */
+          --surface-2: #112745;   /* パネルの中で一段持ち上げる所 */
+          --hairline:  rgba(148, 197, 255, 0.16);  /* 仕切り線 */
+
+          /* 作業エリアの方眼。ブロックより弱く、無地に見えない強さ */
+          --grid-line:        rgba(86, 162, 232, 0.10);
+          --grid-line-strong: rgba(86, 162, 232, 0.18);
+
+          /* ===== 書体 =====
+             --font-ui   画面の文字（日本語）
+             --font-math 式。ブロックの中・問題文・解説の数式 */
+          --font-ui: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+          --font-math: 'STIX Two Text', 'Hiragino Mincho ProN', serif;
+          --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
           /* チュートリアル待機ヒント内のブロック SVG の高さ (画面幅で段階可変) */
           --hint-block-height: 1.5em;
@@ -52,8 +71,8 @@
           height: 100%;
           margin: 0;
           padding: 0;
-          background-color: var(--cyber-bg);
-          font-family: 'M PLUS Rounded 1c', 'Hiragino Kaku Gothic ProN', sans-serif;
+          background-color: var(--surface-0);
+          font-family: var(--font-ui);
           color: var(--cyber-text);
           background-size: cover;
           background-position: center;
@@ -64,3 +83,28 @@
 
         .a { display: none; height: 100%; flex-direction: column; }
         .b { display: flex; }
+        /* ========================================
+           共通の仕上げ
+           ======================================== */
+
+        /* キーボードで操作している人に、いまどこにいるか見えるようにする。
+           マウスで押したときは出ない（:focus ではなく :focus-visible）。 */
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        [tabindex]:focus-visible {
+          outline: 2px solid var(--cyber-blue);
+          outline-offset: 2px;
+          border-radius: 6px;
+        }
+
+        /* OS で「動きを減らす」を選んでいる人には、点滅や拡大を出さない。
+           このアプリは待機中の明滅やパルスが多く、人によっては気分が悪くなるため。 */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+          }
+        }

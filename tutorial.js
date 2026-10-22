@@ -88,30 +88,18 @@ window.bindTutorialWorkspaceAutoAdvance = function() {
   });
 };
 
-// チュートリアル進捗バー(#tutorial-progress-shell)の表示を更新する。
-// 以前は HTML と CSS だけあって、更新する JS が存在しなかったため常に 0% のままだった。
+// チュートリアルの進み具合を記録する。
+//
+// 画面表示はヘッダー（「チュートリアル 1 / 8」＋細いバー）が担当するので、
+// ここは保存だけを行う。以前は問題文の上に専用の緑のバーがあり、
+// ヘッダーと同じことを2か所で言っていた。
 window.updateTutorialProgressBar = function(stageId) {
-  const shell = document.getElementById('tutorial-progress-shell');
-  const fill = document.getElementById('tutorial-progress-fill');
-  const rate = document.getElementById('tutorial-progress-rate');
-  const label = document.getElementById('tutorial-progress-label');
-  if (!shell) return;
-
   const isTutorial = typeof window.isTutorialStageId === 'function' && window.isTutorialStageId(stageId);
-  if (!isTutorial) {
-    shell.classList.remove('visible');
-    return;
-  }
+  if (!isTutorial) return;
 
   const total = (window.TUTORIAL_STAGE_IDS || []).length || 1;
   const index = window.getTutorialStageIndex(stageId); // 0始まり
   const done = Math.max(0, Math.min(index, total));    // 現在のステージは「未完了」として数える
-  const percent = Math.round((done / total) * 100);
-
-  shell.classList.add('visible');
-  if (fill) fill.style.width = percent + '%';
-  if (rate) rate.textContent = percent + '%';
-  if (label) label.textContent = `チュートリアル ${Math.min(index + 1, total)} / ${total}`;
 
   // 到達した最大ステップを保存しておく（次回起動時の参考値）
   const reached = Math.max(window.tutorialProgressCount || 0, done);

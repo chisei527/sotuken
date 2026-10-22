@@ -12,8 +12,10 @@
         }
         .wrong-stamp-effect {
           position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          z-index: 9999; pointer-events: none; color: #ff4b4b; font-family: 'Arial Black', sans-serif;
-          font-size: clamp(56px, 9vw, 116px); font-weight: 900; letter-spacing: 0.08em;
+          /* 'Arial Black' は入っていない環境が多く、そこでは別の書体に化けていた。
+             画面の書体に合わせて、太さで見せる。 */
+          z-index: 9999; pointer-events: none; color: #ff6b6b; font-family: var(--font-ui);
+          font-size: clamp(56px, 9vw, 116px); font-weight: 700; letter-spacing: 0.08em;
           text-shadow: 0 0 12px rgba(255, 75, 75, 0.95), 0 0 32px rgba(239, 68, 68, 0.7);
           animation: wrongStampPop 0.6s cubic-bezier(0.16, 1.2, 0.24, 1) forwards;
         }
@@ -24,16 +26,22 @@
           100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
         }
 
-        /* ==== 「解説を聞く」ボタン (答え表示後にユーザーが押してパル解説を呼ぶ) ==== */
+        /* ==== 「解説を聞く」ボタン (答え表示後にユーザーが押してパル解説を呼ぶ) ====
+           答えを表示している間は、下のボタン列（リセット・あきらめる・正解をチェック）が
+           すべて押せない状態になっている。押せないボタンを並べておく意味がないので隠し、
+           その場所に「解説を聞く」を置く。
+           以前はボタン列の上に浮いていて、読ませたい答えのブロックに重なっていた。 */
+        body.answer-reveal-locked .action-bar-container { display: none; }
+
         .listen-explain-btn {
           position: fixed;
           left: 50%;
-          bottom: 110px;
+          bottom: 22px;
           transform: translate(-50%, 20px);
           padding: 16px 36px;
           font-family: inherit;
           font-size: 1.15rem;
-          font-weight: 900;
+          font-weight: 700;
           letter-spacing: 0.06em;
           color: #fff;
           background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
@@ -42,7 +50,7 @@
           cursor: pointer;
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.5);
           opacity: 0;
-          z-index: 3200;
+          z-index: 1700; /* モーダル(2000)より下。以前は公式解説の上に乗っていた */
           transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
           pointer-events: none;
           animation: listenExplainPulse 1.8s ease-in-out infinite;
@@ -87,27 +95,84 @@
         /* 「次のステージへ」独立ボタン (パル解説モード中に表示)
            listen-explain-btn と同じ丸型スタイルだが、位置を右下寄せに変えて
            下部アクションバー (リセット/あきらめる) と競合しないようにする */
+        /* 解説を読んでいる間、いちばん押してほしいのは「次へ」（解説を進める）。
+           「もう一度」「次の問題へ」は、そこから抜ける行き先なので静かにする。
+           以前は「次の問題へ」が紫で光っていて、解説を読み切る前に目を引いていた。
+           紫はこのアプリでは「公式」の色なので、別の意味で使わない。 */
         .listen-explain-btn.next-stage-btn {
           bottom: 40px;
           left: auto;
           right: 40px;
           transform: translate(20px, 0);
-          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
-          border-color: rgba(196, 181, 253, 0.7);
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
-          animation: nextStagePulse 1.8s ease-in-out infinite;
+          background: transparent;
+          border-color: var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          animation: none;
         }
         .listen-explain-btn.next-stage-btn.show {
           transform: translate(0, 0);
         }
         .listen-explain-btn.next-stage-btn:hover {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
+        }
+        /* ==== 自力で正解したあとの2択 (解説を聞く / 次の問題へ) ====
+           正解した盤面を残したまま、振り返るか進むかを選ばせる。
+           主ボタンは「解説を聞く」1つだけ。次へ進むのは静かな線のボタンにする。 */
+        .clear-review-group {
+          position: fixed;
+          left: 50%;
+          bottom: 28px;
+          transform: translate(-50%, 20px);
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          z-index: 1700; /* モーダル(2000)より下 */
+          opacity: 0;
+          transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+          pointer-events: none;
+        }
+        .clear-review-group.show {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          pointer-events: auto;
+        }
+        .clear-review-group.hidden { display: none !important; }
+        .clear-review-btn {
+          padding: 15px 32px;
+          font-family: inherit;
+          font-size: 1.08rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #fff;
+          background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(14, 165, 233, 0.9));
+          border: 2px solid rgba(125, 211, 252, 0.7);
+          border-radius: 999px;
+          cursor: pointer;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(56, 189, 248, 0.45);
+          transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+        }
+        .clear-review-btn:hover {
+          background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(14, 165, 233, 1));
           border-color: rgba(255, 255, 255, 0.9);
         }
-        @keyframes nextStagePulse {
-          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
-          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
+        .clear-review-btn.quiet {
+          background: transparent;
+          border-color: var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          font-weight: 500;
         }
+        .clear-review-btn.quiet:hover {
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
+        }
+        .clear-review-btn .listen-explain-arrow { margin-left: 6px; }
+        .clear-review-btn:hover .listen-explain-arrow { transform: translateX(4px); }
+
         /* ==== パル解説モード後の独立ボタングループ (もう一度 / 次の問題へ) ==== */
         .post-explain-button-group {
           position: fixed;
@@ -116,7 +181,7 @@
           transform: translate(-50%, 20px);
           display: flex;
           gap: 20px;
-          z-index: 3200;
+          z-index: 1700; /* モーダル(2000)より下。以前は公式解説の上に乗っていた */
           opacity: 0;
           transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
           pointer-events: none;
@@ -127,6 +192,7 @@
           pointer-events: auto;
         }
         .post-explain-button-group.hidden { display: none !important; }
+        .post-explain-btn.hidden { display: none !important; }
 
         /* 解説パネルが出ている間は、このボタン群をパネルと同じ列に揃える。
            以前は常に画面下中央固定で、右ドックのパネルとバラバラの位置に出ていた。
@@ -192,7 +258,7 @@
           padding: 14px 32px;
           font-family: inherit;
           font-size: 1.05rem;
-          font-weight: 900;
+          font-weight: 700;
           letter-spacing: 0.05em;
           color: #ffffff;
           border-radius: 999px;
@@ -205,7 +271,7 @@
         }
         .post-explain-arrow {
           display: inline-block;
-          font-weight: 900;
+          font-weight: 700;
           transition: transform 0.2s ease;
         }
 
@@ -225,23 +291,24 @@
           transform: rotate(-45deg);
         }
 
-        /* 次の問題へ (右、デフォルト): 紫グラデーション、パルス発光で目立たせる */
+        /* 「次の問題へ」。
+           解説を読んでいる間にいちばん押してほしいのは「次へ」（解説を進める）なので、
+           こちらは静かにする。以前は紫で光りながら脈打っていて、解説を読み切る前に
+           目を引いていた。紫はこのアプリでは「公式」の色なので、別の意味で使わない。 */
         .post-explain-btn.next-stage-btn {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(126, 34, 206, 0.9));
-          border: 2px solid rgba(196, 181, 253, 0.7);
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5);
-          animation: postExplainNextPulse 1.8s ease-in-out infinite;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--hairline);
+          color: #b9cfe6;
+          box-shadow: none;
+          animation: none;
         }
         .post-explain-btn.next-stage-btn:hover {
-          background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(126, 34, 206, 1));
-          border-color: rgba(255, 255, 255, 0.9);
+          background: rgba(56, 189, 248, 0.14);
+          border-color: rgba(125, 211, 252, 0.6);
+          color: #eaf4ff;
         }
         .post-explain-btn.next-stage-btn:hover .post-explain-arrow {
           transform: translateX(4px);
-        }
-        @keyframes postExplainNextPulse {
-          0%, 100% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(147, 51, 234, 0.5); }
-          50% { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 56px rgba(147, 51, 234, 0.85); }
         }
 
         /* 最終ステージ (「マップへ」): 水色系 */
@@ -292,9 +359,9 @@
   height: 120px;
   margin: -60px 0 0 -60px;
   border-radius: 50%;
-  border: 4px solid rgba(88, 204, 2, 0.9);
-  background: radial-gradient(circle, rgba(88, 204, 2, 0.28), rgba(88, 204, 2, 0) 70%);
-  box-shadow: 0 0 40px 10px rgba(88, 204, 2, 0.45);
+  border: 4px solid rgba(34, 197, 94, 0.9);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.26), rgba(34, 197, 94, 0) 70%);
+  box-shadow: 0 0 40px 10px rgba(34, 197, 94, 0.4);
   pointer-events: none;
   z-index: 12000;
   animation: successRippleExpand 1s ease-out forwards;
@@ -310,14 +377,15 @@
   top: 42%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.2) rotate(-16deg);
-  font-family: inherit;
-  font-weight: 900;
+  font-family: var(--font-ui);
+  /* Zen Kaku Gothic New には 900 が無い。指定すると合成太字になって輪郭が濁るので 700 にする */
+  font-weight: 700;
   font-size: clamp(48px, 11vw, 132px);
   letter-spacing: 0.06em;
   color: #eafff0;
   -webkit-text-stroke: 3px rgba(34, 197, 94, 0.95);
   text-shadow:
-    0 0 18px rgba(88, 204, 2, 0.9),
+    0 0 18px rgba(34, 197, 94, 0.9),
     0 0 46px rgba(34, 197, 94, 0.65),
     0 12px 30px rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -335,20 +403,22 @@
 }
 
 /* 連続正解カウンター（#streak-counter）。updateStreakCounter() が更新する。 */
+/* 連続正解が 0 のあいだは出さない。0 を見せても意味がなく、
+   ヘッダーに常時オレンジの光があるとブロックより目を引いてしまう。 */
 #streak-counter {
   display: inline-block;
-  min-width: 58px;
-  padding: 6px 12px;
+  min-width: 52px;
+  padding: 5px 11px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(180, 83, 9, 0.18));
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  color: #ffd79a;
-  font-weight: 900;
-  font-size: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f3c988;
+  font-weight: 700;
+  font-size: 13px;
   text-align: center;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
 }
+#streak-counter.is-zero { display: none; }
 #streak-counter.streak-bounce { animation: streakBounce 0.5s cubic-bezier(0.2, 1.4, 0.4, 1); }
 @keyframes streakBounce {
   0%   { transform: scale(1); }

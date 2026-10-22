@@ -114,7 +114,7 @@
           flex: 1;
         }
         .character-dialog-reveal-name {
-          font-weight: 900;
+          font-weight: 700;
           font-size: clamp(0.9rem, 0.55vw + 0.62rem, 1.1rem);
           color: var(--cyber-blue);
           letter-spacing: 0.02em;
@@ -555,7 +555,7 @@
           left: 50%;
           transform: translateX(-50%);
           font-size: 1.4rem;
-          font-weight: 900;
+          font-weight: 700;
           color: rgba(125, 211, 252, 0.55);
           text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
           animation: characterDialogNextPulse 1.4s ease-in-out infinite;
@@ -635,7 +635,7 @@
         }
         .character-dialog-choice-label {
           font-size: 1.15rem;
-          font-weight: 900;
+          font-weight: 700;
           color: #f0f9ff;
           margin-bottom: 4px;
         }

@@ -115,6 +115,37 @@ window.setupEventListeners = function() {
     window.showListenExplainButton();
   };
 
+  // パルの解説を開く。あきらめたあとと、自力で正解したあとの両方から呼ばれる。
+  // 盤面にはそのとき並んでいる証明（模範解答、または自分が組んだ正解）がそのまま残っている。
+  // そこから実際の変形手順を読み取って渡すので、パルは「この問題で何をしたか」を
+  // 式つきで説明できる。
+  window.openPalExplainDialog = function () {
+    const requiredFormulas = (window.currentProblemData && window.currentProblemData.requiredFormulas) || [];
+    let proofSteps = [];
+    try {
+      if (typeof window.parseBlocksToAST === 'function' && window.workspace) {
+        proofSteps = window.parseBlocksToAST(window.workspace) || [];
+      }
+    } catch (err) {
+      console.warn('[app] 解説用の手順抽出に失敗、公式の一般説明にフォールバック:', err);
+    }
+    window.startCharacterDialog('answer_reveal_pal_explain', {
+      context: { requiredFormulas, proofSteps, selfSolved: !!window._clearReviewMode },
+      onChoiceSelected: (actionId) => {
+        const action = window.CHARACTER_SCENE_ACTIONS[actionId];
+        if (typeof action === 'function') action();
+      },
+    });
+    // 解説モード用のクラスを付与 (盤面が見える控えめ配置に切替)
+    requestAnimationFrame(() => {
+      const host = document.getElementById('character-dialog-host');
+      if (host) host.classList.add('answer-reveal-mode');
+      window.syncRevealDockTop();
+    });
+    // 「次の問題へ」独立ボタンも同時に表示
+    window.showNextStageButton();
+  };
+
   // 「解説を聞く」ボタンを画面下中央に生成して表示する
   window.showListenExplainButton = function () {
     // 既に存在していたら再利用 (二重表示防止)
@@ -128,34 +159,7 @@ window.setupEventListeners = function() {
       document.body.appendChild(btn);
       btn.addEventListener('click', () => {
         window.hideListenExplainButton();
-        // パルによる公式解説シーンを開く
-        const requiredFormulas = (window.currentProblemData && window.currentProblemData.requiredFormulas) || [];
-        // 盤面には今まさに模範解答が並んでいるので、そこから実際の変形手順を読み取る。
-        // これを渡すことで、パルが「この問題で実際に何をしたか」を
-        // 具体的な式つきで説明できるようになる（以前は公式の一般論だけだった）。
-        let proofSteps = [];
-        try {
-          if (typeof window.parseBlocksToAST === 'function' && window.workspace) {
-            proofSteps = window.parseBlocksToAST(window.workspace) || [];
-          }
-        } catch (err) {
-          console.warn('[app] 解説用の手順抽出に失敗、公式の一般説明にフォールバック:', err);
-        }
-        window.startCharacterDialog('answer_reveal_pal_explain', {
-          context: { requiredFormulas, proofSteps },
-          onChoiceSelected: (actionId) => {
-            const action = window.CHARACTER_SCENE_ACTIONS[actionId];
-            if (typeof action === 'function') action();
-          },
-        });
-        // 解説モード用のクラスを付与 (盤面が見える控えめ配置に切替)
-        requestAnimationFrame(() => {
-          const host = document.getElementById('character-dialog-host');
-          if (host) host.classList.add('answer-reveal-mode');
-          window.syncRevealDockTop();
-        });
-        // 「次のステージへ」独立ボタンも同時に表示
-        window.showNextStageButton();
+        window.openPalExplainDialog();
       });
     }
     // フェードイン
@@ -192,6 +196,74 @@ window.setupEventListeners = function() {
     if (!btn) return;
     btn.classList.remove('show');
     setTimeout(() => btn.classList.add('hidden'), 220);
+  };
+
+  // ============================================
+  // 自力で正解したあとの「ひと呼吸」
+  // ============================================
+  // 以前は正解した瞬間にシャッターが降りて次の問題へ飛んでいたので、
+  // 自分が何をしたのかを振り返る間がなかった。
+  // ここで盤面（自分が組んだ正解）を残したまま、
+  //   「解説を聞く」… パルが自分の手順を1手ずつ説明する
+  //   「次の問題へ」… そのまま進む
+  // を選べるようにする。
+  window.enterClearReview = function () {
+    window._clearReviewMode = true;
+
+    // 台本の途中で自力クリアしたときは、台本を先に終わらせる。
+    // そのままだとパルのセリフと解説パネルが二重に出てしまう。
+    if (typeof window.isPalTutorialActive === 'function' && window.isPalTutorialActive()
+        && typeof window.abortPalTutorial === 'function') {
+      window.abortPalTutorial();
+    }
+
+    // 盤面は見せたまま、触れないようにする（解説と食い違わないように）
+    document.body.classList.add('answer-reveal-locked');
+    ['btn-reset', 'btn-answer', 'btn-submit'].forEach((id) => {
+      const b = document.getElementById(id);
+      if (b) {
+        b.disabled = true;
+        b.classList.add('pal-tutorial-disabled');
+      }
+    });
+
+    let group = document.getElementById('clear-review-group');
+    if (!group) {
+      group = document.createElement('div');
+      group.id = 'clear-review-group';
+      group.className = 'clear-review-group';
+
+      const btnExplain = document.createElement('button');
+      btnExplain.type = 'button';
+      btnExplain.className = 'clear-review-btn';
+      btnExplain.innerHTML = '解説を聞く <span class="listen-explain-arrow">▶</span>';
+      btnExplain.addEventListener('click', () => {
+        window.hideClearReviewButtons();
+        window.openPalExplainDialog();
+      });
+
+      const btnSkip = document.createElement('button');
+      btnSkip.type = 'button';
+      btnSkip.className = 'clear-review-btn quiet';
+      btnSkip.innerHTML = '次の問題へ <span class="listen-explain-arrow">▶</span>';
+      btnSkip.addEventListener('click', () => {
+        window.hideClearReviewButtons();
+        if (typeof window.advanceToNextStage === 'function') window.advanceToNextStage();
+      });
+
+      group.appendChild(btnExplain);
+      group.appendChild(btnSkip);
+      document.body.appendChild(group);
+    }
+    group.classList.remove('hidden');
+    requestAnimationFrame(() => group.classList.add('show'));
+  };
+
+  window.hideClearReviewButtons = function () {
+    const group = document.getElementById('clear-review-group');
+    if (!group) return;
+    group.classList.remove('show');
+    setTimeout(() => group.classList.add('hidden'), 220);
   };
 
   // パル解説モード中の独立ボタン群 (「もう一度」「次の問題へ」) を表示
@@ -254,6 +326,9 @@ window.setupEventListeners = function() {
 
       container.appendChild(btnRetry);
       container.appendChild(btnNext);
+      // 「もう一度」は、あきらめて答えを見たあとに自分で組み直すためのボタン。
+      // 自力で正解したあとは組み直すものが無いので出さない。
+      btnRetry.classList.toggle('hidden', !!window._clearReviewMode);
 
       // 解説パネルが出ているときは、ボタン群をパネルの中に入れて1つのまとまりにする。
       // 以前は画面下に固定された別の島になっていて、パネルと離れて見えた。
@@ -265,6 +340,9 @@ window.setupEventListeners = function() {
         document.body.appendChild(container);
       }
     }
+
+    const btnRetryNow = document.getElementById('btn-retry-stage');
+    if (btnRetryNow) btnRetryNow.classList.toggle('hidden', !!window._clearReviewMode);
 
     // 「次の問題へ」ボタンのラベル切替: 最終ステージ判定を再実行
     const btnNext = document.getElementById('btn-next-stage-explain');
@@ -332,6 +410,8 @@ window.setupEventListeners = function() {
   // パルの解説後に「次のステージへ」を押したときの実処理
   window.advanceToNextStage = function () {
     // 答え表示中のロックを解除
+    window._clearReviewMode = false;
+    if (typeof window.hideClearReviewButtons === 'function') window.hideClearReviewButtons();
     document.body.classList.remove('answer-reveal-locked');
     // 解説モード用のクラスも解除 (キャラダイアログを閉じるので host は残ってないはずだが念のため)
     const host = document.getElementById('character-dialog-host');
@@ -351,6 +431,7 @@ window.setupEventListeners = function() {
     }
     if (nextStageNumber && window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStageNumber)) {
       window.showTutorialCompleteScreen({
+        replay: !!window._tutorialReplay,
         onStart: () => { window.currentStageNumber = nextStageNumber; if (typeof window.loadStage === 'function') window.loadStage(nextStageNumber); },
         onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
       });
@@ -428,7 +509,17 @@ window.setupEventListeners = function() {
         }
         
         btnSubmit.style.display = 'none';
-        window.scheduleAutoAdvanceAfterClear();
+
+        // 操作チュートリアル(0-*)は台本どおりそのまま次へ進める。
+        // 本編は、正解した盤面を残したまま「解説を聞く／次の問題へ」を選ばせる。
+        const isTutorial = typeof window.isTutorialStageId === 'function'
+          && window.isTutorialStageId(window.currentStageNumber);
+        if (isTutorial || typeof window.enterClearReview !== 'function') {
+          window.scheduleAutoAdvanceAfterClear();
+        } else {
+          // クリア演出（波紋とスタンプ）が終わってからボタンを出す
+          setTimeout(() => window.enterClearReview(), 1100);
+        }
 
       } else {
         window.currentStreak = 0;
@@ -555,6 +646,31 @@ window.setupEventListeners = function() {
   }
 
   // チュートリアル開始（サイバー演出つき）
+  // ============================================
+  // チュートリアルのやり直し
+  // ============================================
+  // 「もう見た」の記録だけを消す。クリア済みステージ・公式の解放・
+  // アカウントの進捗には触らない（やり直しても進捗は減らない）。
+  window.resetTutorialSeenFlags = function () {
+    window._basicsTutorialSeen = false;      // フリエの操作説明（0-1 の冒頭）
+    window._basicsTutorialActive = false;
+    window._palTutorialStageSeen = {};       // パルの台本（0-* はメモリだけで覚えている）
+  };
+
+  // マップから呼ぶ。チュートリアル 0-1 へ移り、説明を最初から流す。
+  window.restartTutorial = function () {
+    window.resetTutorialSeenFlags();
+    // 完了画面の行き先を「本編の1問目」から「ステージ選択」に変えるための目印。
+    // やり直しの人を本編1問目に戻してしまうと、進み具合を見失う。
+    window._tutorialReplay = true;
+    if (window.CHARACTER_SCENE_ACTIONS
+        && typeof window.CHARACTER_SCENE_ACTIONS.exec_tutorial_start === 'function') {
+      window.CHARACTER_SCENE_ACTIONS.exec_tutorial_start();
+    } else if (typeof window.transitionToStage === 'function') {
+      window.transitionToStage('0-1');
+    }
+  };
+
   async function startTutorialWithTransition() {
     const transitionLayer = document.getElementById('cyber-transition');
     const bootText = document.getElementById('cyber-boot-text');
@@ -574,9 +690,20 @@ window.setupEventListeners = function() {
   document.getElementById('btn-entry-tutorial')?.addEventListener('click', async (e) => {
     e.stopPropagation(); // 画面全体クリックの連動を防止
 
+    // 「チュートリアルをやめる」で一度抜けた人がここから入り直すこともあるので、
+    // 毎回「もう見た」の記録を消してから始める。
+    // （消さないと、フリエの操作説明もパルの台本も二度と出なかった）
+    window.resetTutorialSeenFlags();
+
     // 説明動画モーダルは廃止し、キャラ会話方式に一本化した。
     // 以前はここから 12MB の tutorial_intro.mp4 が再生される経路が残っていた。
     await startTutorialWithTransition();
+  });
+
+  // マップの「使い方をもう一度」。本編を始めたあとでもチュートリアルをやり直せる。
+  document.getElementById('btn-replay-tutorial')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.restartTutorial();
   });
 
   // (動画モーダルの「了解！」ボタンの処理はモーダルごと削除した)
@@ -641,6 +768,7 @@ window.scheduleAutoAdvanceAfterClear = function() {
            } else if (window.isLeavingTutorial && window.isLeavingTutorial(window.currentStageNumber, nextStage)) {
              // チュートリアルを全部終えた → 完了画面を出してから本編へ
              window.showTutorialCompleteScreen({
+               replay: !!window._tutorialReplay,
                onStart: () => window.transitionToStage(nextStage),
                onMap: () => { if (typeof window.routeToTarget === 'function') window.routeToTarget(); },
              });
@@ -748,6 +876,66 @@ window.syncUnlockAllButtonLabel = function() {
 // 1つの解説エントリをモーダルに描画する。
 // formulaId で FORMULA_REGISTRY のエントリを、
 // basics_XX で TRIG_BASICS_ENTRIES を選ぶ。
+// ============================================
+// 講義パーツのレンダラ
+// explanations.js の lecture.* を HTML にする。
+// 式は $$...$$ のまま返し、まとめて MathJax に組んでもらう。
+// ============================================
+
+// 導出を1手ずつ。番号を振って「どこまで読んだか」が分かるようにする。
+window.renderLectureSteps = function(steps) {
+  if (!Array.isArray(steps) || steps.length === 0) return '';
+  const items = steps.map((st, i) => `
+    <li class="lec-step">
+      <div class="lec-step-no">${i + 1}</div>
+      <div class="lec-step-body">
+        <p>${st.body}</p>
+        ${st.latex ? `<div class="lec-step-math">$$${st.latex}$$</div>` : ''}
+      </div>
+    </li>`).join('');
+  return `<ol class="lec-steps">${items}</ol>`;
+};
+
+// 例題。「問題 → 手順 → 答え」をひとつの箱にまとめる。
+window.renderLectureExamples = function(examples) {
+  if (!Array.isArray(examples) || examples.length === 0) return '';
+  const blocks = examples.map((ex) => {
+    const steps = Array.isArray(ex.steps) ? ex.steps.map((st) => `
+      <li>
+        <p>${st.body}</p>
+        ${st.latex ? `<div class="lec-step-math">$$${st.latex}$$</div>` : ''}
+      </li>`).join('') : '';
+    return `
+      <div class="lec-example">
+        <div class="lec-example-head">${ex.title || '例題'}</div>
+        ${ex.problem ? `<div class="lec-example-problem">$$${ex.problem}$$</div>` : ''}
+        ${ex.lead ? `<p>${ex.lead}</p>` : ''}
+        ${steps ? `<ol class="lec-example-steps">${steps}</ol>` : ''}
+        ${ex.answer ? `<div class="lec-example-answer"><span>答え</span>$$${ex.answer}$$</div>` : ''}
+        ${ex.note ? `<p class="lec-note">${ex.note}</p>` : ''}
+      </div>`;
+  }).join('');
+  return `<h3>例題で使ってみる</h3>${blocks}`;
+};
+
+// よくある間違い。読み飛ばされないよう、短い箇条書きにする。
+window.renderLecturePitfalls = function(pitfalls) {
+  if (!Array.isArray(pitfalls) || pitfalls.length === 0) return '';
+  return `<h3>つまずきやすいところ</h3>
+    <ul class="lec-pitfalls">${pitfalls.map((t) => `<li>${t}</li>`).join('')}</ul>`;
+};
+
+// 確認問題。答えは閉じておいて、自分で考えてから開けるようにする。
+window.renderLectureQuiz = function(quiz) {
+  if (!Array.isArray(quiz) || quiz.length === 0) return '';
+  const items = quiz.map((q, i) => `
+    <details class="lec-quiz">
+      <summary><span class="lec-quiz-no">確認 ${i + 1}</span>${q.q}</summary>
+      <div class="lec-quiz-answer">${q.a}</div>
+    </details>`).join('');
+  return `<h3>確認問題</h3><p class="lec-quiz-lead">答えを見る前に、まず自分で考えてみよう。</p>${items}`;
+};
+
 window.renderFormulaReference = function(entryId) {
   // タブのアクティブ切り替え
   document.querySelectorAll('#formula-ref-tabs .formula-ref-tab').forEach((tab) => {
@@ -769,19 +957,31 @@ window.renderFormulaReference = function(entryId) {
       const content = s.isRawHtml ? s.body : `<p>${s.body}</p>`;
       return `<h3>${s.heading}</h3>${content}`;
     }).join('');
+    const bLec = body.lecture || null;
     textHtml = `
       <div class="formula-display">$$${body.displayLatex}$$</div>
+      ${bLec && bLec.intro ? `<p class="lec-lead">${bLec.intro}</p>` : ''}
       ${sectionsHtml}
+      ${window.renderLectureExamples(bLec && bLec.examples)}
+      ${window.renderLecturePitfalls(bLec && bLec.pitfalls)}
+      ${window.renderLectureQuiz(bLec && bLec.quiz)}
     `;
     svgKey = body.svgKey;
   } else if (registry[entryId] && registry[entryId].explanation) {
-    // 公式エントリ
+    // 公式エントリ。lecture があれば「講義」の形（導出を1手ずつ・例題・つまずき・確認問題）で、
+    // 無ければ従来どおり 意味／導出／使いどころ の3段で出す。
     const exp = registry[entryId].explanation;
+    const lec = exp.lecture || null;
     textHtml = `
       <div class="formula-display">$$${exp.displayLatex}$$</div>
-      <h3>意味</h3><p>${exp.meaning}</p>
-      <h3>導出</h3><p>${exp.derivation}</p>
+      ${lec && lec.intro ? `<p class="lec-lead">${lec.intro}</p>` : ''}
+      <h3>この公式が言っていること</h3><p>${exp.meaning}</p>
+      <h3>なぜ成り立つのか</h3>
+      ${window.renderLectureSteps(lec && lec.steps) || `<p>${exp.derivation}</p>`}
+      ${window.renderLectureExamples(lec && lec.examples)}
       <h3>使いどころ</h3><p>${exp.usage}</p>
+      ${window.renderLecturePitfalls(lec && lec.pitfalls)}
+      ${window.renderLectureQuiz(lec && lec.quiz)}
       ${exp.variants && exp.variants.length > 0 ? `
         <h3>派生形</h3>
         <div class="formula-variants">
@@ -796,13 +996,14 @@ window.renderFormulaReference = function(entryId) {
   const textArea = document.getElementById('formula-ref-text');
   if (textArea) textArea.innerHTML = textHtml;
 
-  // SVG 図
+  // 図。無い項目のほうが多いので、無いときは列ごと畳んで本文を広く使う。
+  // 以前は「この項目には図はありません」とだけ書かれた大きな空き箱が
+  // 画面の4割を占めていた。
   const imageArea = document.getElementById('formula-ref-image');
-  if (imageArea) {
-    const svg = svgKey ? window.getFormulaReferenceSvg(svgKey) : '';
-    imageArea.innerHTML = svg
-      || '<div style="color: var(--cyber-muted); font-size: 0.85rem; text-align:center;">この項目には図はありません</div>';
-  }
+  const bodyArea = document.querySelector('.formula-ref-body');
+  const svg = svgKey ? window.getFormulaReferenceSvg(svgKey) : '';
+  if (imageArea) imageArea.innerHTML = svg || '';
+  if (bodyArea) bodyArea.classList.toggle('no-figure', !svg);
 
   // MathJax で数式を組版し直す
   // 初回はここで MathJax(約1MB) を読み込む。以降はキャッシュされた Promise を使う
@@ -825,8 +1026,10 @@ window.openFormulaReferenceModal = function(initialEntryId) {
     .filter((id) => registry[id].explanation)
     .filter((id) => !Array.isArray(unlocked) || unlocked.length === 0 || unlocked.includes(id));
 
+  // タブの名前。基礎は「基礎①」では何のことか分からないので、中身の見出しを出す。
+  // 公式はアプリ内で「公式①」と呼んでいるので、その呼び名のままにする。
   const tabs = [];
-  basics.forEach((b) => tabs.push({ id: b.id, label: b.label }));
+  basics.forEach((b) => tabs.push({ id: b.id, label: b.tabTitle || b.label }));
   formulaIds.forEach((id) => tabs.push({ id, label: registry[id].label }));
 
   tabsArea.innerHTML = tabs.map((t) =>
