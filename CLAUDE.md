@@ -162,6 +162,15 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   本編のステージを読み込んだ時点で `loadStage` が畳む。
 - 本編ステージの台本（23〜26）は端末に保存している（`KEYS.DEVICE.PAL_TUTORIAL_SEEN`）ので、
   やり直しても再生されない。消したいならこのキーを消す。
+- 最後(0-8)を終えると完了画面（`tutorial-complete.js` / `styles/tutorial-complete.css`、重なりは 5000）。
+  ここは見せ場なので全画面で祝う: 放射光・紙吹雪・2人の立ち絵・
+  覚えた操作ブロックの絵（`window.BlockSvg`）・解放した公式（`getUnlockedFormulaIds()`）。
+  - 紙吹雪は開いたときに1回降らせて終わる。降り続けると読ませたい文字の邪魔になる。
+    `prefers-reduced-motion` の人には JS 側で最初から作らない。
+  - 背景の光は `.tc-burst` の `::before` に描いて親で切り落とす。
+    画面より大きい要素をそのまま置くと、そのぶん縦スクロールが生まれる
+    （`.overlay-screen` は `backdrop-filter` を持つので、中の `fixed` もここを基準にする）。
+  - 1280x720 でもスクロールせずに収まるよう、寸法は vh の clamp で決める。
 
 ## 開発
 - ローカル起動: `python -m http.server 8080` → http://localhost:8080
