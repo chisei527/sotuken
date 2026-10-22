@@ -267,12 +267,8 @@ window.CHARACTER_SCENES = {
       // （例: 'sin(x)^2+cos(x)^2=1'）であって ID ではない。
       // 解説で使う名前や着眼点は ID 引きなので、ここで ID に戻す。
       // これを忘れると、どの公式を使っても「公式」としか言えなくなる。
-      const REG = window.FORMULA_REGISTRY || {};
-      const idOf = (f) => {
-        if (!f) return null;
-        if (REG[f]) return f;
-        return Object.keys(REG).find((k) => REG[k] && REG[k].text === f) || null;
-      };
+      const idOf = (f) => (typeof window.formulaIdFromText === 'function')
+        ? window.formulaIdFromText(f) : null;
       // 締めの「使った順番」で出す短い呼び名
       const shortName = {
         formula_1: '公式①', formula_2: '公式②', formula_3: '公式③',

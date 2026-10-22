@@ -34,6 +34,26 @@
       },
     },
     {
+      // 基礎④の手順①「左辺と右辺のちがいを言葉にする」を代わりにやってみせる。
+      // 次の一手は言わない（それはヒント）。何を目指すのかだけを言う。
+      key: 'goal',
+      label: '左辺と右辺をくらべて',
+      subLabel: '何が目標？',
+      onSelect: () => {
+        if (typeof window.runPalGoalCompare === 'function') window.runPalGoalCompare();
+      },
+    },
+    {
+      // 盤面のブロックを、紙に書く答案の形に起こして見せる。
+      // 合っているかは言わない（それは「いまの式を見て」）。
+      key: 'writeup',
+      label: '答案にすると？',
+      subLabel: '紙に書く形で見せる',
+      onSelect: () => {
+        if (typeof window.runPalWriteup === 'function') window.runPalWriteup();
+      },
+    },
+    {
       key: 'hint',
       label: 'ヒント',
       subLabel: 'OFF',

@@ -86,7 +86,8 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
 - パルの解説は `answer_reveal_pal_explain`（character-data.js の `buildLines`）。
   あきらめたあとと自力正解の両方から `openPalExplainDialog()` で開く。`ctx.selfSolved` で言い回しが変わる。
   - **`op.formula` は公式の「式のテキスト」で ID ではない**（`parseBlocksToAST` が `FORMULA_REGISTRY[type].text` を入れるため）。
-    名前や着眼点を引くときは `idOf()` で ID に戻す。忘れるとどの公式も「公式」としか言えなくなる。
+    名前や着眼点を引くときは `window.formulaIdFromText()`（math-logic.js）で ID に戻す。
+    忘れるとどの公式も「公式」としか言えなくなる。引き直しは各所で書かず、この1本を使う。
   - 公式を増やしたら `formulaName` と `noticeHint` にも足す。無いと名前が出ない。
 - 公式解説モーダルの中身は `explanations.js`。各公式は 意味/導出/使いどころ に加えて
   `lecture` を持てる（`intro` / `steps`（導出を1手ずつ）/ `examples`（例題）/ `pitfalls` / `quiz`）。
@@ -102,7 +103,7 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
     大きくすれば盤面を隠す。「呼ぶときだけ大きく」でそれを解いた。
   - 引っ込むのは、外側をクリック・「閉じる」・呼び出しボタンをもう一度・会話が始まったとき
     （会話パネルにもパルが出るので、2人いるように見えないように）。
-  - 呼び出しボタンは4つの操作ボタンの並びに入れず、右はしに絶対配置する（並びの中心をずらさない）。
+  - 呼び出しボタンは「正解をチェック」のすぐ右。役割が違うので、ひとつぶん余分に間をあけて塗らない。
   - パル本体は `.action-bar-container` の中に入れてある。`bottom: 100%` でボタン列の高さに自動で乗る。
   - 元画像(900x491)は横長で、本体は横幅の 0.33〜0.665・縦の 0.10〜0.92 あたりだけ。
     枠で切り抜いて本体だけを見せている（呼び出しボタンの丸は顔だけ）。寸法は `styles/mascot.css` のコメント参照。
@@ -115,6 +116,21 @@ Blockly + math.js の数式パズル。ビルド不要の素の JavaScript（ind
   - 公式の候補（`suggestions`）は出さない。次の一手を教えるのはヒントの仕事。
   - 返事は `#pal-speech`（z 1700）。パルの左どなりに出す。
     盤面を動かしたら畳む（古い返事を残さない）。
+- **「左辺と右辺をくらべて」**（`runPalGoalCompare` / app-guide.js）がもう1つの仕事。
+  基礎④の手順①「左辺と右辺のちがいを言葉にする」を、その問題について代わりにやってみせる。
+  次の一手は言わない（それはヒント）。「何を目指すのか」だけを言う。
+  - くらべる材料は `getInitialLeftExpression` / `getInitialRightExpression`（math-logic.js から公開）。
+  - `expressionFeatures()` が math.js の AST を見て、出てくる関数・分数かどうか・項の数・
+    角の種類と「和の角」かどうかを拾う。
+    **ブロックから起こした式は丸ごとかっこで包まれていることが多い**ので、
+    項を数える前に `ParenthesisNode` を外す（外さないと全部「ひとかたまり」になる）。
+- **「答案にすると？」**（`runPalWriteup` / app-guide.js）が3つめの仕事。
+  盤面のブロックを、紙に書く答案（＝ でつないだ式の列＋右に「公式② より」などの根拠）に起こす。
+  合っているかは言わない（それは「いまの式を見て」）。
+  - 吹き出しの中だけ3列のグリッドにして「=」を桁でそろえる。長い式は横スクロールにせず折り返す
+    （切れていると壊れて見えるため）。`showPalSpeech(..., {html:true, wide:true})`。
+  - 一手の根拠は `FORMULA_REGISTRY[id].label`。`op.formula` はテキストなので
+    `window.formulaIdFromText()`（math-logic.js）で ID に戻してから引く。
 - ログは `event_logs` に新しい行を作らず、`submit` / `giveup` の payload に `checks_used` として入れる。
   **event_type を増やすと DB の check 制約に引っかかって、ログ送信がまるごと止まる**ため。
   分析用ビューの列追加は `supabase/migrations/20261007120000_pal_check_column.sql`

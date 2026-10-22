@@ -14,13 +14,10 @@
         .action-bar-container { position: relative; }
 
         /* ==== 呼び出しボタン ====
-           4つの操作ボタン（リセット〜正解をチェック）とは役割が違うので、
-           中央の並びには入れず、右端に絶対配置する。並びの中心はずらさない。 */
+           「正解をチェック」のすぐ右。並びの一員だが役割が違うので、
+           ひとつぶん余分に間をあけて、塗りもしない。 */
         .pal-call-btn {
-          position: absolute;
-          right: clamp(10px, 1.4vw, 22px);
-          top: 50%;
-          transform: translateY(-50%);
+          margin-left: 10px;
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -310,6 +307,7 @@
         .pal-speech-body {
           font-size: 0.95rem;
           line-height: 1.85;
+          white-space: pre-line;  /* 返事を1行ずつ改行して読ませる */
         }
         .pal-speech-close {
           position: absolute;
@@ -334,3 +332,54 @@
         .pal-speech.tone-warn { border-left-color: #fbbf24; }
         .pal-speech.tone-warn .pal-speech-head { color: #fcd34d; }
         .pal-speech.tone-info { border-left-color: #64748b; }
+
+        /* ==== 答案の清書（パルの「答案にすると？」） ====
+           式と根拠を桁でそろえたいので、吹き出しの中だけ3列のグリッドにする。
+           「=」を左の列にそろえると、紙に書いた答案と同じ形に見える。 */
+        .pal-speech.wide { width: min(560px, calc(100vw - 24px)); }
+        .pal-writeup {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          column-gap: 10px;
+          row-gap: 6px;
+          align-items: baseline;
+          margin: 2px 0 10px 0;
+          font-family: var(--font-math);
+          font-size: 1.02rem;
+        }
+        .pal-writeup-row { display: contents; }
+        .pal-writeup-eq {
+          text-align: right;
+          white-space: nowrap;
+          color: #9fc0de;
+        }
+        /* 長い式は紙の答案と同じで、次の行に折り返す。
+           横スクロールにすると、はみ出した部分が見えないまま切れて壊れて見える。 */
+        .pal-writeup-expr {
+          color: #eaf4ff;
+          overflow-wrap: anywhere;
+        }
+        /* 根拠は答案の右端に小さく。式より目立たせない。 */
+        .pal-writeup-why {
+          white-space: nowrap;
+          font-family: var(--font-ui);
+          font-size: 0.76rem;
+          color: #8fb0cc;
+        }
+        .pal-writeup-end {
+          grid-column: 1 / -1;
+          margin-top: 6px;
+          padding-top: 8px;
+          border-top: 1px solid var(--hairline);
+          color: #eaf4ff;
+          overflow-wrap: anywhere;
+        }
+        .pal-speech-body .pal-writeup-note {
+          font-family: var(--font-ui);
+          font-size: 0.82rem;
+          line-height: 1.7;
+          color: #8fb0cc;
+        }
+        /* グリッドの中に入る注記（まだ「よって」が無いとき）は1行まるごと使う */
+        .pal-writeup > .pal-writeup-note { grid-column: 1 / -1; margin-top: 4px; }
+        .pal-writeup + .pal-writeup-note { margin-top: 2px; }
