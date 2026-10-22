@@ -343,11 +343,34 @@
           font-weight: 500;
           line-height: 1.6;
           text-align: left;
-          pointer-events: none;
+          /* × を押せるようにする。none にしていたせいで、自動で消えない知らせが
+             盤面にかぶったまま触ることもできなかった。 */
+          pointer-events: auto;
           opacity: 1;
           transition: opacity 0.2s ease, transform 0.2s ease;
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding-right: 12px;
         }
+        #toast-message .toast-body { flex: 1 1 auto; min-width: 0; }
+        #toast-message .toast-close {
+          flex: 0 0 auto;
+          width: 26px;
+          height: 26px;
+          margin-top: -2px;
+          padding: 0;
+          border-radius: 50%;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          color: #9fc0de;
+          font-size: 0.9rem;
+          line-height: 1;
+          cursor: pointer;
+        }
+        #toast-message .toast-close:hover { background: rgba(255,255,255,0.08); color: #eaf4ff; }
         #toast-message.hidden {
+          pointer-events: none;
           opacity: 0;
           transform: translateX(-50%) translateY(6px);
           /* display:none にすると消えるときのアニメーションが効かない */

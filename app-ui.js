@@ -57,13 +57,26 @@ window.closeGameEntrance = function() {
 };
 
 // 4. 画面下部に通知メッセージ（トースト）を出す
+// isAutoClose を false にすると自分からは消えない。
+// その場合でも必ず × で閉じられるようにする
+// （閉じる手段が無いと、盤面にかぶったまま二度と消えなくなる）。
+window.hideToast = function() {
+  const el = document.getElementById('toast-message');
+  if (el) el.classList.add('hidden');
+};
+
+let _toastTimer = null;
 window.showToast = function(htmlContent, isAutoClose = true) {
   const toastElement = document.getElementById('toast-message');
-  if (toastElement) {
-      toastElement.innerHTML = htmlContent;
-      toastElement.classList.remove('hidden');
-      if (isAutoClose) setTimeout(() => toastElement.classList.add('hidden'), 3000);
-  }
+  if (!toastElement) return;
+
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  toastElement.innerHTML =
+    `<span class="toast-body">${htmlContent}</span>`
+    + `<button class="toast-close" type="button" aria-label="閉じる">×</button>`;
+  toastElement.querySelector('.toast-close').addEventListener('click', window.hideToast);
+  toastElement.classList.remove('hidden');
+  if (isAutoClose) _toastTimer = setTimeout(window.hideToast, 3000);
 };
 
 // 5. 炎の連動正解カウンターをアニメーション付きで更新する

@@ -13,7 +13,9 @@
   }
   function toast(msg, isError) {
     if (typeof window.showToast !== 'function') return;
-    window.showToast(isError ? `<span style='color:#ff4b4b'>${msg}</span>` : msg, false);
+    // 失敗の知らせは読み落とさないよう残す。うまくいった知らせは自分で消える。
+    // （「ご協力ありがとうございます！」が盤面に出たまま消えなかった）
+    window.showToast(isError ? `<span style='color:#ff4b4b'>${msg}</span>` : msg, !isError);
   }
 
   // ------------------------------------------------------------
